@@ -1,15 +1,37 @@
-import { useState, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import html2canvas from 'html2canvas';
 import JSZip from 'jszip';
+import InteriorPreview, { type InteriorPalette } from './InteriorPreviews';
+import { hexToHsl, hslToHex } from '../utils/colorUtils';
+
+export type SupportPaletteVariant = 'claro' | 'oscuro';
+
+export interface SupportColorItem {
+  role: string;
+  label: string;
+  initial: string;
+  hex: string;
+}
 
 interface ApplicationShowcaseProps {
   colors: string[];
   paletteName?: string;
   onUpdateColors?: (newColors: string[]) => void;
+  /** Paleta de apoyo (según variante claro/oscuro) para recuadro "Tu paleta de apoyo" y selector Estilo */
+  supportColorsList?: SupportColorItem[];
+  supportVariant?: SupportPaletteVariant;
+  setSupportVariant?: (v: SupportPaletteVariant) => void;
+  updateSupportColor?: (role: string, hex: string) => void;
 }
 
-type CategoryType = 'logos' | 'posters' | 'cards' | 'digital' | 'social' | 'print' | 'patterns' | 'merch' | 'spaces';
+type EditingInRightColumn =
+  | null
+  | { type: 'main'; index: number }
+  | { type: 'support'; role: string }
+  | { type: 'background' };
+
+type CategoryType = 'architecture' | 'poster' | 'branding';
 
 interface VariantInfo {
   id: string;
@@ -19,189 +41,137 @@ interface VariantInfo {
 
 const categories: { id: CategoryType; name: string; icon: string; tip: string; variants: VariantInfo[] }[] = [
   {
-    id: 'posters',
-    name: 'Pósters',
+    id: 'architecture',
+    name: 'Arquitectura',
+    icon: '🏠',
+    tip: 'Diseño de interiores: aplica tu paleta a estudios, cafeterías, oficinas y más.',
+    variants: [
+      { id: 'estudio', name: 'Estudio', icon: '🛋️' },
+      { id: 'cafeteria', name: 'Cafetería', icon: '☕' },
+      { id: 'oficina', name: 'Oficina', icon: '🏢' },
+      { id: 'stand', name: 'Stand corporativo', icon: '🏪' },
+      { id: 'fachada', name: 'Fachada corporativa', icon: '🏛️' },
+    ]
+  },
+  {
+    id: 'poster',
+    name: 'Poster',
     icon: '🖼️',
-    tip: 'El color dominante de tu paleta debería ocupar aproximadamente el 60% del diseño.',
+    tip: 'Carteles y pósters: aplica tu paleta con versión claro/oscuro y paleta de apoyo.',
     variants: [
-      { id: 'event', name: 'Evento', icon: '🎭' },
-      { id: 'product', name: 'Producto', icon: '📦' },
-      { id: 'artistic', name: 'Artístico', icon: '🎨' },
-      { id: 'geometric', name: 'Geométrico', icon: '◆' },
-      { id: 'moodboard', name: 'Moodboard', icon: '📌' },
-      { id: 'triptico', name: 'Tríptico', icon: '📄' },
-      { id: 'panel', name: 'Panel', icon: '📐' },
+      { id: 'conference', name: 'Conference', icon: '🎤' },
+      { id: 'exhibition-swiss', name: 'Exhibition Swiss', icon: '🔤' },
+      { id: 'festival-gig', name: 'Festival Gig', icon: '🎸' },
+      { id: 'collage', name: 'Collage', icon: '📢' },
+      { id: 'competition', name: 'Competition', icon: '🏆' },
     ]
   },
   {
-    id: 'logos',
-    name: 'Logos',
-    icon: '🏷️',
-    tip: 'Prueba tu logo sobre diferentes fondos para asegurar su versatilidad y legibilidad.',
+    id: 'branding',
+    name: 'Branding',
+    icon: '🎨',
+    tip: 'Identidad y territorio visual: misma plantilla A3/A2, modos claro/oscuro y paleta de apoyo.',
     variants: [
-      { id: 'isotipo', name: 'Isotipo', icon: '◇' },
-      { id: 'imagotipo', name: 'Imagotipo', icon: '◈' },
-      { id: 'logotipo', name: 'Logotipo', icon: 'Aa' },
-      { id: 'simbolo', name: 'Símbolo', icon: '✦' },
-      { id: 'mascota', name: 'Mascota', icon: '🎭' },
-      { id: 'monograma', name: 'Monograma', icon: 'AB' },
-    ]
-  },
-  {
-    id: 'cards',
-    name: 'Tarjetas',
-    icon: '💳',
-    tip: 'Las tarjetas de visita deben ser legibles y memorables. Menos es más.',
-    variants: [
-      { id: 'modern', name: 'Moderna', icon: '✨' },
-      { id: 'classic', name: 'Clásica', icon: '📜' },
-      { id: 'bold', name: 'Bold', icon: '💪' },
-      { id: 'minimal', name: 'Minimal', icon: '〰️' },
-      { id: 'creative', name: 'Creativa', icon: '🎯' },
-    ]
-  },
-  {
-    id: 'digital',
-    name: 'Digital',
-    icon: '📱',
-    tip: 'Asegúrate de mantener suficiente contraste para la accesibilidad web.',
-    variants: [
-      { id: 'mobile', name: 'App Móvil', icon: '📱' },
-      { id: 'web', name: 'Web', icon: '🌐' },
-      { id: 'dashboard', name: 'Dashboard', icon: '📊' },
-      { id: 'ecommerce', name: 'E-commerce', icon: '🛒' },
-      { id: 'landing', name: 'Landing', icon: '🚀' },
-    ]
-  },
-  {
-    id: 'social',
-    name: 'Redes',
-    icon: '📲',
-    tip: 'Los colores vibrantes funcionan mejor en redes sociales para captar la atención.',
-    variants: [
-      { id: 'post', name: 'Post', icon: '📷' },
-      { id: 'story', name: 'Story', icon: '📱' },
-      { id: 'banner', name: 'Banner', icon: '🖼️' },
-      { id: 'profile', name: 'Perfil', icon: '👤' },
-      { id: 'carousel', name: 'Carrusel', icon: '🎠' },
-    ]
-  },
-  {
-    id: 'patterns',
-    name: 'Patrones',
-    icon: '🔲',
-    tip: 'Los patrones son perfectos para fondos, packaging y textiles. Prueba diferentes escalas.',
-    variants: [
-      { id: 'geometric', name: 'Geométrico', icon: '◆' },
-      { id: 'organic', name: 'Orgánico', icon: '🌊' },
-      { id: 'dots', name: 'Puntos', icon: '●' },
-      { id: 'lines', name: 'Líneas', icon: '═' },
-      { id: 'abstract', name: 'Abstracto', icon: '✧' },
-    ]
-  },
-  {
-    id: 'print',
-    name: 'Impresión',
-    icon: '🖨️',
-    tip: 'Recuerda que los colores pueden variar ligeramente al imprimir. Usa CMYK para producción.',
-    variants: [
-      { id: 'letterhead', name: 'Membrete', icon: '📄' },
-      { id: 'envelope', name: 'Sobre', icon: '✉️' },
-      { id: 'folder', name: 'Carpeta', icon: '📁' },
-      { id: 'packaging', name: 'Packaging', icon: '📦' },
-    ]
-  },
-  {
-    id: 'merch',
-    name: 'Merchandising',
-    icon: '👕',
-    tip: 'El merchandising refuerza la identidad de marca. Asegúrate de que el logo sea legible en diferentes tamaños.',
-    variants: [
-      { id: 'tshirt', name: 'Camiseta', icon: '👕' },
-      { id: 'totebag', name: 'Totebag', icon: '🛍️' },
-      { id: 'notebook', name: 'Libreta', icon: '📓' },
-      { id: 'cup', name: 'Vaso café', icon: '☕' },
-      { id: 'lanyard', name: 'Lanyard', icon: '🎫' },
-    ]
-  },
-  {
-    id: 'spaces',
-    name: 'Espacios',
-    icon: '🏢',
-    tip: 'El branding en espacios debe ser coherente y crear una experiencia inmersiva de marca.',
-    variants: [
-      { id: 'office', name: 'Oficina', icon: '🏢' },
-      { id: 'retail', name: 'Retail', icon: '🏪' },
-      { id: 'billboard', name: 'Billboard', icon: '🪧' },
-      { id: 'objects3d', name: 'Objetos 3D', icon: '🎲' },
-      { id: 'facade', name: 'Fachada', icon: '🏗️' },
+      { id: 'territorio-visual', name: 'Territorio visual', icon: '🌿' },
     ]
   },
 ];
 
-// Helper function
-function hexToHsl(hex: string): { h: number; s: number; l: number } {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  if (!result) return { h: 0, s: 50, l: 50 };
-  
-  let r = parseInt(result[1], 16) / 255;
-  let g = parseInt(result[2], 16) / 255;
-  let b = parseInt(result[3], 16) / 255;
-  
-  const max = Math.max(r, g, b), min = Math.min(r, g, b);
-  let h = 0, s = 0;
-  const l = (max + min) / 2;
+/** Iconos SVG por categoría (24x24) para el menú de aplicación */
+const CategoryIcons: Record<CategoryType, React.ReactNode> = {
+  architecture: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z" />
+    </svg>
+  ),
+  poster: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+    </svg>
+  ),
+  branding: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
+    </svg>
+  ),
+};
 
-  if (max !== min) {
-    const d = max - min;
-    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-    switch (max) {
-      case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
-      case g: h = ((b - r) / d + 2) / 6; break;
-      case b: h = ((r - g) / d + 4) / 6; break;
-    }
-  }
-  
-  return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
+/** Póster: dimensiones y escala compartidas (proporción A3/A2). */
+const POSTER_BASE_WIDTH = 620;
+const POSTER_HEIGHT = Math.round(POSTER_BASE_WIDTH * Math.SQRT2);
+const POSTER_SCALE = 0.78;
+/** Altura de referencia 620×826 para pósters Swiss y Festival Gig (escalado a POSTER_HEIGHT). */
+const POSTER_REF_HEIGHT = 826;
+/** Índices de la rejilla decorativa tipo QR en el pie del póster Conference (celdas rellenas). */
+const CONFERENCE_QR_FILL_INDICES = [0, 1, 3, 4, 5, 7, 8, 10, 12, 13, 15];
+
+/** Póster Collage: clip-path de los bloques y URLs de grano (feTurbulence). */
+const COLLAGE_CLIP_1 = 'polygon(0% 0%, 100% 0%, 100% 2%, 98% 3%, 100% 5%, 99% 8%, 100% 12%, 98% 18%, 100% 25%, 99% 35%, 100% 45%, 98% 55%, 100% 65%, 99% 72%, 100% 80%, 97% 88%, 100% 92%, 99% 96%, 100% 100%, 0% 100%, 1% 95%, 0% 90%, 2% 85%, 0% 78%, 1% 70%, 0% 60%, 2% 50%, 0% 40%, 1% 30%, 0% 20%, 2% 10%)';
+const COLLAGE_CLIP_2 = 'polygon(2% 0%, 5% 2%, 10% 0%, 18% 1%, 25% 0%, 35% 2%, 45% 0%, 55% 1%, 65% 0%, 75% 2%, 85% 0%, 92% 1%, 100% 0%, 100% 100%, 95% 98%, 88% 100%, 80% 99%, 70% 100%, 60% 98%, 50% 100%, 40% 99%, 30% 100%, 20% 98%, 10% 100%, 3% 99%, 0% 100%, 0% 0%)';
+const COLLAGE_CLIP_3 = 'polygon(3% 2%, 8% 0%, 15% 3%, 25% 0%, 40% 2%, 55% 0%, 70% 3%, 85% 1%, 95% 3%, 100% 0%, 100% 100%, 97% 97%, 90% 100%, 80% 98%, 65% 100%, 50% 97%, 35% 100%, 20% 98%, 8% 100%, 0% 97%, 0% 3%)';
+const COLLAGE_CLIP_5 = 'polygon(0% 5%, 5% 0%, 20% 3%, 40% 0%, 60% 4%, 80% 0%, 95% 2%, 100% 0%, 100% 95%, 95% 100%, 75% 97%, 55% 100%, 35% 98%, 15% 100%, 0% 96%)';
+const COLLAGE_GRAIN_URL = "data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='np'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23np)'/%3E%3C/svg%3E";
+const COLLAGE_GRAIN2_URL = "data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='nq'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23nq)'/%3E%3C/svg%3E";
+
+/** Póster Competition: URLs de texturas (grano + papel). */
+const COMPETITION_GRAIN_URL = "data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='nc'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23nc)'/%3E%3C/svg%3E";
+const COMPETITION_PAPER_URL = "data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='pc'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='5' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23pc)'/%3E%3C/svg%3E";
+
+/** Branding Territorio visual: grano y kraft (ids únicos nb, bk). */
+const BRANDING_GRAIN_URL = "data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='nb'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23nb)'/%3E%3C/svg%3E";
+const BRANDING_KRAFT_URL = "data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='bk'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.5' numOctaves='6' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23bk)'/%3E%3C/svg%3E";
+
+/** Inicial y nombre por posición en la paleta principal (igual que en Refinar). */
+const PALETTE_ROLE_LABELS: { initial: string; label: string }[] = [
+  { initial: 'P', label: 'Principal' },
+  { initial: 'S', label: 'Secundario' },
+  { initial: 'A', label: 'Acento' },
+  { initial: 'A2', label: 'Acento 2' },
+  { initial: 'P2', label: 'Principal 2' },
+  { initial: 'S2', label: 'Secundario 2' },
+  { initial: 'A3', label: 'Acento 3' },
+  { initial: 'A4', label: 'Acento 4' },
+];
+
+function getMainPaletteRole(index: number): { initial: string; label: string } {
+  return PALETTE_ROLE_LABELS[index] ?? { initial: String(index + 1), label: `Color ${index + 1}` };
 }
 
-function hslToHex(h: number, s: number, l: number): string {
-  s /= 100;
-  l /= 100;
-  const a = s * Math.min(l, 1 - l);
-  const f = (n: number) => {
-    const k = (n + h / 30) % 12;
-    const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-    return Math.round(255 * color).toString(16).padStart(2, '0');
-  };
-  return `#${f(0)}${f(8)}${f(4)}`;
-}
-
-// getContrastColor removed - not used
-
-export default function ApplicationShowcase({ colors, paletteName, onUpdateColors }: ApplicationShowcaseProps) {
-  const [activeCategory, setActiveCategory] = useState<CategoryType>('posters');
+export default function ApplicationShowcase({
+  colors,
+  paletteName,
+  onUpdateColors,
+  supportColorsList = [],
+  supportVariant = 'claro',
+  setSupportVariant,
+  updateSupportColor,
+}: ApplicationShowcaseProps) {
+  const [activeCategory, setActiveCategory] = useState<CategoryType>('architecture');
+  /** Cuando no es null, la columna derecha muestra solo la interfaz de edición de color (en lugar de Estilo/Fondo/Exportar/paletas). */
+  const [editingInRightColumn, setEditingInRightColumn] = useState<EditingInRightColumn>(null);
+  const editingRef = useRef<EditingInRightColumn>(null);
+  editingRef.current = editingInRightColumn;
+  const [hoveredMainIndex, setHoveredMainIndex] = useState<number | null>(null);
+  const [hoveredSupportRole, setHoveredSupportRole] = useState<string | null>(null);
   const [activeVariants, setActiveVariants] = useState<Record<CategoryType, string>>({
-    logos: 'isotipo',
-    posters: 'event',
-    cards: 'modern',
-    digital: 'mobile',
-    social: 'post',
-    patterns: 'geometric',
-    print: 'letterhead',
-    merch: 'tshirt',
-    spaces: 'office',
+    architecture: 'estudio',
+    poster: 'conference',
+    branding: 'territorio-visual',
   });
-  const [bgMode, setBgMode] = useState<'light' | 'dark' | 'color'>('dark');
+  const [bgMode, setBgMode] = useState<'light' | 'dark' | 'color' | 'custom'>('dark');
+  const [customBgColor, setCustomBgColor] = useState('#6366f1');
   const [isExporting, setIsExporting] = useState(false);
   const [isExportingAll, setIsExportingAll] = useState(false);
   const [exportProgress, setExportProgress] = useState({ current: 0, total: 0 });
   const previewRef = useRef<HTMLDivElement>(null);
-  const [editingColorIndex, setEditingColorIndex] = useState<number | null>(null);
   const [localColors, setLocalColors] = useState<string[]>(colors);
+
+  /** Clase del tooltip al pasar el ratón sobre un color en las paletas (igual que en Refinar). */
+  const paletteSwatchTooltipClass = 'absolute -top-6 left-1/2 -translate-x-1/2 z-10 px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap bg-gray-700 text-gray-200 shadow-lg';
   
-  // Sync local colors with props
-  if (JSON.stringify(colors) !== JSON.stringify(localColors) && editingColorIndex === null) {
+  // Sync local colors with props (no sync while editing a main palette color in the column)
+  const isEditingMain = editingInRightColumn?.type === 'main';
+  if (JSON.stringify(colors) !== JSON.stringify(localColors) && !isEditingMain) {
     setLocalColors(colors);
   }
   
@@ -380,1868 +350,939 @@ export default function ApplicationShowcase({ colors, paletteName, onUpdateColor
 
   const getColor = (index: number) => colors[index % colors.length];
 
+  /**
+   * Paleta para previews de interiores, unificada con Refinar y Armonía:
+   * - primary, secondary, accent = paleta principal (Principal, Secundario, Acento = índices 0, 1, 2).
+   * - background, surface, muted = paleta de apoyo según variante claro/oscuro (fondo, sobrefondo, texto fino),
+   *   igual que en Refinar; si no hay paleta de apoyo, se usan índices 3–5 o valores por defecto.
+   */
+  const getInteriorColors = (): InteriorPalette => {
+    const main = (i: number) => localColors[i % localColors.length] ?? getColor(i);
+    const fondo = supportColorsList.find((s) => s.role === 'fondo')?.hex;
+    const sobrefondo = supportColorsList.find((s) => s.role === 'sobrefondo')?.hex;
+    const textoFino = supportColorsList.find((s) => s.role === 'texto fino')?.hex;
+    const texto = supportColorsList.find((s) => s.role === 'texto')?.hex;
+    return {
+      primary: main(0),
+      secondary: main(1),
+      accent: main(2),
+      background: fondo ?? main(3) ?? '#1a1a2e',
+      surface: sobrefondo ?? main(4) ?? '#2d2d44',
+      muted: textoFino ?? texto ?? main(5) ?? '#6b7280',
+    };
+  };
+
+  /** Paleta para pósters: igual que interiores + text (texto) y textLight (texto fino) de paleta de apoyo. */
+  const getPosterColors = () => {
+    const base = getInteriorColors();
+    const texto = supportColorsList.find((s) => s.role === 'texto')?.hex;
+    const textoFino = supportColorsList.find((s) => s.role === 'texto fino')?.hex;
+    return {
+      ...base,
+      text: texto ?? base.muted ?? '#e5e7eb',
+      textLight: textoFino ?? base.muted ?? '#9ca3af',
+    };
+  };
+
   const getBgColor = () => {
     switch (bgMode) {
       case 'light': return '#ffffff';
       case 'dark': return '#1a1a2e';
       case 'color': return getColor(0);
+      case 'custom': return customBgColor;
     }
   };
 
-  // Logo Variants
-  const renderLogos = () => {
-    switch (currentVariant) {
-      case 'isotipo':
-        return (
-          <div className="flex gap-8 flex-wrap justify-center items-center">
-            {/* Solo símbolo - diferentes fondos */}
-            <div className="bg-white p-8 rounded-xl shadow-lg">
-              <div className="w-20 h-20 rounded-2xl flex items-center justify-center" style={{ backgroundColor: getColor(0) }}>
-                <div className="w-12 h-12 border-4 border-white rounded-full" />
-              </div>
-            </div>
-            <div className="bg-gray-900 p-8 rounded-xl">
-              <div className="w-20 h-20 rounded-2xl flex items-center justify-center" style={{ backgroundColor: getColor(1) }}>
-                <div className="w-8 h-8 bg-white rotate-45" />
-              </div>
-            </div>
-            <div className="p-8 rounded-xl" style={{ backgroundColor: getColor(0) }}>
-              <div className="w-20 h-20 rounded-2xl bg-white/20 flex items-center justify-center">
-                <div className="w-10 h-10 rounded-full bg-white" />
-              </div>
-            </div>
-          </div>
-        );
-      case 'imagotipo':
-        return (
-          <div className="flex gap-6 flex-wrap justify-center">
-            {/* Símbolo + texto lado */}
-            <div className="bg-white p-8 rounded-xl shadow-lg">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-xl flex items-center justify-center" style={{ backgroundColor: getColor(0) }}>
-                  <div className="w-8 h-8 border-3 border-white rounded-lg rotate-45" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold" style={{ color: getColor(0) }}>brand</div>
-                  <div className="text-xs text-gray-400 tracking-widest">STUDIO</div>
-                </div>
-              </div>
-            </div>
-            {/* Símbolo + texto abajo */}
-            <div className="bg-gray-900 p-8 rounded-xl">
-              <div className="flex flex-col items-center gap-3">
-                <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ backgroundColor: getColor(1) }}>
-                  <div className="w-6 h-6 bg-white rounded-sm" />
-                </div>
-                <div className="text-white text-xl font-light tracking-widest">BRAND</div>
-              </div>
-            </div>
-          </div>
-        );
-      case 'logotipo':
-        return (
-          <div className="flex flex-col gap-6 items-center">
-            <div className="bg-white p-8 rounded-xl shadow-lg">
-              <span className="text-5xl font-black tracking-tight">
-                {colors.slice(0, 5).map((color, i) => (
-                  <span key={i} style={{ color }}>{'BRAND'[i]}</span>
-                ))}
-              </span>
-            </div>
-            <div className="flex gap-4">
-              <div className="bg-gray-900 px-8 py-4 rounded-xl">
-                <span className="text-3xl font-light text-white tracking-[0.3em]">BRAND</span>
-              </div>
-              <div className="px-8 py-4 rounded-xl" style={{ backgroundColor: getColor(0) }}>
-                <span className="text-3xl font-black text-white">brand.</span>
-              </div>
-            </div>
-          </div>
-        );
-      case 'simbolo':
-        return (
-          <div className="flex gap-6 flex-wrap justify-center">
-            {/* Formas abstractas */}
-            <div className="bg-white p-8 rounded-xl shadow-lg">
-              <div className="w-24 h-24 relative">
-                <div className="absolute inset-0 rounded-full" style={{ backgroundColor: getColor(0), opacity: 0.8 }} />
-                <div className="absolute inset-2 rounded-full" style={{ backgroundColor: getColor(1), opacity: 0.8 }} />
-                <div className="absolute inset-4 rounded-full" style={{ backgroundColor: getColor(2), opacity: 0.9 }} />
-              </div>
-            </div>
-            <div className="bg-gray-900 p-8 rounded-xl">
-              <div className="w-24 h-24 relative flex items-center justify-center">
-                <div className="w-20 h-20 rotate-45" style={{ backgroundColor: getColor(0) }} />
-                <div className="absolute w-12 h-12 rounded-full bg-gray-900" />
-                <div className="absolute w-8 h-8 rounded-full" style={{ backgroundColor: getColor(1) }} />
-              </div>
-            </div>
-            <div className="p-8 rounded-xl" style={{ backgroundColor: getColor(2) }}>
-              <div className="w-24 h-24 relative">
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-12 h-12 rounded-full bg-white/80" />
-                <div className="absolute bottom-0 left-0 w-12 h-12 rounded-full bg-white/60" />
-                <div className="absolute bottom-0 right-0 w-12 h-12 rounded-full bg-white/40" />
-              </div>
-            </div>
-          </div>
-        );
-      case 'mascota':
-        return (
-          <div className="flex gap-8 flex-wrap justify-center items-center">
-            {/* Mascota 1: Estilo flat/corporativo */}
-            <div className="bg-white p-6 rounded-2xl shadow-xl">
-              <div className="w-32 h-36 relative">
-                {/* Cuerpo */}
-                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-24 h-20 rounded-[40%_40%_50%_50%]" style={{ backgroundColor: getColor(0) }}>
-                  {/* Patas */}
-                  <div className="absolute -bottom-1 left-3 w-4 h-5 rounded-b-full" style={{ backgroundColor: getColor(0) }} />
-                  <div className="absolute -bottom-1 right-3 w-4 h-5 rounded-b-full" style={{ backgroundColor: getColor(0) }} />
-                  {/* Barriga */}
-                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-14 h-10 rounded-[50%] bg-white/20" />
-                </div>
-                {/* Cabeza */}
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-20 h-20 rounded-full" style={{ backgroundColor: getColor(0) }}>
-                  {/* Orejas */}
-                  <div className="absolute -top-1 left-0 w-5 h-7 rounded-[50%_50%_50%_50%] rotate-[-20deg]" style={{ backgroundColor: getColor(1) }} />
-                  <div className="absolute -top-1 right-0 w-5 h-7 rounded-[50%_50%_50%_50%] rotate-[20deg]" style={{ backgroundColor: getColor(1) }} />
-                  {/* Cara */}
-                  <div className="absolute top-6 left-4 w-4 h-4 rounded-full bg-white flex items-center justify-center">
-                    <div className="w-2 h-2 rounded-full bg-gray-900" />
-                  </div>
-                  <div className="absolute top-6 right-4 w-4 h-4 rounded-full bg-white flex items-center justify-center">
-                    <div className="w-2 h-2 rounded-full bg-gray-900" />
-                  </div>
-                  {/* Nariz */}
-                  <div className="absolute bottom-5 left-1/2 -translate-x-1/2 w-3 h-2 rounded-full" style={{ backgroundColor: getColor(2) }} />
-                  {/* Mejillas */}
-                  <div className="absolute bottom-4 left-1 w-3 h-2 rounded-full opacity-50" style={{ backgroundColor: getColor(1) }} />
-                  <div className="absolute bottom-4 right-1 w-3 h-2 rounded-full opacity-50" style={{ backgroundColor: getColor(1) }} />
-                </div>
-              </div>
-              <div className="text-center mt-3">
-                <span className="text-sm font-bold" style={{ color: getColor(0) }}>BUDDY</span>
-              </div>
-            </div>
-            
-            {/* Mascota 2: Estilo geométrico moderno */}
-            <div className="bg-gray-900 p-6 rounded-2xl">
-              <div className="w-32 h-36 relative flex items-center justify-center">
-                {/* Cuerpo hexagonal */}
-                <div className="absolute w-24 h-28 flex flex-col items-center">
-                  {/* Cabeza */}
-                  <div className="w-16 h-16 rotate-45 rounded-lg relative" style={{ backgroundColor: getColor(1) }}>
-                    <div className="absolute inset-0 -rotate-45 flex items-center justify-center">
-                      {/* Ojos */}
-                      <div className="flex gap-4">
-                        <div className="w-3 h-4 bg-white rounded-full" />
-                        <div className="w-3 h-4 bg-white rounded-full" />
-                      </div>
-                    </div>
-                  </div>
-                  {/* Cuerpo */}
-                  <div className="w-20 h-14 -mt-2 rounded-b-3xl" style={{ backgroundColor: getColor(1) }}>
-                    <div className="w-full h-full flex items-center justify-center pt-2">
-                      <div className="w-10 h-8 rounded-full" style={{ backgroundColor: getColor(2) }} />
-                    </div>
-                  </div>
-                </div>
-                {/* Antenas */}
-                <div className="absolute top-0 left-6 w-1.5 h-6 rounded-full" style={{ backgroundColor: getColor(2) }} />
-                <div className="absolute top-0 right-6 w-1.5 h-6 rounded-full" style={{ backgroundColor: getColor(2) }} />
-                <div className="absolute top-0 left-5 w-3 h-3 rounded-full" style={{ backgroundColor: getColor(0) }} />
-                <div className="absolute top-0 right-5 w-3 h-3 rounded-full" style={{ backgroundColor: getColor(0) }} />
-              </div>
-              <div className="text-center mt-2">
-                <span className="text-sm font-bold text-white/70">HEXY</span>
-              </div>
-            </div>
-            
-            {/* Mascota 3: Badge/emblema */}
-            <div className="p-6 rounded-2xl" style={{ backgroundColor: getColor(0) + '20' }}>
-              <div className="w-32 h-36 relative flex items-center justify-center">
-                <div className="w-28 h-28 rounded-full border-4 flex items-center justify-center" style={{ borderColor: getColor(0) }}>
-                  <div className="w-20 h-20 rounded-full flex items-center justify-center relative" style={{ backgroundColor: getColor(0) }}>
-                    {/* Cara minimalista */}
-                    <div className="absolute top-5 flex gap-3">
-                      <div className="w-2 h-3 rounded-full bg-white" />
-                      <div className="w-2 h-3 rounded-full bg-white" />
-                    </div>
-                    <div className="absolute bottom-5 w-6 h-2 border-b-2 border-white rounded-full" />
-                  </div>
-                </div>
-                {/* Corona */}
-                <div className="absolute -top-2 left-1/2 -translate-x-1/2">
-                  <div className="flex gap-1">
-                    <div className="w-2 h-4 rounded-t-full" style={{ backgroundColor: getColor(1) }} />
-                    <div className="w-2 h-6 rounded-t-full" style={{ backgroundColor: getColor(2) }} />
-                    <div className="w-2 h-4 rounded-t-full" style={{ backgroundColor: getColor(1) }} />
-                  </div>
-                </div>
-              </div>
-              <div className="text-center mt-2">
-                <span className="text-sm font-bold" style={{ color: getColor(0) }}>ROYAL</span>
-              </div>
-            </div>
-          </div>
-        );
-      case 'monograma':
-        return (
-          <div className="flex gap-6 flex-wrap justify-center">
-            <div className="bg-white p-8 rounded-xl shadow-lg">
-              <div className="w-24 h-24 rounded-2xl flex items-center justify-center" style={{ backgroundColor: getColor(0) }}>
-                <span className="text-4xl font-black text-white">AB</span>
-              </div>
-            </div>
-            <div className="bg-white p-8 rounded-xl shadow-lg">
-              <div className="w-24 h-24 rounded-full border-4 flex items-center justify-center" style={{ borderColor: getColor(0) }}>
-                <span className="text-3xl font-light" style={{ color: getColor(0) }}>AB</span>
-              </div>
-            </div>
-            <div className="p-8 rounded-xl" style={{ backgroundColor: getColor(1) }}>
-              <div className="w-24 h-24 flex items-center justify-center relative">
-                <span className="text-5xl font-black text-white/30 absolute -left-1">A</span>
-                <span className="text-5xl font-black text-white absolute left-4">B</span>
-              </div>
-            </div>
-          </div>
-        );
-      default:
-        return null;
-    }
-  };
+  const renderArchitecture = () => (
+    <div className="flex justify-center items-start w-full">
+      <InteriorPreview palette={getInteriorColors()} variant={currentVariant} />
+    </div>
+  );
 
-  // Poster Variants
-  const renderPosters = () => {
-    const posterClass = "w-64 h-80 rounded-xl overflow-hidden shadow-xl";
-    
-    switch (currentVariant) {
-      case 'event':
-        return (
-          <div className="flex gap-6 flex-wrap justify-center">
-            <div className={posterClass} style={{ backgroundColor: getColor(0) }}>
-              <div className="h-full flex flex-col p-6 text-white">
-                <div className="text-xs uppercase tracking-widest opacity-70">Festival de</div>
-                <div className="text-4xl font-black leading-none mt-1">MÚSICA</div>
-                <div className="text-6xl font-black leading-none" style={{ color: getColor(1) }}>2024</div>
-                <div className="flex-1 flex items-center">
-                  <div className="w-full h-px bg-white/30" />
-                </div>
-                <div className="space-y-1">
-                  <div className="text-sm">15—17 Agosto</div>
-                  <div className="text-xs opacity-70">Parque Central</div>
-                </div>
-                <div className="mt-4 px-4 py-2 rounded-full text-center text-sm font-bold" style={{ backgroundColor: getColor(2) }}>
-                  Entradas →
-                </div>
-              </div>
-            </div>
-            <div className={posterClass} style={{ background: `linear-gradient(135deg, ${getColor(0)}, ${getColor(1)})` }}>
-              <div className="h-full flex flex-col p-6 text-white relative overflow-hidden">
-                <div className="absolute -right-10 -top-10 w-40 h-40 rounded-full opacity-20" style={{ backgroundColor: getColor(2) }} />
-                <div className="text-xs uppercase tracking-widest">Conferencia</div>
-                <div className="text-3xl font-black mt-2">DESIGN<br/>WEEK</div>
-                <div className="flex-1" />
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: getColor(2) }} />
-                    <span className="text-sm">10 Speakers</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: getColor(2) }} />
-                    <span className="text-sm">5 Workshops</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+  const renderPosterConference = () => {
+    const c = getPosterColors();
+    return (
+      <div className="flex items-center justify-center w-full h-full min-h-0">
+        <div style={{ transform: `scale(${POSTER_SCALE})`, transformOrigin: 'center center', flexShrink: 0 }}>
+          <div
+            className="relative overflow-hidden shadow-2xl"
+            style={{
+              width: POSTER_BASE_WIDTH,
+              height: POSTER_HEIGHT,
+              backgroundColor: c.background,
+              fontFamily: "'Inter', sans-serif",
+            }}
+          >
+          {/* Background geometric shapes */}
+          <div className="absolute inset-0 overflow-hidden">
+            <div className="absolute -top-24 -right-24 h-80 w-80 rounded-full opacity-15" style={{ backgroundColor: c.accent }} />
+            <div className="absolute bottom-32 -left-8 h-40 w-40 rounded-full opacity-10" style={{ backgroundColor: c.secondary }} />
+            <div className="absolute top-0 right-48 h-full w-px opacity-10" style={{ backgroundColor: c.text }} />
+            <div className="absolute top-1/3 left-0 h-px w-full opacity-5" style={{ backgroundColor: c.text }} />
+            <div className="absolute top-2/3 left-0 h-px w-full opacity-5" style={{ backgroundColor: c.text }} />
+            <svg className="absolute inset-0 h-full w-full opacity-[0.03]">
+              <pattern id="poster-dots-full" x="0" y="0" width="30" height="30" patternUnits="userSpaceOnUse">
+                <circle cx="2" cy="2" r="1" fill={c.text} />
+              </pattern>
+              <rect width="100%" height="100%" fill="url(#poster-dots-full)" />
+            </svg>
           </div>
-        );
-      case 'product':
-        return (
-          <div className="flex gap-6 flex-wrap justify-center">
-            <div className={posterClass} style={{ backgroundColor: '#fff' }}>
-              <div className="h-full flex flex-col">
-                <div className="flex-1 flex items-center justify-center p-6" style={{ backgroundColor: getColor(0) + '15' }}>
-                  <div className="w-32 h-32 rounded-3xl shadow-2xl" style={{ backgroundColor: getColor(0) }} />
-                </div>
-                <div className="p-6">
-                  <div className="text-xs uppercase tracking-widest" style={{ color: getColor(1) }}>Nuevo</div>
-                  <div className="text-xl font-bold text-gray-900">Producto Premium</div>
-                  <div className="text-2xl font-black mt-2" style={{ color: getColor(0) }}>$99</div>
-                </div>
-              </div>
-            </div>
-            <div className={posterClass} style={{ backgroundColor: getColor(0) }}>
-              <div className="h-full flex flex-col p-6 text-white">
-                <div className="text-xs uppercase tracking-widest opacity-70">Colección</div>
-                <div className="text-3xl font-black">VERANO<br/>2024</div>
-                <div className="flex-1 flex items-center justify-center">
-                  <div className="grid grid-cols-2 gap-3">
-                    {colors.slice(0, 4).map((c, i) => (
-                      <div key={i} className="w-16 h-16 rounded-xl shadow-lg" style={{ backgroundColor: c }} />
-                    ))}
-                  </div>
-                </div>
-                <div className="text-center text-sm opacity-70">Descubre más →</div>
-              </div>
-            </div>
-          </div>
-        );
-      case 'artistic':
-        return (
-          <div className="flex gap-6 flex-wrap justify-center">
-            <div className={posterClass} style={{ backgroundColor: '#1a1a2e' }}>
-              <div className="h-full relative overflow-hidden">
-                {colors.map((c, i) => (
-                  <div 
-                    key={i}
-                    className="absolute rounded-full blur-2xl opacity-60"
-                    style={{ 
-                      backgroundColor: c,
-                      width: `${80 + i * 20}px`,
-                      height: `${80 + i * 20}px`,
-                      left: `${10 + i * 30}px`,
-                      top: `${20 + i * 40}px`,
-                    }}
-                  />
-                ))}
-                <div className="absolute bottom-6 left-6 right-6">
-                  <div className="text-white/50 text-xs uppercase tracking-widest">Exhibition</div>
-                  <div className="text-white text-2xl font-light">Abstract Forms</div>
-                </div>
-              </div>
-            </div>
-            <div className={posterClass} style={{ backgroundColor: getColor(0) }}>
-              <div className="h-full relative overflow-hidden">
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-48 h-48 rounded-full border-8 border-white/20" />
-                  <div className="absolute w-32 h-32 rounded-full" style={{ backgroundColor: getColor(1) }} />
-                  <div className="absolute w-16 h-16 rounded-full" style={{ backgroundColor: getColor(2) }} />
-                </div>
-                <div className="absolute bottom-6 left-6 text-white">
-                  <div className="text-3xl font-black">CÍRCULOS</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      case 'moodboard':
-        return (
-          <div className="w-full max-w-2xl mx-auto">
-            <div className="bg-gradient-to-br from-gray-100 to-gray-50 rounded-2xl shadow-xl p-8">
-              {/* Header */}
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <div className="text-xs uppercase tracking-widest text-gray-400">Proyecto</div>
-                  <div className="text-xl font-bold text-gray-800">Brand Identity</div>
-                </div>
-                <div className="flex gap-1.5">
-                  {colors.slice(0, 5).map((c, i) => (
-                    <div key={i} className="w-5 h-5 rounded-full shadow-sm" style={{ backgroundColor: c }} />
-                  ))}
-                </div>
-              </div>
-              
-              {/* Main grid */}
-              <div className="grid grid-cols-4 gap-3">
-                {/* Hero image */}
-                <div className="col-span-2 row-span-2 rounded-xl overflow-hidden relative h-48" style={{ backgroundColor: getColor(0) }}>
-                  <div className="absolute inset-0 flex flex-col justify-end p-4">
-                    <div className="w-16 h-1 rounded mb-2" style={{ backgroundColor: getColor(1) }} />
-                    <span className="text-white text-3xl font-black tracking-tight">VISION</span>
-                    <span className="text-white/60 text-sm">2024 Collection</span>
-                  </div>
-                  <div className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/20" />
-                </div>
-                
-                {/* Texture block */}
-                <div className="rounded-xl h-24 relative overflow-hidden" style={{ background: `linear-gradient(135deg, ${getColor(1)}40, ${getColor(2)}40)` }}>
-                  <div className="absolute inset-0 opacity-30" style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(0,0,0,0.05) 10px, rgba(0,0,0,0.05) 20px)' }} />
-                  <div className="absolute bottom-2 left-2 text-[10px] text-gray-500 uppercase tracking-wider">Textura</div>
-                </div>
-                
-                {/* Typography block */}
-                <div className="rounded-xl h-24 bg-gray-900 flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="text-2xl font-black text-white">Aa</div>
-                    <div className="text-[8px] text-white/50 tracking-wider">TYPOGRAPHY</div>
-                  </div>
-                </div>
-                
-                {/* Color palette */}
-                <div className="col-span-2 rounded-xl h-24 bg-white p-3 shadow-inner">
-                  <div className="text-[10px] text-gray-400 uppercase tracking-wider mb-2">Paleta</div>
-                  <div className="flex gap-1.5 h-12">
-                    {colors.map((c, i) => (
-                      <div key={i} className="flex-1 rounded-lg shadow" style={{ backgroundColor: c }} />
-                    ))}
-                  </div>
-                </div>
-                
-                {/* Quote block */}
-                <div className="col-span-2 rounded-xl p-4 flex items-center" style={{ backgroundColor: getColor(0) + '15' }}>
-                  <div>
-                    <div className="text-2xl font-serif text-gray-600">"</div>
-                    <div className="text-sm text-gray-600 italic leading-tight">La simplicidad es la sofisticación definitiva</div>
-                  </div>
-                </div>
-                
-                {/* Icon grid */}
-                <div className="rounded-xl bg-white p-3 shadow-inner">
-                  <div className="grid grid-cols-2 gap-2 h-full">
-                    {colors.slice(0, 4).map((c, i) => (
-                      <div key={i} className="rounded aspect-square flex items-center justify-center" style={{ backgroundColor: c + '30' }}>
-                        <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: c }} />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                
-                {/* Accent shape */}
-                <div className="rounded-xl relative overflow-hidden" style={{ backgroundColor: getColor(1) }}>
-                  <div className="absolute -bottom-4 -right-4 w-16 h-16 rounded-full" style={{ backgroundColor: getColor(2) }} />
-                  <div className="absolute top-2 left-2 w-6 h-1 rounded bg-white/50" />
-                </div>
-              </div>
-              
-              {/* Footer */}
-              <div className="mt-6 flex items-center justify-between text-xs text-gray-400">
-                <span>Mood Board • Concepto Visual</span>
-                <span style={{ color: getColor(0) }}>brand.studio</span>
-              </div>
-            </div>
-          </div>
-        );
-      case 'triptico':
-        return (
-          <div className="flex gap-1 justify-center">
-            {/* 3 paneles del tríptico */}
-            {[0, 1, 2].map((panel) => (
-              <div key={panel} className="w-48 h-72 rounded-lg shadow-xl overflow-hidden" style={{ backgroundColor: panel === 1 ? getColor(0) : '#fff' }}>
-                <div className="h-full flex flex-col p-4">
-                  {panel === 0 && (
-                    <>
-                      <div className="w-12 h-12 rounded-lg mb-4" style={{ backgroundColor: getColor(0) }} />
-                      <div className="text-xl font-bold text-gray-900">Brand</div>
-                      <div className="text-xs text-gray-500 mt-1">Servicios</div>
-                      <div className="flex-1" />
-                      <div className="space-y-1">
-                        {['Diseño', 'Estrategia', 'Digital'].map((s, i) => (
-                          <div key={i} className="text-xs text-gray-600 flex items-center gap-2">
-                            <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: colors[i] }} />
-                            {s}
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                  {panel === 1 && (
-                    <div className="h-full flex flex-col items-center justify-center text-white text-center">
-                      <div className="text-4xl font-black">01</div>
-                      <div className="text-lg mt-2">Nuestra</div>
-                      <div className="text-lg font-bold">Misión</div>
-                      <div className="w-8 h-px bg-white/50 my-4" />
-                      <div className="text-xs opacity-70 px-4">Crear experiencias memorables</div>
-                    </div>
-                  )}
-                  {panel === 2 && (
-                    <>
-                      <div className="text-xs text-gray-400 uppercase tracking-widest">Contacto</div>
-                      <div className="flex-1 flex items-center justify-center">
-                        <div className="w-20 h-20 rounded-full" style={{ backgroundColor: getColor(1) + '30' }}>
-                          <div className="w-full h-full flex items-center justify-center">
-                            <div className="w-10 h-10 rounded-full" style={{ backgroundColor: getColor(1) }} />
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-xs text-gray-600 text-center space-y-1">
-                        <div>hello@brand.com</div>
-                        <div>+34 600 000 000</div>
-                        <div className="pt-2" style={{ color: getColor(0) }}>www.brand.com</div>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        );
-      case 'geometric':
-        return (
-          <div className="flex gap-6 flex-wrap justify-center">
-            <div className={posterClass} style={{ backgroundColor: '#fff' }}>
-              <div className="h-full relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-40 h-40" style={{ backgroundColor: getColor(0) }} />
-                <div className="absolute bottom-0 left-0 w-32 h-32 rounded-full" style={{ backgroundColor: getColor(1) }} />
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 rotate-45" style={{ backgroundColor: getColor(2) }} />
-                <div className="absolute bottom-6 left-6">
-                  <div className="text-xs text-gray-500 uppercase tracking-widest">Geo 01</div>
-                  <div className="text-xl font-bold text-gray-900">Formas</div>
-                </div>
-              </div>
-            </div>
-            <div className={posterClass} style={{ backgroundColor: getColor(0) }}>
-              <div className="h-full relative overflow-hidden p-6">
-                <div className="absolute top-0 left-0 w-full h-1/3" style={{ backgroundColor: getColor(1) }} />
-                <div className="absolute bottom-0 right-0 w-2/3 h-1/3" style={{ backgroundColor: getColor(2) }} />
-                <div className="relative z-10 h-full flex flex-col justify-end text-white">
-                  <div className="text-4xl font-black">GEO</div>
-                  <div className="text-sm opacity-70">métrico</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      case 'panel':
-        return (
-          <div className="w-full max-w-3xl mx-auto space-y-6">
-            {/* Panel 1: Regla de los tercios */}
-            <div className="bg-white rounded-xl shadow-xl overflow-hidden">
-              <div className="flex">
-                <div className="flex-1 relative h-48">
-                  {/* Grid de tercios */}
-                  <div className="absolute inset-0 grid grid-cols-3 grid-rows-3">
-                    <div style={{ backgroundColor: getColor(0) + '10' }} />
-                    <div style={{ backgroundColor: getColor(0) + '05' }} />
-                    <div style={{ backgroundColor: getColor(0) + '10' }} />
-                    <div style={{ backgroundColor: getColor(0) + '05' }} />
-                    <div className="relative" style={{ backgroundColor: getColor(0) }}>
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="w-12 h-12 rounded-full bg-white/30" />
-                      </div>
-                    </div>
-                    <div style={{ backgroundColor: getColor(0) + '05' }} />
-                    <div style={{ backgroundColor: getColor(0) + '10' }} />
-                    <div style={{ backgroundColor: getColor(0) + '05' }} />
-                    <div style={{ backgroundColor: getColor(0) + '10' }} />
-                  </div>
-                  {/* Líneas guía */}
-                  <div className="absolute inset-0 grid grid-cols-3 pointer-events-none">
-                    <div className="border-r border-dashed" style={{ borderColor: getColor(1) }} />
-                    <div className="border-r border-dashed" style={{ borderColor: getColor(1) }} />
-                  </div>
-                  <div className="absolute inset-0 grid grid-rows-3 pointer-events-none">
-                    <div className="border-b border-dashed" style={{ borderColor: getColor(1) }} />
-                    <div className="border-b border-dashed" style={{ borderColor: getColor(1) }} />
-                  </div>
-                </div>
-                <div className="w-48 p-4 flex flex-col justify-center border-l">
-                  <div className="text-xs uppercase tracking-widest text-gray-400 mb-1">Composición</div>
-                  <div className="font-bold text-gray-900">Regla de Tercios</div>
-                  <div className="text-xs text-gray-500 mt-2">Divide el espacio en 9 partes iguales para crear equilibrio visual.</div>
-                </div>
-              </div>
-            </div>
-            
-            {/* Panel 2: Proporción Áurea */}
-            <div className="bg-gray-900 rounded-xl shadow-xl overflow-hidden">
-              <div className="flex">
-                <div className="flex-1 relative h-48 p-4">
-                  {/* Espiral áurea simplificada */}
-                  <div className="absolute inset-4 flex">
-                    <div className="flex-[1.618] h-full rounded-l-lg" style={{ backgroundColor: getColor(0) }}>
-                      <div className="h-full flex flex-col">
-                        <div className="flex-[1.618] flex items-end justify-end p-3">
-                          <div className="text-white text-2xl font-black">φ</div>
-                        </div>
-                        <div className="flex-1 flex">
-                          <div className="flex-[1.618] rounded-bl-lg" style={{ backgroundColor: getColor(1) }} />
-                          <div className="flex-1" style={{ backgroundColor: getColor(2) }} />
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex-1 flex flex-col">
-                      <div className="flex-[1.618] rounded-tr-lg" style={{ backgroundColor: getColor(1) + '80' }} />
-                      <div className="flex-1 rounded-br-lg" style={{ backgroundColor: getColor(2) + '60' }} />
-                    </div>
-                  </div>
-                </div>
-                <div className="w-48 p-4 flex flex-col justify-center border-l border-gray-700">
-                  <div className="text-xs uppercase tracking-widest text-gray-500 mb-1">Composición</div>
-                  <div className="font-bold text-white">Proporción Áurea</div>
-                  <div className="text-xs text-gray-400 mt-2">Ratio 1:1.618 para armonía matemática natural.</div>
-                </div>
-              </div>
-            </div>
-            
-            {/* Panel 3: Simetría */}
-            <div className="bg-white rounded-xl shadow-xl overflow-hidden">
-              <div className="flex">
-                <div className="flex-1 relative h-48">
-                  <div className="absolute inset-0 flex">
-                    <div className="flex-1 p-4 flex items-center justify-end" style={{ backgroundColor: getColor(0) + '20' }}>
-                      <div className="w-16 h-24 rounded-l-full" style={{ backgroundColor: getColor(0) }} />
-                    </div>
-                    <div className="w-px" style={{ backgroundColor: getColor(1) }} />
-                    <div className="flex-1 p-4 flex items-center" style={{ backgroundColor: getColor(0) + '20' }}>
-                      <div className="w-16 h-24 rounded-r-full" style={{ backgroundColor: getColor(0) }} />
-                    </div>
-                  </div>
-                  <div className="absolute inset-x-0 top-4 text-center">
-                    <div className="text-xl font-black" style={{ color: getColor(0) }}>BALANCE</div>
-                  </div>
-                </div>
-                <div className="w-48 p-4 flex flex-col justify-center border-l">
-                  <div className="text-xs uppercase tracking-widest text-gray-400 mb-1">Composición</div>
-                  <div className="font-bold text-gray-900">Simetría</div>
-                  <div className="text-xs text-gray-500 mt-2">Elementos reflejados para transmitir estabilidad y orden.</div>
-                </div>
-              </div>
-            </div>
-            
-            {/* Panel 4: Jerarquía visual */}
-            <div className="rounded-xl shadow-xl overflow-hidden" style={{ backgroundColor: getColor(0) }}>
-              <div className="flex">
-                <div className="flex-1 relative h-48 p-6">
-                  <div className="space-y-3">
-                    <div className="text-4xl font-black text-white">TÍTULO</div>
-                    <div className="text-lg text-white/80">Subtítulo secundario</div>
-                    <div className="text-sm text-white/60">Texto de apoyo para completar el mensaje visual de la composición.</div>
-                    <div className="flex gap-2 mt-4">
-                      <div className="px-4 py-2 rounded-full text-sm font-bold" style={{ backgroundColor: getColor(1) }}>
-                        <span className="text-white">Acción</span>
-                      </div>
-                      <div className="px-4 py-2 rounded-full text-sm border border-white/30 text-white/70">
-                        Secundario
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="w-48 p-4 flex flex-col justify-center border-l border-white/20">
-                  <div className="text-xs uppercase tracking-widest text-white/50 mb-1">Composición</div>
-                  <div className="font-bold text-white">Jerarquía Visual</div>
-                  <div className="text-xs text-white/60 mt-2">Guía la mirada mediante tamaño, peso y contraste.</div>
-                </div>
-              </div>
-            </div>
-            
-            {/* Panel 5: Espacio negativo */}
-            <div className="bg-gray-100 rounded-xl shadow-xl overflow-hidden">
-              <div className="flex">
-                <div className="flex-1 relative h-48">
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="relative">
-                      <div className="w-20 h-20 rounded-full" style={{ backgroundColor: getColor(0) }} />
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="w-8 h-8 rounded-full bg-gray-100" />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="absolute bottom-4 left-4">
-                    <div className="text-xs text-gray-500">Menos es más</div>
-                  </div>
-                </div>
-                <div className="w-48 p-4 flex flex-col justify-center border-l">
-                  <div className="text-xs uppercase tracking-widest text-gray-400 mb-1">Composición</div>
-                  <div className="font-bold text-gray-900">Espacio Negativo</div>
-                  <div className="text-xs text-gray-500 mt-2">El vacío como elemento activo del diseño.</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      default:
-        return null;
-    }
-  };
-
-  // Business Card Variants
-  const renderCards = () => {
-    switch (currentVariant) {
-      case 'modern':
-        return (
-          <div className="flex gap-6 flex-wrap justify-center">
-            <div className="w-80 h-48 rounded-xl shadow-xl overflow-hidden" style={{ backgroundColor: getColor(0) }}>
-              <div className="h-full flex flex-col p-6 text-white">
+          {/* Content */}
+          <div className="relative flex h-full flex-col justify-between p-10">
+            <div>
+              <div className="mb-12 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center font-bold">B</div>
-                  <div className="text-sm opacity-70">brand.co</div>
+                  <div className="h-2 w-2 rounded-full" style={{ backgroundColor: c.accent }} />
+                  <span className="text-[10px] font-medium uppercase tracking-[0.3em]" style={{ color: c.textLight, fontFamily: "'Space Grotesk', sans-serif" }}>Design Conference</span>
                 </div>
-                <div className="flex-1" />
-                <div>
-                  <div className="text-xl font-bold">María García</div>
-                  <div className="text-sm opacity-70">Directora Creativa</div>
-                </div>
-                <div className="flex gap-4 mt-4 text-xs opacity-70">
-                  <span>maria@brand.co</span>
-                  <span>+34 600 000 000</span>
-                </div>
+                <span className="text-[10px] font-medium uppercase tracking-[0.2em]" style={{ color: c.textLight, fontFamily: "'Space Grotesk', sans-serif" }}>2026</span>
+              </div>
+              <div className="mb-8">
+                <div className="mb-4 text-[11px] font-semibold uppercase tracking-[0.4em]" style={{ color: c.accent, fontFamily: "'Space Grotesk', sans-serif" }}>International</div>
+                <h1 className="mb-2 text-7xl font-black leading-[0.85] tracking-tight" style={{ color: c.text, fontFamily: "'Playfair Display', serif" }}>Creative</h1>
+                <h1 className="mb-2 text-7xl font-black italic leading-[0.85] tracking-tight" style={{ color: c.accent, fontFamily: "'Playfair Display', serif" }}>Chormatica</h1>
+                <h1 className="text-7xl font-black leading-[0.85] tracking-tight" style={{ color: c.text, fontFamily: "'Playfair Display', serif" }}>Summit</h1>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="h-[2px] w-16" style={{ backgroundColor: c.accent }} />
+                <p className="max-w-xs text-xs font-light leading-relaxed" style={{ color: c.textLight }}>Where art, technology, and design converge to shape the future of creative expression.</p>
               </div>
             </div>
-            <div className="w-80 h-48 rounded-xl shadow-xl bg-white overflow-hidden">
-              <div className="h-full flex">
-                <div className="w-2" style={{ backgroundColor: getColor(0) }} />
-                <div className="flex-1 p-6 flex flex-col">
-                  <div className="w-8 h-8 rounded-lg" style={{ backgroundColor: getColor(0) }} />
-                  <div className="flex-1" />
-                  <div className="text-right">
-                    <div className="text-lg font-bold text-gray-900">brand.co</div>
-                    <div className="text-xs text-gray-500">Diseño & Estrategia</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      case 'classic':
-        return (
-          <div className="flex gap-6 flex-wrap justify-center">
-            <div className="w-80 h-48 rounded-xl shadow-xl bg-white overflow-hidden border">
-              <div className="h-full flex flex-col items-center justify-center p-6 text-center">
-                <div className="w-12 h-12 rounded-full mb-4" style={{ backgroundColor: getColor(0) }} />
-                <div className="text-xl font-serif text-gray-900">María García</div>
-                <div className="text-sm text-gray-500 mt-1">Directora Creativa</div>
-                <div className="w-12 h-px my-4" style={{ backgroundColor: getColor(0) }} />
-                <div className="text-xs text-gray-500">maria@brand.co • +34 600 000 000</div>
-              </div>
-            </div>
-            <div className="w-80 h-48 rounded-xl shadow-xl overflow-hidden" style={{ backgroundColor: getColor(0) }}>
-              <div className="h-full flex flex-col items-center justify-center p-6 text-center text-white">
-                <div className="text-2xl font-serif">Brand & Co</div>
-                <div className="text-xs mt-2 opacity-70 tracking-widest uppercase">Establecido 2024</div>
-              </div>
-            </div>
-          </div>
-        );
-      case 'bold':
-        return (
-          <div className="flex gap-6 flex-wrap justify-center">
-            <div className="w-80 h-48 rounded-xl shadow-xl overflow-hidden" style={{ background: `linear-gradient(135deg, ${getColor(0)}, ${getColor(1)})` }}>
-              <div className="h-full p-6 text-white">
-                <div className="text-4xl font-black">BRAND</div>
-                <div className="text-sm mt-1 opacity-70">Creative Studio</div>
-                <div className="flex-1" />
-                <div className="mt-8">
-                  <div className="font-bold">María García</div>
-                  <div className="text-xs opacity-70 mt-2">maria@brand.co</div>
-                </div>
-              </div>
-            </div>
-            <div className="w-80 h-48 rounded-xl shadow-xl overflow-hidden bg-gray-900">
-              <div className="h-full p-6 text-white relative overflow-hidden">
-                <div className="absolute -right-8 -bottom-8 w-32 h-32 rounded-full" style={{ backgroundColor: getColor(0) }} />
-                <div className="relative z-10 h-full flex flex-col">
-                  <div className="text-3xl font-black" style={{ color: getColor(1) }}>B.</div>
-                  <div className="flex-1" />
-                  <div className="text-xs opacity-50">www.brand.co</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      case 'minimal':
-        return (
-          <div className="flex gap-6 flex-wrap justify-center">
-            <div className="w-80 h-48 rounded-xl shadow-xl bg-white overflow-hidden">
-              <div className="h-full p-6 flex flex-col">
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded-full" style={{ backgroundColor: getColor(0) }} />
-                  <span className="text-sm font-medium text-gray-900">brand</span>
-                </div>
-                <div className="flex-1" />
-                <div>
-                  <div className="text-gray-900">María García</div>
-                  <div className="text-xs text-gray-400 mt-1">maria@brand.co</div>
-                </div>
-              </div>
-            </div>
-            <div className="w-80 h-48 rounded-xl shadow-xl bg-gray-50 overflow-hidden">
-              <div className="h-full flex items-center justify-center">
-                <div className="w-6 h-6 rounded-full" style={{ backgroundColor: getColor(0) }} />
-              </div>
-            </div>
-          </div>
-        );
-      case 'creative':
-        return (
-          <div className="flex gap-6 flex-wrap justify-center">
-            <div className="w-80 h-48 rounded-xl shadow-xl overflow-hidden relative">
-              <div className="absolute inset-0" style={{ backgroundColor: getColor(0) }} />
-              <div className="absolute top-0 right-0 w-1/2 h-full" style={{ backgroundColor: getColor(1) }} />
-              <div className="absolute inset-0 p-6 flex flex-col text-white">
-                <div className="flex-1" />
-                <div className="text-2xl font-black">María</div>
-                <div className="text-2xl font-light">García</div>
-                <div className="text-xs mt-2 opacity-70">Diseñadora</div>
-              </div>
-            </div>
-            <div className="w-80 h-48 rounded-xl shadow-xl overflow-hidden bg-white">
-              <div className="h-full flex">
-                <div className="w-1/3 flex flex-col">
-                  {colors.slice(0, 3).map((c, i) => (
-                    <div key={i} className="flex-1" style={{ backgroundColor: c }} />
-                  ))}
-                </div>
-                <div className="flex-1 p-4 flex flex-col justify-center">
-                  <div className="text-xs text-gray-500">Contacto</div>
-                  <div className="text-sm text-gray-900 mt-2">maria@brand.co</div>
-                  <div className="text-sm text-gray-900">+34 600 000 000</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      default:
-        return null;
-    }
-  };
-
-  // Digital Variants
-  const renderDigital = () => {
-    switch (currentVariant) {
-      case 'mobile':
-        return (
-          <div className="flex gap-6 justify-center">
-            <div className="w-64 bg-gray-900 rounded-3xl p-2 shadow-2xl">
-              <div className="w-full h-[480px] bg-white rounded-2xl overflow-hidden relative">
-                <div className="h-6 flex items-center justify-center" style={{ backgroundColor: getColor(0) }}>
-                  <div className="w-16 h-1 bg-black/20 rounded-full" />
-                </div>
-                <div className="p-4" style={{ backgroundColor: getColor(0) }}>
-                  <div className="text-white text-lg font-bold">Hola, María</div>
-                  <div className="text-white/70 text-xs">Bienvenida de nuevo</div>
-                </div>
-                <div className="p-4 -mt-4">
-                  <div className="bg-white rounded-xl shadow-lg p-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-500">Balance</span>
-                      <div className="w-6 h-6 rounded-full" style={{ backgroundColor: getColor(1) }} />
-                    </div>
-                    <div className="text-2xl font-bold text-gray-900 mt-1">€2,450.00</div>
-                  </div>
-                </div>
-                <div className="px-4 flex gap-2">
-                  {['Enviar', 'Recibir', 'Pagar'].map((t, i) => (
-                    <div key={i} className="flex-1 py-3 rounded-xl text-center text-xs font-medium text-white" style={{ backgroundColor: colors[i % colors.length] }}>
-                      {t}
-                    </div>
-                  ))}
-                </div>
-                <div className="p-4 mt-4">
-                  <div className="text-xs text-gray-500 mb-2">Actividad reciente</div>
-                  {[1, 2, 3].map(i => (
-                    <div key={i} className="flex items-center gap-3 py-2 border-b border-gray-100">
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs" style={{ backgroundColor: colors[i % colors.length] }}>
-                        {['💳', '🛒', '🎁'][i-1]}
-                      </div>
-                      <div className="flex-1">
-                        <div className="text-sm text-gray-900">Pago #{i}</div>
-                        <div className="text-xs text-gray-400">Hace {i}h</div>
-                      </div>
-                      <div className="text-sm font-medium" style={{ color: getColor(0) }}>-€{i * 15}</div>
-                    </div>
-                  ))}
-                </div>
-                <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-100">
-                  <div className="flex justify-around py-3">
-                    {[
-                      { icon: '🏠', label: 'Inicio', active: true },
-                      { icon: '📊', label: 'Stats', active: false },
-                      { icon: '💳', label: 'Tarjeta', active: false },
-                      { icon: '👤', label: 'Perfil', active: false },
-                    ].map((item, i) => (
-                      <div key={i} className="flex flex-col items-center">
-                        <span className={`text-base ${item.active ? '' : 'opacity-40'}`} style={{ color: item.active ? getColor(0) : undefined }}>
-                          {item.icon}
-                        </span>
-                        <span className={`text-[10px] mt-0.5 ${item.active ? 'font-medium' : 'text-gray-400'}`} style={{ color: item.active ? getColor(0) : undefined }}>
-                          {item.label}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      case 'web':
-        return (
-          <div className="w-full max-w-2xl mx-auto bg-white rounded-xl shadow-2xl overflow-hidden">
-            <div className="h-8 bg-gray-100 flex items-center px-3 gap-2">
-              <div className="flex gap-1.5">
-                <div className="w-3 h-3 rounded-full bg-red-400" />
-                <div className="w-3 h-3 rounded-full bg-yellow-400" />
-                <div className="w-3 h-3 rounded-full bg-green-400" />
-              </div>
-              <div className="flex-1 mx-8">
-                <div className="bg-white rounded h-5 px-2 text-xs text-gray-400 flex items-center">brand.co</div>
-              </div>
-            </div>
-            <div className="h-12 flex items-center px-6 border-b">
-              <div className="w-8 h-8 rounded" style={{ backgroundColor: getColor(0) }} />
-              <div className="flex-1 flex justify-center gap-6">
-                {['Inicio', 'Servicios', 'Proyectos', 'Contacto'].map((t, i) => (
-                  <span key={i} className={`text-sm ${i === 0 ? 'font-medium' : 'text-gray-500'}`} style={{ color: i === 0 ? getColor(0) : undefined }}>{t}</span>
-                ))}
-              </div>
-              <div className="px-4 py-2 rounded-full text-xs text-white" style={{ backgroundColor: getColor(0) }}>CTA</div>
-            </div>
-            <div className="p-8" style={{ background: `linear-gradient(135deg, ${getColor(0)}15, ${getColor(1)}15)` }}>
-              <div className="max-w-md">
-                <div className="text-xs uppercase tracking-widest mb-2" style={{ color: getColor(1) }}>Bienvenido</div>
-                <div className="text-3xl font-bold text-gray-900">Creamos experiencias digitales únicas</div>
-                <div className="text-gray-500 mt-2 text-sm">Lorem ipsum dolor sit amet consectetur.</div>
-                <div className="flex gap-3 mt-6">
-                  <div className="px-6 py-2 rounded-full text-sm text-white" style={{ backgroundColor: getColor(0) }}>Comenzar</div>
-                  <div className="px-6 py-2 rounded-full text-sm border" style={{ borderColor: getColor(0), color: getColor(0) }}>Saber más</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      case 'dashboard':
-        return (
-          <div className="w-full max-w-2xl mx-auto bg-gray-100 rounded-xl shadow-2xl overflow-hidden">
-            <div className="flex h-80">
-              <div className="w-16 flex flex-col items-center py-4 gap-4" style={{ backgroundColor: getColor(0) }}>
-                <div className="w-8 h-8 rounded-lg bg-white/20" />
-                <div className="flex-1 flex flex-col gap-3 mt-4">
-                  {['📊', '📁', '👥', '⚙️'].map((icon, i) => (
-                    <div key={i} className={`w-10 h-10 rounded-lg flex items-center justify-center ${i === 0 ? 'bg-white/20' : ''}`}>
-                      <span className="text-white/70">{icon}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="flex-1 p-4">
-                <div className="flex justify-between items-center mb-4">
-                  <div className="text-lg font-bold text-gray-900">Dashboard</div>
-                  <div className="w-8 h-8 rounded-full" style={{ backgroundColor: getColor(1) }} />
-                </div>
-                <div className="grid grid-cols-3 gap-3 mb-4">
-                  {colors.slice(0, 3).map((c, i) => (
-                    <div key={i} className="bg-white rounded-xl p-3 shadow-sm">
-                      <div className="text-xs text-gray-500">Métrica {i + 1}</div>
-                      <div className="text-xl font-bold" style={{ color: c }}>{(i + 1) * 234}</div>
-                      <div className="h-1 rounded-full bg-gray-100 mt-2">
-                        <div className="h-full rounded-full" style={{ backgroundColor: c, width: `${60 + i * 15}%` }} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="bg-white rounded-xl p-4 shadow-sm">
-                  <div className="text-sm font-medium text-gray-900 mb-3">Rendimiento</div>
-                  <div className="flex items-end gap-2 h-24">
-                    {[40, 65, 45, 80, 55, 70, 60].map((h, i) => (
-                      <div key={i} className="flex-1 rounded-t" style={{ height: `${h}%`, backgroundColor: colors[i % colors.length] }} />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      case 'ecommerce':
-        return (
-          <div className="w-full max-w-2xl mx-auto bg-white rounded-xl shadow-2xl overflow-hidden">
-            <div className="h-12 flex items-center px-6 border-b">
-              <div className="font-bold" style={{ color: getColor(0) }}>SHOP</div>
-              <div className="flex-1 flex justify-center gap-6">
-                {['Nuevo', 'Mujer', 'Hombre', 'Accesorios'].map((t, i) => (
-                  <span key={i} className="text-sm text-gray-600">{t}</span>
-                ))}
-              </div>
-              <div className="flex gap-3 text-gray-600">
-                <span>🔍</span>
-                <span>🛒</span>
-              </div>
-            </div>
-            <div className="p-6">
-              <div className="grid grid-cols-3 gap-4">
-                {colors.slice(0, 3).map((c, i) => (
-                  <div key={i} className="group">
-                    <div className="aspect-[3/4] rounded-xl mb-2 relative overflow-hidden" style={{ backgroundColor: c + '30' }}>
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="w-16 h-16 rounded-full" style={{ backgroundColor: c }} />
-                      </div>
-                      {i === 0 && (
-                        <div className="absolute top-2 left-2 px-2 py-1 rounded text-xs text-white" style={{ backgroundColor: getColor(1) }}>Nuevo</div>
-                      )}
-                    </div>
-                    <div className="text-sm font-medium text-gray-900">Producto {i + 1}</div>
-                    <div className="text-sm" style={{ color: getColor(0) }}>€{(i + 1) * 49}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        );
-      case 'landing':
-        return (
-          <div className="w-full max-w-2xl mx-auto bg-white rounded-xl shadow-2xl overflow-hidden">
-            <div className="h-64 relative" style={{ background: `linear-gradient(135deg, ${getColor(0)}, ${getColor(1)})` }}>
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-white text-center p-6">
-                <div className="text-xs uppercase tracking-widest opacity-70 mb-2">Lanzamiento 2024</div>
-                <div className="text-4xl font-black">Tu próximo proyecto comienza aquí</div>
-                <div className="mt-6 flex gap-3">
-                  <div className="px-6 py-3 bg-white rounded-full text-sm font-medium" style={{ color: getColor(0) }}>Empezar gratis</div>
-                  <div className="px-6 py-3 rounded-full text-sm border border-white/30">Ver demo</div>
-                </div>
-              </div>
-            </div>
-            <div className="p-6 flex gap-4">
-              {['Rápido', 'Seguro', 'Fácil'].map((t, i) => (
-                <div key={i} className="flex-1 text-center p-4">
-                  <div className="w-12 h-12 rounded-full mx-auto mb-2 flex items-center justify-center" style={{ backgroundColor: getColor(i) + '20' }}>
-                    <div className="w-6 h-6 rounded-full" style={{ backgroundColor: getColor(i) }} />
-                  </div>
-                  <div className="text-sm font-medium text-gray-900">{t}</div>
+            <div className="my-8 grid grid-cols-3 gap-3">
+              {[
+                { number: '01', label: 'Keynotes', detail: '12 Speakers' },
+                { number: '02', label: 'Workshops', detail: '24 Sessions' },
+                { number: '03', label: 'Exhibits', detail: '48 Artists' },
+              ].map((item) => (
+                <div key={item.number} className="rounded-lg p-4" style={{ backgroundColor: c.surface }}>
+                  <div className="mb-2 text-2xl font-bold" style={{ color: c.accent, fontFamily: "'Space Grotesk', sans-serif" }}>{item.number}</div>
+                  <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: c.text }}>{item.label}</div>
+                  <div className="text-[9px] font-medium" style={{ color: c.textLight }}>{item.detail}</div>
                 </div>
               ))}
             </div>
-          </div>
-        );
-      default:
-        return null;
-    }
-  };
-
-  // Social Media Variants
-  const renderSocial = () => {
-    switch (currentVariant) {
-      case 'post':
-        return (
-          <div className="flex gap-6 justify-center flex-wrap">
-            <div className="w-72 aspect-square rounded-xl shadow-xl overflow-hidden" style={{ backgroundColor: getColor(0) }}>
-              <div className="h-full flex flex-col items-center justify-center text-white p-6 text-center">
-                <div className="text-5xl font-black">"</div>
-                <div className="text-lg font-medium mt-2">La creatividad es la inteligencia divirtiéndose</div>
-                <div className="text-sm opacity-70 mt-4">— Albert Einstein</div>
+            <div className="relative my-4">
+              <div className="flex items-center justify-between rounded-xl p-6" style={{ backgroundColor: c.primary }}>
+                <div>
+                  <div className="mb-1 text-[9px] font-semibold uppercase tracking-[0.3em]" style={{ color: c.accent }}>Mark your calendar</div>
+                  <div className="text-3xl font-bold tracking-tight" style={{ color: c.background, fontFamily: "'Space Grotesk', sans-serif" }}>OCT 15–18</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[9px] font-semibold uppercase tracking-[0.3em]" style={{ color: c.accent }}>Location</div>
+                  <div className="text-sm font-medium" style={{ color: c.background }}>Valencia, Spain</div>
+                </div>
+                <div className="absolute right-20 bottom-0 h-20 w-20 translate-y-1/2 rounded-full opacity-20" style={{ backgroundColor: c.accent }} />
               </div>
             </div>
-            <div className="w-72 aspect-square rounded-xl shadow-xl overflow-hidden bg-white">
-              <div className="h-2/3 flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${getColor(0)}30, ${getColor(1)}30)` }}>
-                <div className="w-24 h-24 rounded-2xl shadow-lg" style={{ backgroundColor: getColor(0) }} />
-              </div>
-              <div className="p-4">
-                <div className="text-lg font-bold text-gray-900">Nuevo Producto</div>
-                <div className="text-sm text-gray-500">Descúbrelo ahora →</div>
-              </div>
-            </div>
-          </div>
-        );
-      case 'story':
-        return (
-          <div className="flex gap-6 justify-center">
-            <div className="w-48 h-80 rounded-2xl shadow-xl overflow-hidden" style={{ background: `linear-gradient(180deg, ${getColor(0)}, ${getColor(1)})` }}>
-              <div className="h-full flex flex-col p-4 text-white">
-                <div className="flex gap-1">
-                  {[1, 2, 3].map(i => (
-                    <div key={i} className={`flex-1 h-1 rounded-full ${i === 1 ? 'bg-white' : 'bg-white/30'}`} />
+            <div className="mt-auto">
+              <div className="mb-6 flex items-center gap-4">
+                <div className="flex -space-x-2">
+                  {[c.accent, c.secondary, c.primary, c.muted].map((color, i) => (
+                    <div
+                      key={i}
+                      className="relative flex h-8 w-8 items-center justify-center rounded-full text-[8px] font-bold"
+                      style={{ backgroundColor: color, color: c.background, boxShadow: `0 0 0 2px ${c.background}` }}
+                    >
+                      {['RB', 'SI', 'MP', '+8'][i]}
+                    </div>
                   ))}
                 </div>
-                <div className="flex-1 flex flex-col items-center justify-center text-center">
-                  <div className="text-4xl font-black">50%</div>
-                  <div className="text-lg">OFF</div>
-                  <div className="mt-4 text-xs opacity-70">Desliza para ver más</div>
-                </div>
-                <div className="text-center">
-                  <div className="inline-block px-4 py-2 rounded-full bg-white text-sm font-medium" style={{ color: getColor(0) }}>
-                    Comprar ahora
-                  </div>
+                <div>
+                  <div className="text-[9px] font-semibold uppercase tracking-[0.2em]" style={{ color: c.text }}>Featured Speakers</div>
+                  <div className="text-[8px]" style={{ color: c.textLight }}>Laboratory leaders from around the globe</div>
                 </div>
               </div>
+              <div className="flex items-end justify-between border-t pt-5" style={{ borderColor: c.muted }}>
+                <div>
+                  <div className="mb-1 text-[22px] font-bold tracking-tight" style={{ color: c.text, fontFamily: "'Space Grotesk', sans-serif" }}>CV/26</div>
+                  <div className="text-[8px] font-medium uppercase tracking-[0.3em]" style={{ color: c.textLight }}>Neuroarchitecture.lab.upv</div>
+                </div>
+                <div className="grid grid-cols-4 gap-[2px]">
+                  {Array.from({ length: 16 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className="h-2 w-2 rounded-[1px]"
+                      style={{
+                        backgroundColor: CONFERENCE_QR_FILL_INDICES.includes(i) ? c.text : c.muted,
+                        opacity: CONFERENCE_QR_FILL_INDICES.includes(i) ? 0.6 : 0.2,
+                      }}
+                    />
+                  ))}
+                </div>
+                <div className="flex h-10 items-center rounded-full px-5 text-[9px] font-bold uppercase tracking-[0.2em]" style={{ backgroundColor: c.accent, color: c.primary }}>Register Now</div>
+              </div>
             </div>
-            <div className="w-48 h-80 rounded-2xl shadow-xl overflow-hidden bg-gray-900">
-              <div className="h-full flex flex-col p-4 text-white relative overflow-hidden">
-                {colors.map((c, i) => (
-                  <div key={i} className="absolute rounded-full blur-3xl opacity-50" style={{
-                    backgroundColor: c,
-                    width: '150px',
-                    height: '150px',
-                    left: `${-30 + i * 40}px`,
-                    top: `${50 + i * 60}px`,
-                  }} />
+          </div>
+        </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderPosterExhibitionSwiss = () => {
+    const c = getPosterColors();
+    const k = POSTER_HEIGHT / POSTER_REF_HEIGHT;
+    return (
+      <div className="flex items-center justify-center w-full h-full min-h-0">
+        <div style={{ transform: `scale(${POSTER_SCALE})`, transformOrigin: 'center center', flexShrink: 0 }}>
+          <div
+            className="relative overflow-hidden shadow-2xl"
+            style={{ width: POSTER_BASE_WIDTH, height: POSTER_HEIGHT, backgroundColor: c.background, fontFamily: "'Space Grotesk', sans-serif" }}
+          >
+            <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ opacity: 0.06 }}>
+              {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+                <line key={`v${i}`} x1={i * (POSTER_BASE_WIDTH / 6)} y1={0} x2={i * (POSTER_BASE_WIDTH / 6)} y2={POSTER_HEIGHT} stroke={c.text} strokeWidth={1} />
+              ))}
+              {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                <line key={`h${i}`} x1={0} y1={i * (POSTER_HEIGHT / 8)} x2={POSTER_BASE_WIDTH} y2={i * (POSTER_HEIGHT / 8)} stroke={c.text} strokeWidth={1} />
+              ))}
+            </svg>
+            <div className="absolute top-0 left-0 right-0" style={{ height: 8, backgroundColor: c.accent }} />
+            <div className="absolute" style={{ top: 28 * k, left: 36, right: 36 }}>
+              <div className="flex justify-between items-start">
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: c.muted }}>International</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: c.muted }}>Design Exhibition</div>
+                </div>
+                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: c.accent, textAlign: 'right' }}>2026</div>
+              </div>
+            </div>
+            <div
+              className="absolute"
+              style={{ top: 80 * k, right: -60, width: 320, height: 320, borderRadius: '50%', backgroundColor: c.primary, opacity: 0.12 }}
+            />
+            <div className="absolute" style={{ top: 100 * k, left: 36, right: 36 }}>
+              <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 220, fontWeight: 900, lineHeight: 0.85, color: c.primary, letterSpacing: '-0.04em' }}>Ty</div>
+              <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 220, fontWeight: 900, lineHeight: 0.85, color: c.primary, letterSpacing: '-0.04em', marginTop: -10 }}>po</div>
+            </div>
+            <div className="absolute" style={{ top: 420 * k, left: 0, right: 0, height: 56 * k, backgroundColor: c.accent }}>
+              <div className="flex items-center h-full" style={{ paddingLeft: 36, paddingRight: 36 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.3em', textTransform: 'uppercase', color: c.background }}>The Art of Visual Typography</span>
+              </div>
+            </div>
+            <div
+              className="absolute"
+              style={{ top: 496 * k, left: 36, width: 260, height: 180 * k, backgroundColor: c.secondary, padding: 24, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
+            >
+              <div>
+                <div style={{ fontSize: 40, fontWeight: 900, lineHeight: 1, color: c.background, fontFamily: "'Playfair Display', serif" }}>Form</div>
+                <div style={{ fontSize: 40, fontWeight: 900, lineHeight: 1, color: c.background, fontFamily: "'Playfair Display', serif", fontStyle: 'italic' }}>& Function</div>
+              </div>
+              <div style={{ fontSize: 10, fontWeight: 500, letterSpacing: '0.15em', textTransform: 'uppercase', color: c.background, opacity: 0.7 }}>Exhibition Hall A — B</div>
+            </div>
+            <div className="absolute" style={{ top: 496 * k, left: 316, right: 36 }}>
+              <svg width="268" height="100" viewBox="0 0 268 100">
+                {Array.from({ length: 5 }).map((_, row) =>
+                  Array.from({ length: 7 }).map((_, col) => {
+                    const isActive = (row + col) % 3 === 0 || (row * col) % 4 === 1;
+                    return (
+                      <rect
+                        key={`sq${row}${col}`}
+                        x={col * 38 + 2}
+                        y={row * 20 + 2}
+                        width={16}
+                        height={16}
+                        fill={isActive ? c.primary : c.surface}
+                        opacity={isActive ? 0.8 : 0.4}
+                      />
+                    );
+                  })
+                )}
+              </svg>
+              <div className="flex gap-6" style={{ marginTop: 20 }}>
+                {[
+                  { value: '47', label: 'Artists', color: c.primary },
+                  { value: '12', label: 'Countries', color: c.accent },
+                  { value: '03', label: 'Weeks', color: c.secondary },
+                ].map((item) => (
+                  <div key={item.label}>
+                    <div style={{ fontSize: 36, fontWeight: 900, lineHeight: 1, color: item.color }}>{item.value}</div>
+                    <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: '0.15em', textTransform: 'uppercase', color: c.muted, marginTop: 4 }}>{item.label}</div>
+                  </div>
                 ))}
-                <div className="flex-1 flex items-center justify-center relative z-10">
-                  <div className="text-center">
-                    <div className="text-xs uppercase tracking-widest opacity-70">Próximamente</div>
-                    <div className="text-2xl font-black mt-2">NUEVO<br/>DROP</div>
-                  </div>
-                </div>
               </div>
+            </div>
+            <div
+              className="absolute"
+              style={{ bottom: 0, left: 0, right: 0, height: 130 * k, backgroundColor: c.primary, padding: '0 36px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+            >
+              <div>
+                <div className="flex items-baseline gap-3">
+                  <span style={{ fontSize: 56, fontWeight: 900, lineHeight: 1, color: c.background, fontFamily: "'Playfair Display', serif" }}>14</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: c.accent, letterSpacing: '0.05em' }}>—</span>
+                  <span style={{ fontSize: 56, fontWeight: 900, lineHeight: 1, color: c.background, fontFamily: "'Playfair Display', serif" }}>31</span>
+                </div>
+                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase', color: c.background, opacity: 0.6, marginTop: 4 }}>March 2026</div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: c.background, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Museum of</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: c.background, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Chormatica</div>
+                <div style={{ fontSize: 10, fontWeight: 500, color: c.accent, marginTop: 6, letterSpacing: '0.05em' }}>Zürich, Switzerland</div>
+              </div>
+              <div className="absolute" style={{ bottom: 20 * k, left: '50%', transform: 'translateX(-50%)', width: 8, height: 8, backgroundColor: c.accent, borderRadius: '50%' }} />
+            </div>
+            <div className="absolute" style={{ top: 420 * k, left: 10, transformOrigin: 'left top', transform: 'rotate(-90deg) translateX(-100%)' }}>
+              <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: '0.3em', textTransform: 'uppercase', color: c.muted, opacity: 0.5 }}>Neuroarchitecture Lab UPV</span>
+            </div>
+            <svg className="absolute pointer-events-none" style={{ top: 80 * k, left: 0 }} width={POSTER_BASE_WIDTH} height={350 * k}>
+              <line x1={500} y1={0} x2={620} y2={120 * k} stroke={c.accent} strokeWidth={2} opacity={0.3} />
+              <line x1={510} y1={0} x2={620} y2={110 * k} stroke={c.accent} strokeWidth={1} opacity={0.15} />
+            </svg>
+            <div className="absolute" style={{ top: 88 * k, left: 420, width: 24, height: 24, borderRadius: '50%', border: `3px solid ${c.accent}` }} />
+            <svg className="absolute pointer-events-none" style={{ top: 640 * k, left: 36 }} width={260} height={40}>
+              {Array.from({ length: 20 }).map((_, i) => (
+                <circle key={`dot${i}`} cx={i * 13 + 4} cy={20} r={2} fill={c.muted} opacity={0.3} />
+              ))}
+            </svg>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderPosterFestivalGig = () => {
+    const c = getPosterColors();
+    const k = POSTER_HEIGHT / POSTER_REF_HEIGHT;
+    const ins = 14 * k;
+    const rayCx = 310;
+    const rayCy = 360;
+    const rayLen = 500;
+    const curvedTextStyle = { fontFamily: "'Playfair Display', serif", fontSize: 82, fontWeight: 900, letterSpacing: '0.08em' as const };
+    const eyeIcon = (
+      <svg width={22} height={14} viewBox="0 0 22 14">
+        <ellipse cx={11} cy={7} rx={10} ry={6} fill="none" stroke={c.primary} strokeWidth={1.5} opacity={0.4} />
+        <circle cx={11} cy={7} r={3} fill={c.accent} opacity={0.6} />
+        <circle cx={11} cy={7} r={1} fill={c.primary} opacity={0.5} />
+      </svg>
+    );
+    const waveStrokes = [c.primary, c.accent, c.secondary, c.primary, c.accent] as const;
+    return (
+      <div className="flex items-center justify-center w-full h-full min-h-0">
+        <div style={{ transform: `scale(${POSTER_SCALE})`, transformOrigin: 'center center', flexShrink: 0 }}>
+          <div
+            className="relative overflow-hidden shadow-2xl"
+            style={{ width: POSTER_BASE_WIDTH, height: POSTER_HEIGHT, backgroundColor: c.background, fontFamily: "'Space Grotesk', sans-serif" }}
+          >
+            <div className="absolute inset-0" style={{ border: `6px solid ${c.primary}` }} />
+            <div className="absolute" style={{ top: ins, left: ins, right: ins, bottom: ins, border: `2px solid ${c.accent}`, borderRadius: 8 }} />
+            <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 620 826">
+              {Array.from({ length: 24 }).map((_, i) => {
+                const angle = (i * 360) / 24;
+                const rad = (angle * Math.PI) / 180;
+                const x2 = rayCx + Math.cos(rad) * rayLen;
+                const y2 = rayCy + Math.sin(rad) * rayLen;
+                return (
+                  <line
+                    key={`ray${i}`}
+                    x1={rayCx}
+                    y1={rayCy}
+                    x2={x2}
+                    y2={y2}
+                    stroke={i % 2 === 0 ? c.primary : c.secondary}
+                    strokeWidth={i % 3 === 0 ? 30 : 18}
+                    opacity={i % 2 === 0 ? 0.08 : 0.05}
+                  />
+                );
+              })}
+            </svg>
+            <svg className="absolute pointer-events-none" style={{ bottom: 80 * k, left: 0 }} width={620} height={400 * k} viewBox="0 0 620 400">
+              {[180, 220, 260, 300, 340].map((ry, i) => (
+                <ellipse
+                  key={`wave${i}`}
+                  cx={310}
+                  cy={400}
+                  rx={280 - i * 10}
+                  ry={ry}
+                  fill="none"
+                  stroke={waveStrokes[i]}
+                  strokeWidth={3 - i * 0.4}
+                  opacity={0.15 + i * 0.03}
+                />
+              ))}
+            </svg>
+            <svg className="absolute pointer-events-none" style={{ top: 260 * k, left: 210 }} width={200} height={200} viewBox="0 0 200 200">
+              <polygon
+                points={Array.from({ length: 24 })
+                  .map((_, i) => {
+                    const angle = (i * 360) / 24 - 90;
+                    const rad = (angle * Math.PI) / 180;
+                    const r = i % 2 === 0 ? 95 : 50;
+                    return `${100 + Math.cos(rad) * r},${100 + Math.sin(rad) * r}`;
+                  })
+                  .join(' ')}
+                fill={c.accent}
+                opacity={0.85}
+              />
+              <circle cx={100} cy={100} r={38} fill={c.background} />
+              <circle cx={100} cy={100} r={30} fill={c.accent} opacity={0.3} />
+              <circle cx={100} cy={100} r={18} fill={c.background} />
+              <circle cx={100} cy={100} r={6} fill={c.primary} />
+            </svg>
+            <svg className="absolute pointer-events-none" style={{ top: 60 * k, left: 0 }} width={620} height={200} viewBox="0 0 620 200">
+              <defs>
+                <path id="arcTopGig" d="M 60,180 Q 310,20 560,180" />
+              </defs>
+              <text fill={c.primary} style={curvedTextStyle}>
+                <textPath href="#arcTopGig" startOffset="50%" textAnchor="middle">CHROM</textPath>
+              </text>
+            </svg>
+            <svg className="absolute pointer-events-none" style={{ top: 380 * k, left: 0 }} width={620} height={200} viewBox="0 0 620 200">
+              <defs>
+                <path id="arcBottomGig" d="M 80,30 Q 310,190 540,30" />
+              </defs>
+              <text fill={c.primary} style={curvedTextStyle}>
+                <textPath href="#arcBottomGig" startOffset="50%" textAnchor="middle">ATICA</textPath>
+              </text>
+            </svg>
+            <div className="absolute w-full text-center" style={{ top: 505 * k, fontFamily: "'Playfair Display', serif", fontSize: 72, fontWeight: 900, letterSpacing: '0.2em', color: c.primary }}>FESTIVAL</div>
+            {[
+              { top: 30 * k, left: 32 },
+              { top: 30 * k, right: 32 },
+              { bottom: 165 * k, left: 32 },
+              { bottom: 165 * k, right: 32 },
+            ].map((pos, i) => (
+              <svg key={`star${i}`} className="absolute" style={pos} width={28} height={28} viewBox="0 0 28 28">
+                <polygon points="14,0 17,11 28,14 17,17 14,28 11,17 0,14 11,11" fill={c.accent} opacity={0.7} />
+              </svg>
+            ))}
+            <div className="absolute w-full text-center" style={{ top: 590 * k }}>
+              <div style={{ fontSize: 14, fontWeight: 700, letterSpacing: '0.12em', color: c.primary, lineHeight: 2.2 }}>
+                THE MIDNIGHT ECHO <span style={{ color: c.accent, fontSize: 10 }}>★</span> CRYSTAL VORTEX <span style={{ color: c.accent, fontSize: 10 }}>★</span> NEON DRIFT
+              </div>
+              <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.1em', color: c.secondary, lineHeight: 2.2 }}>
+                AURORA PULSE <span style={{ color: c.accent, fontSize: 8 }}>★</span> SILVER GHOST <span style={{ color: c.accent, fontSize: 8 }}>★</span> DREAMWAVE COLLECTIVE
+              </div>
+              <div style={{ fontSize: 10, fontWeight: 500, letterSpacing: '0.08em', color: c.muted, lineHeight: 2.2 }}>
+                VELVET HAZE • STARFIELD • ECHO CHAMBER • MIDNIGHT SUN • LUNAR TIDE
+              </div>
+            </div>
+            <div
+              className="absolute"
+              style={{ top: 680 * k, left: 30, right: 30, height: 32 * k, backgroundColor: c.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16 }}
+            >
+              {['★ LIVE MUSIC', '★ ARTS', '★ VIBES', '★'].map((text, i) => (
+                <span key={i} style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.25em', color: i % 2 === 0 ? c.accent : c.background }}>{text}</span>
+              ))}
+            </div>
+            <div className="absolute w-full text-center" style={{ top: 716 * k }}>
+              <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: '0.15em', color: c.primary, fontFamily: "'Playfair Display', serif" }}>AUGUST 15 — 17, 2026</div>
+              <div className="flex items-center justify-center gap-3" style={{ marginTop: 8 }}>
+                <svg width={16} height={10} viewBox="0 0 16 10">
+                  <polygon points="0,5 5,0 10,5 5,10" fill={c.accent} opacity={0.6} />
+                  <polygon points="6,5 11,0 16,5 11,10" fill={c.accent} opacity={0.3} />
+                </svg>
+                <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.2em', color: c.secondary, textTransform: 'uppercase' }}>Red Rocks Amphitheatre</span>
+                <svg width={16} height={10} viewBox="0 0 16 10">
+                  <polygon points="6,5 11,0 16,5 11,10" fill={c.accent} opacity={0.6} />
+                  <polygon points="0,5 5,0 10,5 5,10" fill={c.accent} opacity={0.3} />
+                </svg>
+              </div>
+            </div>
+            <svg className="absolute pointer-events-none" style={{ bottom: 42 * k, left: 30 }} width={560} height={16} viewBox="0 0 560 16">
+              <polyline
+                points={Array.from({ length: 41 }).map((_, i) => `${i * 14},${i % 2 === 0 ? 2 : 14}`).join(' ')}
+                fill="none"
+                stroke={c.accent}
+                strokeWidth={2}
+                opacity={0.4}
+              />
+            </svg>
+            <div className="absolute w-full flex justify-center items-center gap-4" style={{ bottom: 26 * k }}>
+              {eyeIcon}
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.3em', color: c.primary, textTransform: 'uppercase' }}>Get Your Tickets</span>
+              {eyeIcon}
             </div>
           </div>
-        );
-      case 'banner':
-        return (
-          <div className="space-y-4">
-            <div className="w-full h-32 rounded-xl shadow-xl overflow-hidden" style={{ backgroundColor: getColor(0) }}>
-              <div className="h-full flex items-center px-8">
-                <div className="flex-1 text-white">
-                  <div className="text-2xl font-bold">Oferta Especial</div>
-                  <div className="text-sm opacity-70">Hasta 50% de descuento</div>
-                </div>
-                <div className="px-6 py-3 rounded-full bg-white font-medium" style={{ color: getColor(0) }}>
-                  Ver ofertas
-                </div>
-              </div>
-            </div>
-            <div className="w-full h-24 rounded-xl shadow-xl overflow-hidden bg-white border">
-              <div className="h-full flex items-center px-6">
-                <div className="w-12 h-12 rounded-xl" style={{ backgroundColor: getColor(0) }} />
-                <div className="flex-1 ml-4">
-                  <div className="font-bold text-gray-900">Brand Name</div>
-                  <div className="text-sm text-gray-500">Síguenos para más contenido</div>
-                </div>
-                <div className="px-4 py-2 rounded-full text-sm text-white" style={{ backgroundColor: getColor(1) }}>
-                  Seguir
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      case 'profile':
-        return (
-          <div className="w-80 mx-auto bg-white rounded-xl shadow-xl overflow-hidden">
-            <div className="h-24" style={{ background: `linear-gradient(135deg, ${getColor(0)}, ${getColor(1)})` }} />
-            <div className="px-4 pb-4">
-              <div className="w-20 h-20 rounded-full border-4 border-white -mt-10 mx-auto" style={{ backgroundColor: getColor(2) }}>
-                <div className="w-full h-full rounded-full flex items-center justify-center text-white text-2xl font-bold">M</div>
-              </div>
-              <div className="text-center mt-2">
-                <div className="font-bold text-gray-900">María García</div>
-                <div className="text-sm text-gray-500">@mariagarcia</div>
-              </div>
-              <div className="flex justify-center gap-6 mt-4 text-center">
-                <div>
-                  <div className="font-bold text-gray-900">1.2K</div>
-                  <div className="text-xs text-gray-500">Posts</div>
-                </div>
-                <div>
-                  <div className="font-bold text-gray-900">45K</div>
-                  <div className="text-xs text-gray-500">Seguidores</div>
-                </div>
-                <div>
-                  <div className="font-bold text-gray-900">890</div>
-                  <div className="text-xs text-gray-500">Siguiendo</div>
-                </div>
-              </div>
-              <div className="mt-4 py-2 rounded-full text-center text-sm font-medium text-white" style={{ backgroundColor: getColor(0) }}>
-                Seguir
-              </div>
+        </div>
+      </div>
+    );
+  };
+
+  /** Póster Collage: collage tipográfico — bloques de color, CHROM/ATICA, grano, cintas, sello. */
+  const renderPosterCollage = () => {
+    const c = getPosterColors();
+    const c1 = c.primary;
+    const c2 = c.accent;
+    const c3 = c.secondary;
+    const c4 = c.text;
+    const c5 = c.background;
+    const c6 = c.muted;
+    const tapeStyle = { background: 'rgba(230,220,180,0.45)', borderTop: '1px solid rgba(200,190,150,0.3)', borderBottom: '1px solid rgba(200,190,150,0.3)' } as const;
+    return (
+      <div className="flex items-center justify-center w-full h-full min-h-0">
+        <div style={{ transform: `scale(${POSTER_SCALE})`, transformOrigin: 'center center', flexShrink: 0 }}>
+          <div className="relative overflow-hidden shadow-2xl rounded" style={{ width: POSTER_BASE_WIDTH, height: POSTER_HEIGHT, background: c5 }}>
+            {/* Grano */}
+            <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 100, opacity: 0.55, mixBlendMode: 'multiply', backgroundImage: `url("${COLLAGE_GRAIN_URL}")`, backgroundSize: '150px' }} />
+            <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 101, opacity: 0.12, mixBlendMode: 'overlay', backgroundImage: `url("${COLLAGE_GRAIN2_URL}")`, backgroundSize: '200px' }} />
+            {/* Bloques collage */}
+            <div className="absolute" style={{ top: '-3%', left: '-5%', width: '65%', height: '42%', background: c4, transform: 'rotate(-1.5deg)', zIndex: 1, clipPath: COLLAGE_CLIP_1 }} />
+            <div className="absolute" style={{ bottom: '12%', right: '-4%', width: '70%', height: '28%', background: c1, transform: 'rotate(2deg)', zIndex: 3, clipPath: COLLAGE_CLIP_2 }} />
+            <div className="absolute" style={{ top: '35%', right: '-3%', width: '45%', height: '25%', background: c3, transform: 'rotate(-3deg)', zIndex: 2, clipPath: COLLAGE_CLIP_3 }} />
+            <div className="absolute" style={{ top: '30%', left: '-2%', width: '55%', height: '8%', background: c2, transform: 'rotate(1deg)', zIndex: 4 }} />
+            <div className="absolute" style={{ top: '60%', left: '5%', width: '30%', height: '15%', background: c6, transform: 'rotate(-4deg)', zIndex: 2, clipPath: COLLAGE_CLIP_5 }} />
+            {/* Tipografía */}
+            <div className="absolute" style={{ top: '2%', left: '3%', zIndex: 10, fontFamily: "'Bebas Neue', sans-serif", fontSize: 140, lineHeight: 0.82, color: c5, textTransform: 'uppercase', letterSpacing: '-0.02em', transform: 'rotate(-1.5deg)' }}>WILD</div>
+            <div className="absolute" style={{ top: '18%', left: '10%', zIndex: 12, fontFamily: "'Caveat', cursive", fontWeight: 700, fontSize: 72, color: c2, transform: 'rotate(-5deg)', lineHeight: 0.9 }}>& free</div>
+            <div className="absolute" style={{ top: '26%', left: '-1%', zIndex: 15, fontFamily: "'Abril Fatface', serif", fontSize: 120, lineHeight: 0.85, color: c4, textTransform: 'uppercase', letterSpacing: '-0.02em', transform: 'rotate(1deg)' }}>CHROM</div>
+            <div className="absolute" style={{ top: '37%', left: '50%', zIndex: 14, fontFamily: "'Zilla Slab', serif", fontWeight: 300, fontStyle: 'italic', fontSize: 42, color: c5, background: c4, padding: '2px 14px', transform: 'rotate(3deg)' }}>of</div>
+            <div className="absolute" style={{ top: '37%', right: '5%', zIndex: 13, fontFamily: "'Rock Salt', cursive", fontSize: 38, color: c2, transform: 'rotate(-6deg)' }}>the</div>
+            <div className="absolute" style={{ top: '58%', left: '2%', zIndex: 13, fontFamily: "'Permanent Marker', cursive", fontSize: 92, color: c5, lineHeight: 0.8, transform: 'rotate(-4deg)' }}>CRE</div>
+            <div className="absolute" style={{ top: '68%', left: '15%', zIndex: 11, fontFamily: "'Bebas Neue', sans-serif", fontSize: 98, color: c4, lineHeight: 0.8, letterSpacing: '0.05em', transform: 'rotate(-1deg)' }}>ATIVE</div>
+            <div className="absolute" style={{ bottom: '16%', right: '-1%', zIndex: 16, fontFamily: "'Abril Fatface', serif", fontSize: 155, lineHeight: 0.78, color: c5, textTransform: 'uppercase', letterSpacing: '-0.03em', transform: 'rotate(2deg)' }}>ATICA</div>
+            <div className="absolute" style={{ bottom: '12%', right: '15%', zIndex: 17, fontFamily: "'Caveat', cursive", fontWeight: 400, fontSize: 68, color: c2, transform: 'rotate(4deg)' }}>follow</div>
+            <div className="absolute" style={{ bottom: '-5%', left: '5%', zIndex: 18, fontFamily: "'Bebas Neue', sans-serif", fontSize: 168, lineHeight: 0.75, color: c4, textTransform: 'uppercase', letterSpacing: '-0.02em', transform: 'rotate(-1deg)', opacity: 0.85 }}>RULES</div>
+            <div className="absolute" style={{ top: '42%', left: '35%', zIndex: 5, fontFamily: "'Abril Fatface', serif", fontSize: 200, color: c1, opacity: 0.12, lineHeight: 1, transform: 'rotate(15deg)' }}>*</div>
+            {/* Subrayado ondulado */}
+            <div className="absolute" style={{ top: '37%', left: '-1%', width: '52%', height: 10, zIndex: 16, transform: 'rotate(1deg)', background: `repeating-linear-gradient(90deg, transparent 0, transparent 2px, ${c1} 2px, ${c1} 4px)`, maskImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 10'%3E%3Cpath d='M0 5 Q 12.5 0, 25 5 T 50 5 T 75 5 T 100 5' fill='none' stroke='black' stroke-width='4'/%3E%3C/svg%3E\")", WebkitMaskImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 10'%3E%3Cpath d='M0 5 Q 12.5 0, 25 5 T 50 5 T 75 5 T 100 5' fill='none' stroke='black' stroke-width='4'/%3E%3C/svg%3E\")", maskSize: '32px 100%', WebkitMaskSize: '32px 100%' }} />
+            {/* Elementos manuales */}
+            <div className="absolute" style={{ top: '25%', right: '8%', width: 100, height: 100, border: `3px solid ${c1}`, borderRadius: '52% 48% 45% 55% / 50% 55% 45% 50%', transform: 'rotate(10deg)', zIndex: 6, opacity: 0.35 }} />
+            <div className="absolute" style={{ top: '55%', right: '20%', zIndex: 14, fontFamily: "'Caveat', cursive", fontSize: 58, color: c6, transform: 'rotate(-30deg)' }}>→</div>
+            <div className="absolute" style={{ top: '72%', left: '10%', width: '50%', height: 4, zIndex: 19, background: c4, transform: 'rotate(-2deg)', borderRadius: 2, opacity: 0.7 }} />
+            <div className="absolute" style={{ top: '83%', left: '55%', width: 80, height: 2, background: c4, zIndex: 19, transform: 'rotate(8deg)', opacity: 0.4, borderRadius: 1 }} />
+            <div className="absolute" style={{ top: '48%', left: '48%', width: 32, height: 32, background: c4, borderRadius: '60% 40% 55% 45% / 45% 60% 40% 55%', opacity: 0.15, zIndex: 5, transform: 'rotate(30deg)' }} />
+            {/* Cintas */}
+            <div className="absolute" style={{ top: '8%', left: '52%', width: 110, height: 26, zIndex: 20, transform: 'rotate(25deg)', ...tapeStyle }} />
+            <div className="absolute" style={{ bottom: '32%', left: '2%', width: 110, height: 26, zIndex: 20, transform: 'rotate(-8deg)', ...tapeStyle }} />
+            {/* Sello */}
+            <div className="absolute flex items-center justify-center" style={{ bottom: '6%', right: '6%', width: 72, height: 72, border: `3px solid ${c1}`, borderRadius: '50%', zIndex: 19, transform: 'rotate(-15deg)', opacity: 0.5 }}>
+              <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 12, color: c1, letterSpacing: '0.15em', textTransform: 'uppercase' }}>Original</span>
             </div>
           </div>
-        );
-      case 'carousel':
-        return (
-          <div className="flex gap-3 justify-center">
-            {colors.slice(0, 4).map((c, i) => (
-              <div key={i} className="w-40 aspect-square rounded-xl shadow-lg overflow-hidden" style={{ backgroundColor: c }}>
-                <div className="h-full flex flex-col items-center justify-center text-white p-4 text-center">
-                  <div className="text-3xl font-black">0{i + 1}</div>
-                  <div className="text-sm mt-2 opacity-70">Slide {i + 1}</div>
-                </div>
+        </div>
+      </div>
+    );
+  };
+
+  /** Póster Competition: concurso arquitectura — cabecera, título HABITAT & FORM, plano, elevación, espiral áurea, cotas, footer. */
+  const renderPosterCompetition = () => {
+    const c = getPosterColors();
+    const c1 = c.text;
+    const c2 = c.primary;
+    const c3 = c.accent;
+    const c4 = c.surface;
+    const c5 = c.background;
+    const c6 = c.muted;
+    const footerItems: { label: string; value: string; highlight?: boolean }[] = [
+      { label: 'Deadline', value: '15.09.2025', highlight: true },
+      { label: 'Prize', value: '€ 25.000' },
+      { label: 'Category', value: 'Open' },
+      { label: 'Registration', value: 'chromatica.upv', highlight: true },
+    ];
+    return (
+      <div className="flex items-center justify-center w-full h-full min-h-0">
+        <div style={{ transform: `scale(${POSTER_SCALE})`, transformOrigin: 'center center', flexShrink: 0 }}>
+          <div className="relative overflow-hidden shadow-2xl" style={{ width: POSTER_BASE_WIDTH, height: POSTER_HEIGHT, background: c5, fontFamily: "'DM Sans', sans-serif" }}>
+            {/* Texturas */}
+            <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 200, opacity: 0.3, mixBlendMode: 'multiply', backgroundImage: `url("${COMPETITION_GRAIN_URL}")`, backgroundSize: '128px' }} />
+            <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 1, opacity: 0.04, backgroundImage: `url("${COMPETITION_PAPER_URL}")`, backgroundSize: '256px' }} />
+            {/* Grid + márgenes */}
+            <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 2, opacity: 0.06, backgroundImage: `linear-gradient(90deg, ${c1} 1px, transparent 1px), linear-gradient(0deg, ${c1} 1px, transparent 1px)`, backgroundSize: '8.33% 5%' }} />
+            <div className="absolute top-0 bottom-0 left-[4%] w-px pointer-events-none" style={{ zIndex: 3, opacity: 0.08, background: `linear-gradient(to bottom, ${c1}, ${c6} 7%, ${c6} 94.5%, ${c1})` }} />
+            <div className="absolute top-0 bottom-0 right-[4%] w-px pointer-events-none" style={{ zIndex: 3, opacity: 0.08, background: `linear-gradient(to bottom, ${c1}, ${c6} 7%, ${c6} 94.5%, ${c1})` }} />
+            {/* Cabecera — mitad de grosor, sin org name */}
+            <div className="absolute top-0 left-0 right-0" style={{ height: '7%', background: c1, zIndex: 15 }}>
+              <div className="absolute bottom-0 left-0 right-0 h-0.5" style={{ background: c2 }} />
+            </div>
+            <div className="absolute" style={{ top: '0.5%', right: '5%', zIndex: 20, fontFamily: "'Cormorant Garamond', serif", fontWeight: 300, fontStyle: 'italic', fontSize: 52, color: c5, lineHeight: 1, opacity: 0.15 }}>XII</div>
+            <div className="absolute" style={{ top: '1.5%', left: '5%', zIndex: 20, fontFamily: "'IBM Plex Mono', monospace", fontSize: 8, letterSpacing: '0.3em', textTransform: 'uppercase', color: c3 }}>International Architecture Competition</div>
+            <div className="absolute" style={{ top: '4%', left: '5%', zIndex: 20, fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 11, letterSpacing: '0.18em', color: c5, textTransform: 'uppercase' }}>Open Call — 2025 / 2026</div>
+            {/* Título */}
+            <div className="absolute" style={{ top: '10%', left: '5%', right: '5%', zIndex: 30 }}>
+              <div style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 300, fontStyle: 'italic', fontSize: 18, color: c6, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 2 }}>Rethinking</div>
+              <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 82, lineHeight: 0.88, color: c1, textTransform: 'uppercase', letterSpacing: '-0.04em' }}>HABI</div>
+              <div style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 700, fontSize: 95, lineHeight: 0.82, color: 'transparent', textTransform: 'uppercase', letterSpacing: '-0.03em', WebkitTextStroke: `1.5px ${c1}` }}>TAT</div>
+              <div className="flex items-baseline gap-3" style={{ marginTop: 0 }}>
+                <span style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 300, fontStyle: 'italic', fontSize: 52, color: c2, lineHeight: 1 }}>&</span>
+                <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 78, lineHeight: 0.88, color: c1, textTransform: 'uppercase', letterSpacing: '-0.04em' }}>FORM</span>
+              </div>
+            </div>
+            {/* Subtítulo — debajo de & FORM para evitar solapamiento */}
+            <div className="absolute" style={{ top: '43%', left: '5%', maxWidth: '50%', zIndex: 30 }}>
+              <div style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 300, fontStyle: 'italic', fontSize: 20, color: c1, lineHeight: 1.25 }}>Designing spaces where <em style={{ color: c2, fontStyle: 'italic' }}>structure</em><br />meets the human <em style={{ color: c2, fontStyle: 'italic' }}>experience</em></div>
+              <div style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 300, fontSize: 8, color: c6, lineHeight: 1.6, marginTop: 6, letterSpacing: '0.02em', maxWidth: '95%' }}>An open call for visionary proposals that challenge the boundaries between built form, landscape and the collective memory of place.</div>
+            </div>
+            {/* Plano */}
+            <div className="absolute" style={{ top: '60%', left: '8%', width: '52%', height: '24%', zIndex: 12, border: `1px solid ${c6}`, opacity: 0.8 }}>
+              <div className="absolute top-0 left-0 w-[3px] h-full" style={{ background: c1 }} />
+              <div className="absolute top-0 left-0 w-full h-[3px]" style={{ background: c1 }} />
+              <div className="absolute top-0 right-0 w-[3px] h-[70%]" style={{ background: c1 }} />
+              <div className="absolute bottom-0 left-0 w-[60%] h-[3px]" style={{ background: c1 }} />
+              <div className="absolute bottom-0 right-0 w-[25%] h-[3px]" style={{ background: c1 }} />
+              <div className="absolute top-[30%] left-[35%] w-[3px] h-[45%]" style={{ background: c1 }} />
+              <div className="absolute top-[30%] left-[35%] w-[30%] h-[3px]" style={{ background: c1 }} />
+              <div className="absolute top-[65%] left-0 w-[35%] h-[2px]" style={{ background: c1 }} />
+              <div className="absolute top-[65%] left-[35%] w-[2px] h-[35%]" style={{ background: c1 }} />
+              <div className="absolute top-[65%] left-[57%] w-[18%] h-[12%] border-[1.5px] rounded-t-full opacity-60" style={{ borderColor: c6, borderBottom: 'none' }} />
+              <div className="absolute top-[63%] right-[2%] w-[22%] aspect-square border border-dashed rounded-full opacity-35 overflow-hidden" style={{ borderColor: c6, clipPath: 'polygon(0 50%, 50% 50%, 50% 100%, 0 100%)' }} />
+              {[0, 1, 2, 3, 4].map((i) => <div key={i} className="absolute left-0 w-full border-b opacity-50" style={{ bottom: `${i * 20}%`, height: '20%', borderColor: c6 }} />)}
+              {[[28, 18], [28, 52], [55, 18], [55, 72]].map(([t, l], i) => <div key={i} className="absolute w-1.5 aspect-square rounded-sm" style={{ top: `${t}%`, left: `${l}%`, background: c1 }} />)}
+              <div className="absolute -bottom-[10%] left-0" style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 7, letterSpacing: '0.2em', color: c6, textTransform: 'uppercase' }}>Plan — Level 00</div>
+              <div className="absolute -bottom-[10%] right-0" style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 7, color: c6 }}>1 : 200</div>
+            </div>
+            {/* Espiral áurea */}
+            <div className="absolute" style={{ top: '56%', right: '3%', width: '35%', aspectRatio: '1.618 / 1', zIndex: 8, opacity: 0.1 }}>
+              <div className="absolute inset-0 border" style={{ borderColor: c1 }} />
+              <div className="absolute top-0 right-0 w-[61.8%] h-full border border-l-0" style={{ borderColor: c1 }} />
+              <div className="absolute bottom-0 right-0 w-[61.8%] h-[61.8%] border border-t-0 border-l-0" style={{ borderColor: c1 }} />
+              <div className="absolute bottom-0 left-0 w-[38.2%] h-[61.8%] border border-t-0" style={{ borderColor: c1 }} />
+              <div className="absolute top-0 left-0 w-[76.4%] aspect-square border rounded-full overflow-hidden" style={{ borderColor: c2, clipPath: 'polygon(38.2% 0, 100% 0, 100% 100%, 38.2% 100%)' }} />
+            </div>
+            {/* Elevación */}
+            <div className="absolute" style={{ top: '62%', right: '5%', width: '30%', height: '18%', zIndex: 14, opacity: 0.7 }}>
+              <div className="absolute -top-[14%] left-0" style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 7, letterSpacing: '0.15em', color: c6, textTransform: 'uppercase' }}>South Elevation</div>
+              <div className="absolute bottom-0 left-0 right-0 h-0.5" style={{ background: c1 }} />
+              <div className="absolute bottom-0.5 left-[10%] w-[80%] h-[55%] border-[1.5px] border-b-0" style={{ borderColor: c1 }} />
+              <div className="absolute border-[1.5px] border-b-0" style={{ bottom: 'calc(2px + 55%)', left: '5%', width: '90%', height: '25%', borderColor: c1, clipPath: 'polygon(0 100%, 10% 0, 90% 0, 100% 100%)' }} />
+              {[18, 42, 66].map((left, i) => <div key={i} className="absolute border bottom-[15%] w-[15%] h-[30%] opacity-30" style={{ left: `${left}%`, borderColor: c6, background: c3 }} />)}
+            </div>
+            {/* Sello */}
+            <div className="absolute flex items-center justify-center" style={{ top: '18%', right: '16%', width: 72, height: 72, zIndex: 22, opacity: 0.12 }}>
+              <div className="absolute inset-0 rounded-full border-[1.5px]" style={{ borderColor: c1 }} />
+              <div className="absolute inset-[18%] rounded-full border" style={{ borderColor: c1 }} />
+              {[0, 45, 90, 135].map((rot, i) => <div key={i} className="absolute top-0 bottom-0 left-1/2 w-px -translate-x-1/2" style={{ background: c1, transform: `translateX(-50%) rotate(${rot}deg)` }} />)}
+              <span style={{ position: 'relative', fontFamily: "'Cormorant Garamond', serif", fontWeight: 700, fontSize: 14, color: c1 }}>FA</span>
+            </div>
+            {/* Cotas */}
+            <div className="absolute flex items-center gap-1" style={{ top: '6%', left: '5%', zIndex: 10 }}>
+              <div className="w-px h-2" style={{ background: c6, opacity: 0.5 }} />
+              <div className="h-px" style={{ width: 70, background: c6, opacity: 0.5 }} />
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 8, color: c6, padding: '0 4px', whiteSpace: 'nowrap' }}>12.400</span>
+              <div className="h-px" style={{ width: 70, background: c6, opacity: 0.5 }} />
+              <div className="w-px h-2" style={{ background: c6, opacity: 0.5 }} />
+            </div>
+            <div className="absolute flex items-center gap-1 flex-row-reverse" style={{ bottom: '11%', right: '5%', zIndex: 10 }}>
+              <div className="w-px h-2" style={{ background: c6, opacity: 0.5 }} />
+              <div className="h-px" style={{ width: 90, background: c6, opacity: 0.5 }} />
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 8, color: c6, padding: '0 4px', whiteSpace: 'nowrap' }}>8.250</span>
+              <div className="h-px" style={{ width: 90, background: c6, opacity: 0.5 }} />
+              <div className="w-px h-2" style={{ background: c6, opacity: 0.5 }} />
+            </div>
+            <div className="absolute flex flex-col items-center gap-1" style={{ right: '3%', top: '24%', zIndex: 10 }}>
+              <div className="w-2 h-px" style={{ background: c6, opacity: 0.5 }} />
+              <div className="w-px" style={{ height: 70, background: c6, opacity: 0.5 }} />
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 8, color: c6, writingMode: 'vertical-rl', transform: 'rotate(180deg)', padding: '4px 0', whiteSpace: 'nowrap' }}>±0.00</span>
+            </div>
+            {/* Cruces ref + bubbles */}
+            <div className="absolute w-3 aspect-square opacity-25" style={{ top: '59%', left: '6%', zIndex: 10 }}>
+              <div className="absolute top-1/2 left-0 right-0 h-px -translate-y-1/2" style={{ background: c1 }} />
+              <div className="absolute left-1/2 top-0 bottom-0 w-px -translate-x-1/2" style={{ background: c1 }} />
+            </div>
+            <div className="absolute w-3 aspect-square opacity-25" style={{ top: '86%', right: '38%', zIndex: 10 }}>
+              <div className="absolute top-1/2 left-0 right-0 h-px -translate-y-1/2" style={{ background: c1 }} />
+              <div className="absolute left-1/2 top-0 bottom-0 w-px -translate-x-1/2" style={{ background: c1 }} />
+            </div>
+            {[['58%', '27%', 'A'], ['58%', '50%', 'B'], ['82%', '14%', '1']].map(([t, l, label], i) => (
+              <div key={i} className="absolute flex items-center justify-center rounded-full border-[1.5px]" style={{ top: t, left: l, width: 26, height: 26, borderColor: c1, zIndex: 20 }}>
+                <span style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 700, fontSize: 11, color: c1 }}>{label}</span>
               </div>
             ))}
+            {/* Brújula */}
+            <div className="absolute flex flex-col items-center" style={{ top: '18%', right: '6%', zIndex: 25, width: 36, opacity: 0.5 }}>
+              <span style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 700, fontSize: 11, color: c1 }}>N</span>
+              <div className="relative w-px mt-0.5" style={{ height: 22, background: c1 }} />
+              <div className="w-4 aspect-square rounded-full border mt-0.5" style={{ borderColor: c1 }} />
+            </div>
+            {/* Hatch + pattern */}
+            <div className="absolute opacity-[0.08]" style={{ top: '66%', left: '12%', width: '15%', height: '8%', zIndex: 11, background: `repeating-linear-gradient(45deg, ${c1}, ${c1} 1px, transparent 1px, transparent 5px)` }} />
+            <div className="absolute opacity-[0.06]" style={{ top: '71%', left: '30%', width: '12%', height: '6%', zIndex: 11, backgroundImage: `linear-gradient(90deg, ${c1} 1px, transparent 1px), linear-gradient(0deg, ${c1} 1px, transparent 1px)`, backgroundSize: '6px 4px' }} />
+            {/* Coordenadas */}
+            <div className="absolute flex items-center gap-2" style={{ bottom: '8%', left: '5%', zIndex: 42, fontFamily: "'IBM Plex Mono', monospace", fontWeight: 300, fontSize: 9, color: c1, letterSpacing: '0.1em' }}>
+              <div className="w-1.5 aspect-square rounded-full" style={{ background: c2 }} />
+              <span>41°53&apos;24.8&quot;N 12°29&apos;32.5&quot;E</span>
+            </div>
+            {/* Franja + footer */}
+            <div className="absolute left-0 right-0 h-0.5" style={{ bottom: '5.5%', background: c2, zIndex: 40 }} />
+            <div className="absolute bottom-0 left-0 right-0 grid items-center" style={{ height: '5.5%', background: c1, zIndex: 35, gridTemplateColumns: '1fr 1px 1fr 1px 1fr 1px 1fr', padding: '0 5%' }}>
+              {footerItems.flatMap((item, i) => [
+                ...(i > 0 ? [<div key={`sep-${i}`} className="h-1/2" style={{ background: c4 }} />] : []),
+                <div key={item.label} className="flex flex-col px-3">
+                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 6, letterSpacing: '0.25em', textTransform: 'uppercase', color: c6, marginBottom: 2 }}>{item.label}</div>
+                  <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 500, fontSize: 11, color: item.highlight ? c2 : c5, letterSpacing: '0.05em' }}>{item.value}</div>
+                </div>,
+              ])}
+            </div>
+            {/* Watermark */}
+            <div className="absolute pointer-events-none select-none whitespace-nowrap" style={{ top: '64%', left: '50%', transform: 'translate(-50%, -50%) rotate(-35deg)', fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 140, color: c1, opacity: 0.025, textTransform: 'uppercase', letterSpacing: '-0.04em', zIndex: 5 }}>HABITAT</div>
           </div>
-        );
-      default:
-        return null;
-    }
+        </div>
+      </div>
+    );
   };
 
-  // Patterns Variants
-  const renderPatterns = () => {
-    switch (currentVariant) {
-      case 'geometric':
-        return (
-          <div className="flex gap-6 justify-center flex-wrap">
-            <div className="w-64 h-64 rounded-xl shadow-xl overflow-hidden bg-white p-4">
-              <div className="w-full h-full grid grid-cols-4 gap-1">
-                {Array(16).fill(0).map((_, i) => (
-                  <div key={i} className="rotate-45 scale-75" style={{ backgroundColor: colors[i % colors.length] }} />
-                ))}
+  /** Branding: Territorio visual — plantilla Aura (logo, tipografía, paleta, patrón, aplicaciones). A2/A3, getPosterColors. */
+  const renderBrandingTerritorioVisual = () => {
+    const c = getPosterColors();
+    const c1 = c.primary;
+    const c2 = c.accent;
+    const c3 = c.surface;
+    const c4 = c.secondary;
+    const c5 = c.background;
+    const c6 = c.muted;
+    const w = POSTER_BASE_WIDTH;
+    const h = POSTER_HEIGHT;
+    const px = (p: number) => (p / 100) * w;
+    const py = (p: number) => (p / 100) * h;
+    return (
+      <div className="flex items-center justify-center w-full h-full min-h-0">
+        <div style={{ transform: `scale(${POSTER_SCALE})`, transformOrigin: 'center center', flexShrink: 0 }}>
+          <div className="relative overflow-hidden shadow-2xl rounded" style={{ width: w, height: h, background: c5, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+            {/* Texturas */}
+            <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 300, opacity: 0.22, mixBlendMode: 'multiply', backgroundImage: `url("${BRANDING_GRAIN_URL}")`, backgroundSize: '128px' }} />
+            <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 2, opacity: 0.03, backgroundImage: `url("${BRANDING_KRAFT_URL}")`, backgroundSize: '200px' }} />
+            {/* Fondo superior ~25% (reducido 1/3 desde 38% para ganar espacio) */}
+            <div className="absolute top-0 left-0 right-0 z-[1]" style={{ height: '25%', background: c1 }}>
+              <div className="absolute bottom-0 left-0 right-0 h-[3px]" style={{ background: `linear-gradient(90deg, ${c2}, ${c4}, ${c2})`, opacity: 0.5 }} />
+            </div>
+            <div className="absolute top-0 left-0 right-0 pointer-events-none" style={{ height: '25%', zIndex: 3, opacity: 0.03, backgroundImage: `radial-gradient(circle at 20% 30%, ${c4} 1px, transparent 1px), radial-gradient(circle at 60% 70%, ${c4} 1px, transparent 1px), radial-gradient(circle at 80% 20%, ${c4} 1px, transparent 1px), radial-gradient(circle at 40% 80%, ${c4} 1px, transparent 1px)`, backgroundSize: '60px 60px, 45px 45px, 55px 55px, 50px 50px' }} />
+            {/* Esquinas */}
+            {['tl', 'tr', 'bl', 'br'].map((pos) => (
+              <div key={pos} className="absolute w-5 h-5 opacity-[0.12]" style={{ zIndex: 60, width: px(3.2), height: px(3.2), ...(pos === 'tl' ? { top: py(1.5), left: px(2) } : pos === 'tr' ? { top: py(1.5), right: px(2) } : pos === 'bl' ? { bottom: py(5.5), left: px(2) } : { bottom: py(5.5), right: px(2) }) }}>
+                <div className="absolute top-0 left-0 w-full h-px" style={{ background: c6 }} />
+                <div className="absolute top-0 left-0 w-px h-full" style={{ background: c6 }} />
+              </div>
+            ))}
+            {/* Logo area: centrado con left/translate y conjunto más grande */}
+            <div className="absolute left-1/2 -translate-x-1/2 z-[50] flex flex-col items-center justify-center" style={{ width: '100%', top: '-1%' }}>
+              <div className="relative flex flex-col items-center" style={{ width: 130, aspectRatio: 1 }}>
+                {/* Taza: sin línea superior, doble grosor (solo bordes izquierdo, derecho y base) */}
+                <div className="absolute bottom-[15%] left-1/2 -translate-x-1/2 w-[52%] h-[38%] rounded-b-[40%]" style={{ borderLeft: `4px solid ${c2}`, borderRight: `4px solid ${c2}`, borderBottom: `4px solid ${c2}` }} />
+                {/* Apoyo/base: misma anchura que el humo (28%), centrada, en contacto con la curva sin solaparse */}
+                <div className="absolute left-1/2 -translate-x-1/2 w-[28%] rounded-full" style={{ bottom: '13%', height: 4, background: c2 }} />
+                {/* Hoja / humo: doble grosor */}
+                <div className="absolute top-[32%] left-1/2 -translate-x-1/2 -rotate-[8deg] w-[28%] h-[38%] border rounded-[50%_2px_50%_2px]" style={{ borderColor: c4, borderWidth: 4 }} />
+              </div>
+              <div className="w-full flex flex-col items-center" style={{ marginTop: -12 }}>
+                <div className="font-serif lowercase leading-none text-center" style={{ fontFamily: "'Libre Baskerville', serif", color: c5, fontSize: 52, letterSpacing: '0.26em', marginLeft: 10 }}>aura</div>
+                <div className="font-cursive text-center" style={{ fontFamily: "'Caveat', cursive", color: c5, fontSize: 18, letterSpacing: '0.12em', marginTop: -2 }}>slow brew coffe</div>
               </div>
             </div>
-            <div className="w-64 h-64 rounded-xl shadow-xl overflow-hidden" style={{ backgroundColor: getColor(0) }}>
-              <div className="w-full h-full grid grid-cols-6 gap-0">
-                {Array(36).fill(0).map((_, i) => (
-                  <div key={i} className="aspect-square flex items-center justify-center">
-                    <div className="w-4 h-4 rotate-45" style={{ backgroundColor: i % 2 === 0 ? '#fff' : colors[(i + 1) % colors.length], opacity: 0.5 }} />
-                  </div>
-                ))}
-              </div>
+            {/* Grid construcción */}
+            <div className="absolute top-[5%] left-1/2 -translate-x-1/2 w-[260px] aspect-square z-[5] opacity-[0.025] pointer-events-none">
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full rounded-full border" style={{ borderColor: c3 }} />
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[68%] h-[68%] rounded-full border" style={{ borderColor: c3 }} />
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[36%] h-[36%] rounded-full border" style={{ borderColor: c3 }} />
+              <div className="absolute top-1/2 left-0 w-full h-px -translate-y-1/2" style={{ background: c3 }} />
+              <div className="absolute left-1/2 top-0 w-px h-full -translate-x-1/2" style={{ background: c3 }} />
             </div>
-          </div>
-        );
-      case 'organic':
-        return (
-          <div className="flex gap-6 justify-center flex-wrap">
-            <div className="w-64 h-64 rounded-xl shadow-xl overflow-hidden relative" style={{ backgroundColor: getColor(0) }}>
-              {colors.map((c, i) => (
-                <div key={i} className="absolute rounded-full blur-xl" style={{
-                  backgroundColor: c,
-                  width: `${60 + i * 20}px`,
-                  height: `${60 + i * 20}px`,
-                  left: `${20 + i * 30}%`,
-                  top: `${10 + i * 25}%`,
-                  opacity: 0.6,
-                }} />
-              ))}
-            </div>
-            <div className="w-64 h-64 rounded-xl shadow-xl overflow-hidden bg-white relative">
-              {Array(8).fill(0).map((_, i) => (
-                <div key={i} className="absolute" style={{
-                  width: `${40 + Math.random() * 60}px`,
-                  height: `${40 + Math.random() * 60}px`,
-                  borderRadius: '50% 50% 50% 50%',
-                  backgroundColor: colors[i % colors.length] + '40',
-                  left: `${Math.random() * 80}%`,
-                  top: `${Math.random() * 80}%`,
-                }} />
-              ))}
-            </div>
-          </div>
-        );
-      case 'dots':
-        return (
-          <div className="flex gap-6 justify-center flex-wrap">
-            <div className="w-64 h-64 rounded-xl shadow-xl overflow-hidden bg-white p-2">
-              <div className="w-full h-full grid grid-cols-8 gap-2">
-                {Array(64).fill(0).map((_, i) => (
-                  <div key={i} className="rounded-full" style={{ backgroundColor: colors[i % colors.length], opacity: 0.7 }} />
-                ))}
-              </div>
-            </div>
-            <div className="w-64 h-64 rounded-xl shadow-xl overflow-hidden p-4" style={{ backgroundColor: getColor(0) }}>
-              <div className="w-full h-full grid grid-cols-6 gap-3">
-                {Array(36).fill(0).map((_, i) => (
-                  <div key={i} className="rounded-full bg-white" style={{ opacity: Math.random() * 0.5 + 0.2 }} />
-                ))}
-              </div>
-            </div>
-          </div>
-        );
-      case 'lines':
-        return (
-          <div className="flex gap-6 justify-center flex-wrap">
-            <div className="w-64 h-64 rounded-xl shadow-xl overflow-hidden bg-white flex flex-col">
-              {Array(16).fill(0).map((_, i) => (
-                <div key={i} className="flex-1" style={{ backgroundColor: i % 2 === 0 ? colors[i % colors.length] : 'white' }} />
-              ))}
-            </div>
-            <div className="w-64 h-64 rounded-xl shadow-xl overflow-hidden flex">
-              {Array(8).fill(0).map((_, i) => (
-                <div key={i} className="flex-1" style={{ backgroundColor: colors[i % colors.length] }} />
-              ))}
-            </div>
-          </div>
-        );
-      case 'abstract':
-        return (
-          <div className="flex gap-6 justify-center flex-wrap">
-            <div className="w-64 h-64 rounded-xl shadow-xl overflow-hidden relative" style={{ backgroundColor: '#1a1a2e' }}>
-              <div className="absolute top-0 left-0 w-1/2 h-1/2" style={{ backgroundColor: getColor(0) }} />
-              <div className="absolute bottom-0 right-0 w-2/3 h-1/3 rounded-tl-full" style={{ backgroundColor: getColor(1) }} />
-              <div className="absolute top-1/4 right-1/4 w-16 h-16 rounded-full" style={{ backgroundColor: getColor(2) }} />
-            </div>
-            <div className="w-64 h-64 rounded-xl shadow-xl overflow-hidden relative bg-white">
-              {colors.slice(0, 4).map((c, i) => (
-                <div key={i} className="absolute" style={{
-                  backgroundColor: c,
-                  width: `${30 + i * 10}%`,
-                  height: `${20 + i * 15}%`,
-                  left: `${i * 15}%`,
-                  top: `${i * 20}%`,
-                  borderRadius: i % 2 === 0 ? '0' : '50%',
-                  transform: `rotate(${i * 15}deg)`,
-                }} />
-              ))}
-            </div>
-          </div>
-        );
-      default:
-        return null;
-    }
-  };
-
-  // Print Variants
-  const renderPrint = () => {
-    switch (currentVariant) {
-      case 'letterhead':
-        return (
-          <div className="w-96 mx-auto bg-white rounded-xl shadow-xl p-8">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-lg" style={{ backgroundColor: getColor(0) }} />
+            {/* Línea acento */}
+            <div className="absolute z-[62] h-0.5 rounded-full" style={{ top: '24.8%', left: '5%', width: 40, background: c4 }} />
+            {/* Sección media: tipografía + paleta (subida y tipografías más grandes) */}
+            <div className="absolute grid z-[60]" style={{ top: '27%', left: '5%', right: '5%', gridTemplateColumns: '1fr 1px 1.15fr', gap: 24 }}>
               <div>
-                <div className="font-bold text-gray-900">Brand Company</div>
-                <div className="text-xs text-gray-500">Diseño & Estrategia</div>
-              </div>
-            </div>
-            <div className="space-y-2">
-              {[1, 2, 3, 4].map(i => (
-                <div key={i} className="h-2 rounded-full bg-gray-100" style={{ width: `${100 - i * 15}%` }} />
-              ))}
-            </div>
-            <div className="mt-8 pt-4 border-t flex justify-between text-xs text-gray-400">
-              <span>www.brand.co</span>
-              <span>info@brand.co</span>
-              <span style={{ color: getColor(0) }}>+34 600 000 000</span>
-            </div>
-          </div>
-        );
-      case 'envelope':
-        return (
-          <div className="w-96 h-56 mx-auto bg-white rounded-xl shadow-xl overflow-hidden relative">
-            <div className="absolute top-0 left-0 w-1/3 h-full" style={{ backgroundColor: getColor(0) }} />
-            <div className="absolute inset-0 p-6 flex flex-col">
-              <div className="flex items-center gap-2 text-white">
-                <div className="w-6 h-6 rounded bg-white/20" />
-                <span className="text-sm font-medium">Brand</span>
-              </div>
-              <div className="flex-1" />
-              <div className="ml-auto text-right">
-                <div className="text-sm text-gray-600">Destinatario</div>
-                <div className="text-sm text-gray-400">Calle Ejemplo, 123</div>
-                <div className="text-sm text-gray-400">28001 Madrid</div>
-              </div>
-            </div>
-            <div className="absolute top-4 right-4 w-12 h-14 border-2 rounded" style={{ borderColor: getColor(1) }}>
-              <div className="w-full h-full flex items-center justify-center text-xs" style={{ color: getColor(1) }}>SELLO</div>
-            </div>
-          </div>
-        );
-      case 'folder':
-        return (
-          <div className="w-80 h-96 mx-auto rounded-xl shadow-xl overflow-hidden relative" style={{ backgroundColor: getColor(0) }}>
-            <div className="absolute top-0 right-0 w-16 h-8 rounded-bl-xl" style={{ backgroundColor: getColor(1) }} />
-            <div className="absolute bottom-0 left-0 right-0 h-1/3 bg-white/10" />
-            <div className="absolute inset-0 p-8 flex flex-col">
-              <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
-                <span className="text-white text-xl font-bold">B</span>
-              </div>
-              <div className="flex-1" />
-              <div className="text-white">
-                <div className="text-2xl font-bold">Brand</div>
-                <div className="text-sm opacity-70">Dossier corporativo 2024</div>
-              </div>
-            </div>
-          </div>
-        );
-      case 'packaging':
-        return (
-          <div className="flex gap-6 justify-center items-end">
-            <div className="w-32 h-48 rounded-lg shadow-xl overflow-hidden relative" style={{ backgroundColor: getColor(0) }}>
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
-                <div className="w-16 h-16 rounded-full border-2 border-white/30 flex items-center justify-center">
-                  <div className="text-2xl font-bold">B</div>
-                </div>
-                <div className="mt-4 text-sm font-light">BRAND</div>
-              </div>
-            </div>
-            <div className="w-40 h-40 rounded-lg shadow-xl overflow-hidden" style={{ background: `linear-gradient(135deg, ${getColor(1)}, ${getColor(2)})` }}>
-              <div className="h-full flex flex-col items-center justify-center text-white p-4">
-                <div className="text-3xl font-black">B</div>
-                <div className="text-xs mt-2 tracking-widest">PREMIUM</div>
-              </div>
-            </div>
-            <div className="w-24 h-32 rounded-lg shadow-xl overflow-hidden bg-white border">
-              <div className="h-full flex flex-col">
-                <div className="flex-1 flex items-center justify-center">
-                  <div className="w-12 h-12 rounded-full" style={{ backgroundColor: getColor(0) }} />
-                </div>
-                <div className="h-6" style={{ backgroundColor: getColor(0) }} />
-              </div>
-            </div>
-          </div>
-        );
-      default:
-        return null;
-    }
-  };
-
-  // Merchandise Variants
-  const renderMerch = () => {
-    switch (currentVariant) {
-      case 'tshirt':
-        return (
-          <div className="flex gap-6 justify-center items-center">
-            <div className="relative">
-              <div className="w-48 h-56 bg-white rounded-lg shadow-xl flex flex-col items-center pt-6">
-                <div className="w-10 h-6 rounded-b-full bg-gray-100" />
-                <div className="flex-1 flex items-center justify-center">
-                  <div className="w-20 h-20 rounded-full" style={{ backgroundColor: getColor(0) }}>
-                    <div className="w-full h-full flex items-center justify-center text-white font-bold text-2xl">B</div>
+                <div className="font-mono uppercase tracking-[0.3em] mb-3" style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: c6 }}>Typography</div>
+                <div className="flex items-baseline mb-2" style={{ gap: 12 }}>
+                  <div className="flex-shrink-0" style={{ width: 58 }}>
+                    <span className="font-serif leading-none" style={{ fontFamily: "'Libre Baskerville', serif", fontSize: 48, color: c1 }}>Aa</span>
+                  </div>
+                  <div className="flex flex-col min-w-0" style={{ marginLeft: 4 }}>
+                    <span className="font-mono tracking-wide" style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: c1 }}>Libre Baskerville</span>
+                    <span className="font-mono tracking-wide" style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: c6 }}>Regular — Primary</span>
                   </div>
                 </div>
-              </div>
-            </div>
-            <div className="relative">
-              <div className="w-48 h-56 rounded-lg shadow-xl flex flex-col items-center pt-6" style={{ backgroundColor: getColor(0) }}>
-                <div className="w-10 h-6 rounded-b-full" style={{ backgroundColor: getColor(1) }} />
-                <div className="flex-1 flex items-center justify-center">
-                  <div className="text-white text-center">
-                    <div className="text-3xl font-black">BRAND</div>
-                    <div className="text-xs tracking-widest opacity-70 mt-1">EST. 2024</div>
+                <div className="flex items-baseline mb-2" style={{ gap: 12 }}>
+                  <div className="flex-shrink-0" style={{ width: 58 }}>
+                    <span className="leading-none" style={{ fontFamily: "'Caveat', cursive", fontWeight: 500, fontSize: 40, color: c4 }}>Aa</span>
                   </div>
+                  <div className="flex flex-col min-w-0" style={{ marginLeft: 4 }}>
+                    <span className="font-mono" style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: c4 }}>Caveat</span>
+                    <span className="font-mono" style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: c6 }}>Handwritten — Accent</span>
+                  </div>
+                </div>
+                <div className="flex items-baseline mb-3" style={{ gap: 12 }}>
+                  <div className="flex-shrink-0" style={{ width: 58 }}>
+                    <span className="leading-none font-light" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: 34, color: c.textLight }}>Aa</span>
+                  </div>
+                  <div className="flex flex-col min-w-0" style={{ marginLeft: 4 }}>
+                    <span className="font-mono" style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: c.textLight }}>Plus Jakarta Sans</span>
+                    <span className="font-mono" style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: c6 }}>Light — Body</span>
+                  </div>
+                </div>
+                <div style={{ fontFamily: "'Caveat', cursive", fontSize: 16, color: c4, opacity: 0.6 }}>brewed with intention</div>
+              </div>
+              <div style={{ background: `linear-gradient(to bottom, ${c3}, transparent)` }} />
+              <div>
+                <div className="font-mono uppercase tracking-[0.3em] mb-3" style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: c6 }}>Color Palette</div>
+                <div className="grid grid-cols-3 gap-2">
+                  {[c1, c2, c3, c4, c5, c6].map((bg, i) => {
+                    const fg = [c1, c4, c6].includes(bg) ? c5 : c1;
+                    return (
+                      <div key={i} className="aspect-square rounded-md flex flex-col justify-end items-center p-1.5 pb-1" style={{ background: bg, border: bg === c5 ? `1px solid ${c3}` : undefined }}>
+                        <span className="font-mono text-[9px] font-semibold tracking-wide opacity-90 whitespace-nowrap text-center" style={{ fontFamily: "'DM Mono', monospace", color: fg }}>{bg}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
-          </div>
-        );
-      case 'totebag':
-        return (
-          <div className="flex gap-6 justify-center">
-            <div className="relative">
-              <div className="w-48 h-56 bg-[#f5f0e6] rounded-lg shadow-xl relative overflow-hidden">
-                <div className="absolute -top-4 left-8 w-2 h-8 bg-[#d4c9b8] rounded" />
-                <div className="absolute -top-4 right-8 w-2 h-8 bg-[#d4c9b8] rounded" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-24 h-24 rounded-xl flex items-center justify-center" style={{ backgroundColor: getColor(0) }}>
-                    <span className="text-white text-3xl font-black">B</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="relative">
-              <div className="w-48 h-56 rounded-lg shadow-xl relative overflow-hidden" style={{ backgroundColor: getColor(0) }}>
-                <div className="absolute -top-4 left-8 w-2 h-8 rounded" style={{ backgroundColor: getColor(1) }} />
-                <div className="absolute -top-4 right-8 w-2 h-8 rounded" style={{ backgroundColor: getColor(1) }} />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="text-white text-center">
-                    <div className="text-2xl font-light tracking-widest">BRAND</div>
-                    <div className="w-12 h-px bg-white/50 mx-auto my-3" />
-                    <div className="text-xs opacity-70">STUDIO</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      case 'notebook':
-        return (
-          <div className="flex gap-6 justify-center">
-            <div className="w-40 h-56 rounded-lg shadow-xl overflow-hidden relative" style={{ backgroundColor: getColor(0) }}>
-              <div className="absolute left-0 top-0 bottom-0 w-4 bg-black/10" />
-              <div className="absolute inset-0 pl-6 flex items-center justify-center">
-                <div className="text-center text-white">
-                  <div className="w-16 h-16 mx-auto rounded-xl bg-white/20 flex items-center justify-center">
-                    <span className="text-2xl font-bold">B</span>
-                  </div>
-                  <div className="mt-3 text-sm tracking-widest">NOTES</div>
-                </div>
-              </div>
-            </div>
-            <div className="w-40 h-56 rounded-lg shadow-xl overflow-hidden relative bg-white border">
-              <div className="absolute left-0 top-0 bottom-0 w-4" style={{ backgroundColor: getColor(0) }} />
-              <div className="absolute inset-0 pl-6 flex flex-col p-4">
-                <div className="w-10 h-10 rounded-lg" style={{ backgroundColor: getColor(0) }} />
-                <div className="flex-1" />
-                <div className="text-xs text-gray-400">brand studio</div>
-              </div>
-            </div>
-          </div>
-        );
-      case 'cup':
-        return (
-          <div className="flex gap-8 justify-center items-end">
-            <div className="relative">
-              <div className="w-28 h-36 rounded-lg shadow-xl overflow-hidden" style={{ backgroundColor: getColor(0) }}>
-                <div className="h-full flex items-center justify-center text-white">
-                  <div className="text-center">
-                    <div className="text-3xl font-bold">B</div>
-                  </div>
-                </div>
-              </div>
-              <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 w-5 h-14 border-4 rounded-r-full" style={{ borderColor: getColor(0) }} />
-              <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-20 h-2 rounded" style={{ backgroundColor: getColor(1) }} />
-            </div>
-            <div className="relative">
-              <div className="w-24 h-32 rounded-b-lg shadow-xl overflow-hidden bg-white">
-                <div className="h-6" style={{ backgroundColor: getColor(0) }} />
-                <div className="flex-1 flex items-center justify-center py-4">
-                  <div className="text-center">
-                    <div className="w-12 h-12 mx-auto rounded-full flex items-center justify-center" style={{ backgroundColor: getColor(0) + '20' }}>
-                      <span className="font-bold" style={{ color: getColor(0) }}>B</span>
+            {/* Patrón franja: solo forma hoja (logo rosa claro), rellena y recortada, alternando normal/volteada y filas desplazadas */}
+            <div className="absolute z-[60]" style={{ top: '54%', left: '5%', right: '5%' }}>
+              <div className="font-mono uppercase tracking-[0.3em] mb-2" style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: c6 }}>Brand Pattern</div>
+              <div className="w-full rounded-lg overflow-hidden relative" style={{ height: 64, background: c1 }}>
+                <div className="absolute flex flex-col justify-start" style={{ top: -8, left: -50, width: 'calc(100% + 100px)', height: 120, marginLeft: 18 }}>
+                  {Array.from({ length: 6 }, (_, rowIndex) => (
+                    <div key={rowIndex} className="flex flex-shrink-0 items-center gap-0" style={{ height: 28, transform: rowIndex % 2 === 1 ? 'translateX(18px)' : undefined }}>
+                      {Array.from({ length: 32 }, (_, colIndex) => (
+                        <div key={colIndex} className="flex items-center justify-center flex-shrink-0" style={{ width: 22, height: 28 }}>
+                          <div
+                            className="rounded-[50%_2px_50%_2px]"
+                            style={{
+                              width: 14,
+                              height: 20,
+                              border: `3px solid ${c4}`,
+                              opacity: 0.7,
+                              transform: colIndex % 2 === 1 ? 'scaleX(-1) rotate(-8deg)' : 'rotate(-8deg)',
+                            }}
+                          />
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      case 'lanyard':
-        return (
-          <div className="flex gap-6 justify-center">
-            <div className="relative">
-              <div className="w-6 h-24" style={{ backgroundColor: getColor(0) }} />
-              <div className="w-32 h-44 rounded-lg shadow-xl overflow-hidden bg-white border relative -mt-2">
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-4 rounded-b" style={{ backgroundColor: getColor(0) }} />
-                <div className="h-full flex flex-col items-center justify-center p-4">
-                  <div className="w-16 h-16 rounded-full bg-gray-200" />
-                  <div className="mt-3 text-center">
-                    <div className="text-sm font-bold text-gray-900">María García</div>
-                    <div className="text-xs text-gray-500">Diseñadora</div>
-                  </div>
-                  <div className="mt-2 w-full h-2 rounded" style={{ backgroundColor: getColor(0) }} />
-                </div>
-              </div>
-            </div>
-            <div className="relative">
-              <div className="w-6 h-24" style={{ background: `repeating-linear-gradient(0deg, ${getColor(0)}, ${getColor(0)} 10px, ${getColor(1)} 10px, ${getColor(1)} 20px)` }} />
-              <div className="w-32 h-44 rounded-lg shadow-xl overflow-hidden relative -mt-2" style={{ backgroundColor: getColor(0) }}>
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-4 rounded-b bg-white/20" />
-                <div className="h-full flex flex-col items-center justify-center p-4 text-white">
-                  <div className="text-2xl font-black">VIP</div>
-                  <div className="mt-2 text-xs opacity-70">ALL ACCESS</div>
-                  <div className="mt-4 w-full h-8 rounded bg-white/20" />
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      default:
-        return null;
-    }
-  };
-
-  // Spaces Variants
-  const renderSpaces = () => {
-    switch (currentVariant) {
-      case 'office':
-        return (
-          <div className="w-full max-w-2xl mx-auto">
-            <div className="bg-gray-100 rounded-xl shadow-xl overflow-hidden p-6">
-              <div className="relative h-72 bg-white rounded-lg overflow-hidden">
-                <div className="absolute inset-0" style={{ backgroundColor: getColor(0) + '15' }}>
-                  <div className="absolute top-8 left-8 flex items-center gap-3">
-                    <div className="w-16 h-16 rounded-xl shadow-lg" style={{ backgroundColor: getColor(0) }}>
-                      <div className="w-full h-full flex items-center justify-center text-white text-2xl font-bold">B</div>
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold" style={{ color: getColor(0) }}>brand</div>
-                      <div className="text-xs text-gray-500">Creative Studio</div>
-                    </div>
-                  </div>
-                </div>
-                <div className="absolute bottom-0 left-0 right-0 h-24" style={{ backgroundColor: getColor(1) + '20' }}>
-                  <div className="absolute bottom-0 left-12 w-48 h-20 rounded-t-lg bg-white shadow-lg">
-                    <div className="absolute top-2 left-4 w-8 h-8 rounded" style={{ backgroundColor: getColor(0) }} />
-                  </div>
-                </div>
-                <div className="absolute top-16 right-8 flex gap-2">
-                  {colors.slice(0, 3).map((c, i) => (
-                    <div key={i} className="w-12 h-16 rounded-sm shadow" style={{ backgroundColor: c }} />
                   ))}
                 </div>
               </div>
-              <div className="mt-4 text-center text-sm text-gray-500">Recepción de oficina</div>
             </div>
-          </div>
-        );
-      case 'retail':
-        return (
-          <div className="w-full max-w-2xl mx-auto">
-            <div className="bg-gray-900 rounded-xl shadow-xl overflow-hidden p-6">
-              <div className="relative h-72 rounded-lg overflow-hidden" style={{ background: `linear-gradient(180deg, ${getColor(0)}30, ${getColor(0)}10)` }}>
-                <div className="absolute top-0 left-0 right-0 h-16 flex items-center justify-center" style={{ backgroundColor: getColor(0) }}>
-                  <span className="text-white text-2xl font-black tracking-wider">BRAND STORE</span>
-                </div>
-                <div className="absolute top-20 left-4 right-4 flex gap-4">
-                  {colors.slice(0, 4).map((c, i) => (
-                    <div key={i} className="flex-1">
-                      <div className="h-32 rounded-lg bg-white/10 p-2">
-                        <div className="w-full h-full rounded flex items-center justify-center" style={{ backgroundColor: c + '40' }}>
-                          <div className="w-8 h-12 rounded" style={{ backgroundColor: c }} />
-                        </div>
-                      </div>
-                      <div className="h-2 mt-1 rounded" style={{ backgroundColor: c }} />
-                    </div>
-                  ))}
-                </div>
-                <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-gray-900/50 to-transparent" />
-              </div>
-              <div className="mt-4 text-center text-sm text-gray-400">Tienda retail</div>
-            </div>
-          </div>
-        );
-      case 'billboard':
-        return (
-          <div className="w-full max-w-2xl mx-auto">
-            <div className="bg-gradient-to-b from-blue-400 to-blue-200 rounded-xl shadow-xl overflow-hidden p-6">
-              {/* Street billboard */}
-              <div className="relative h-80">
-                {/* Billboard structure */}
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-80">
-                  {/* Billboard frame */}
-                  <div className="bg-gray-800 p-2 rounded-lg shadow-2xl">
-                    <div className="h-48 rounded overflow-hidden relative" style={{ backgroundColor: getColor(0) }}>
-                      {/* Content */}
-                      <div className="absolute inset-0 p-4 flex flex-col text-white">
-                        <div className="text-xs uppercase tracking-widest opacity-70">Nuevo</div>
-                        <div className="text-3xl font-black mt-1">BRAND</div>
-                        <div className="text-lg font-light">Collection 2024</div>
-                        <div className="flex-1" />
-                        <div className="flex items-center gap-3">
-                          <div className="px-4 py-2 rounded-full text-sm font-bold" style={{ backgroundColor: getColor(1) }}>
-                            Descubre más
-                          </div>
-                          <div className="flex gap-1">
-                            {colors.slice(0, 4).map((c, i) => (
-                              <div key={i} className="w-4 h-4 rounded-full" style={{ backgroundColor: c }} />
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                      {/* Decorative elements */}
-                      <div className="absolute top-4 right-4 w-24 h-24 rounded-full opacity-20 blur-xl" style={{ backgroundColor: getColor(1) }} />
-                    </div>
-                  </div>
-                  {/* Pole */}
-                  <div className="w-4 h-20 bg-gray-700 mx-auto" />
-                </div>
-                {/* Ground / street */}
-                <div className="absolute bottom-0 left-0 right-0 h-12 bg-gray-600 rounded-b-xl">
-                  <div className="h-2 bg-yellow-400 mt-5 mx-4 rounded" />
-                </div>
-              </div>
-              <div className="mt-4 text-center text-sm text-gray-600">Billboard publicitario</div>
-            </div>
-          </div>
-        );
-      case 'objects3d':
-        return (
-          <div className="w-full max-w-2xl mx-auto">
-            <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl shadow-xl overflow-hidden p-8">
-              {/* 3D Objects simulation */}
-              <div className="flex gap-8 justify-center items-end">
-                {/* Sphere */}
-                <div className="relative">
-                  <div className="w-32 h-32 rounded-full shadow-2xl relative overflow-hidden" style={{ 
-                    background: `radial-gradient(circle at 30% 30%, ${getColor(0)}, ${getColor(0)}99 50%, ${getColor(0)}66 100%)` 
-                  }}>
-                    <div className="absolute top-4 left-6 w-8 h-4 rounded-full bg-white/30 blur-sm" />
-                  </div>
-                  <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-24 h-4 bg-black/20 rounded-full blur-md" />
-                  <div className="text-center text-white/50 text-xs mt-4">Esfera</div>
-                </div>
-                {/* Cube */}
-                <div className="relative">
-                  <div className="w-28 h-28 relative" style={{ transform: 'perspective(200px) rotateX(-15deg) rotateY(25deg)' }}>
-                    {/* Front face */}
-                    <div className="absolute inset-0 shadow-xl" style={{ backgroundColor: getColor(1) }} />
-                    {/* Top face */}
-                    <div className="absolute -top-6 left-0 right-0 h-6 origin-bottom" style={{ 
-                      backgroundColor: getColor(1), 
-                      filter: 'brightness(1.2)',
-                      transform: 'rotateX(60deg)',
-                    }} />
-                    {/* Right face */}
-                    <div className="absolute top-0 -right-6 bottom-0 w-6 origin-left" style={{ 
-                      backgroundColor: getColor(1), 
-                      filter: 'brightness(0.8)',
-                      transform: 'rotateY(-60deg)',
-                    }} />
-                  </div>
-                  <div className="text-center text-white/50 text-xs mt-8">Cubo</div>
-                </div>
-                {/* Cylinder */}
-                <div className="relative">
-                  <div className="w-24 h-36 rounded-lg shadow-2xl relative overflow-hidden" style={{ 
-                    background: `linear-gradient(90deg, ${getColor(2)}66, ${getColor(2)} 40%, ${getColor(2)} 60%, ${getColor(2)}66)` 
-                  }}>
-                    {/* Top ellipse */}
-                    <div className="absolute -top-2 left-0 right-0 h-8 rounded-[50%]" style={{ backgroundColor: getColor(2), filter: 'brightness(1.2)' }} />
-                    {/* Highlight */}
-                    <div className="absolute top-8 left-4 w-2 h-20 bg-white/20 rounded-full" />
-                  </div>
-                  <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-20 h-3 bg-black/20 rounded-full blur-md" />
-                  <div className="text-center text-white/50 text-xs mt-4">Cilindro</div>
-                </div>
-                {/* Torus / Ring */}
-                <div className="relative">
-                  <div className="w-28 h-28 rounded-full border-[12px] shadow-2xl" style={{ 
-                    borderColor: getColor(3) || getColor(0),
-                    background: 'transparent',
-                  }}>
-                    <div className="absolute inset-0 rounded-full" style={{
-                      background: `radial-gradient(circle at 50% 50%, transparent 40%, ${getColor(3) || getColor(0)}33 60%)`
-                    }} />
-                  </div>
-                  <div className="text-center text-white/50 text-xs mt-4">Anillo</div>
-                </div>
-              </div>
-              <div className="mt-8 text-center text-sm text-gray-400">Objetos volumétricos con paleta aplicada</div>
-            </div>
-          </div>
-        );
-      case 'facade':
-        return (
-          <div className="w-full max-w-2xl mx-auto">
-            <div className="bg-gradient-to-b from-blue-200 to-blue-100 rounded-xl shadow-xl overflow-hidden p-6">
-              <div className="relative h-72 rounded-lg overflow-hidden">
-                <div className="absolute inset-4 bg-gray-200 rounded-lg shadow-inner">
-                  <div className="absolute top-4 left-4 right-4 grid grid-cols-4 gap-2">
-                    {Array(8).fill(0).map((_, i) => (
-                      <div key={i} className="aspect-[3/4] bg-gray-700/30 rounded-sm" />
-                    ))}
-                  </div>
-                  <div className="absolute bottom-0 left-4 right-4 h-24 rounded-t-lg overflow-hidden" style={{ backgroundColor: getColor(0) }}>
-                    <div className="absolute top-2 left-1/2 -translate-x-1/2 px-8 py-2 rounded" style={{ backgroundColor: getColor(1) }}>
-                      <span className="text-white font-bold text-lg">BRAND</span>
-                    </div>
-                    <div className="absolute bottom-0 left-4 right-4 h-14 bg-gray-800/30 rounded-t flex items-end justify-center pb-2">
-                      <div className="flex gap-2">
-                        {colors.slice(0, 3).map((c, i) => (
-                          <div key={i} className="w-6 h-8 rounded-t" style={{ backgroundColor: c }} />
-                        ))}
+            {/* Aplicaciones: vaso, bolsa, tarjeta, delantal (más grandes y tipografía legible) */}
+            <div className="absolute z-[60]" style={{ top: '68%', left: '5%', right: '5%' }}>
+              <div className="font-mono uppercase tracking-[0.3em] mb-3" style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: c6 }}>Applications</div>
+              <div className="grid grid-cols-4 gap-4">
+                <div className="flex flex-col gap-2 items-center">
+                  <div className="w-full rounded-lg overflow-hidden flex items-center justify-center" style={{ aspectRatio: 0.7, background: c3, minHeight: 100 }}>
+                    <div className="flex flex-col items-center w-[38%] h-[65%]">
+                      <div className="w-[110%] h-[10%] rounded-t" style={{ background: c1 }} />
+                      <div className="w-full flex-1 border border-t-0 rounded-b flex flex-col items-center justify-center relative" style={{ background: c5, borderColor: c1 }}>
+                        <div className="absolute top-[30%] left-0 right-0 h-[30%]" style={{ background: c2, opacity: 0.25 }} />
+                        <span className="font-serif tracking-widest lowercase z-[1]" style={{ fontFamily: "'Libre Baskerville', serif", fontSize: 11, color: c1 }}>aura</span>
                       </div>
                     </div>
                   </div>
-                  <div className="absolute bottom-24 left-4 right-4 h-4" style={{ background: `repeating-linear-gradient(90deg, ${getColor(0)}, ${getColor(0)} 20px, ${getColor(1)} 20px, ${getColor(1)} 40px)` }} />
+                  <span className="font-mono text-[10px] uppercase tracking-wider text-center" style={{ fontFamily: "'DM Mono', monospace", color: c6 }}>Takeaway Cup</span>
                 </div>
-                <div className="absolute bottom-0 left-0 right-0 h-4 bg-gray-400" />
+                <div className="flex flex-col gap-2 items-center">
+                  <div className="w-full rounded-lg overflow-hidden flex flex-col items-center justify-center gap-1.5 relative" style={{ aspectRatio: 0.7, background: c1, minHeight: 100 }}>
+                    <div className="absolute top-0 left-0 right-0 h-[12%]" style={{ background: c4, opacity: 0.4 }} />
+                    <div className="flex flex-col items-center justify-center gap-1 rounded p-1.5" style={{ width: '58%', aspectRatio: 1, border: `2px solid ${c2}` }}>
+                      <span className="font-serif tracking-widest lowercase" style={{ fontFamily: "'Libre Baskerville', serif", fontSize: 13, color: c5 }}>aura</span>
+                      <div className="w-[40%] h-px" style={{ background: c5, opacity: 0.8 }} />
+                      <span className="font-cursive" style={{ fontFamily: "'Caveat', cursive", fontSize: 11, color: c5 }}>single origin</span>
+                    </div>
+                    <span className="font-mono tracking-wider" style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: c5 }}>250g</span>
+                  </div>
+                  <span className="font-mono text-[10px] uppercase tracking-wider text-center" style={{ fontFamily: "'DM Mono', monospace", color: c6 }}>Coffee Bag</span>
+                </div>
+                <div className="flex flex-col gap-2 items-center">
+                  <div className="w-full rounded-lg overflow-hidden flex flex-col items-center justify-center gap-2.5 p-3" style={{ aspectRatio: 0.7, background: c4, minHeight: 100 }}>
+                    <span className="font-cursive font-medium text-center" style={{ fontFamily: "'Caveat', cursive", fontSize: 18, color: c5 }}>your journey</span>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {Array.from({ length: 9 }).map((_, i) => (
+                        <div key={i} className="w-5 h-5 rounded-full border-2" style={{ borderColor: i < 5 ? c2 : c5, opacity: i < 5 ? 0.7 : 0.5, background: i < 5 ? c2 : 'transparent' }} />
+                      ))}
+                    </div>
+                    <span className="font-mono text-[10px] uppercase tracking-wider opacity-50" style={{ fontFamily: "'DM Mono', monospace", color: c3 }}>Loyalty Card</span>
+                  </div>
+                  <span className="font-mono text-[10px] uppercase tracking-wider text-center" style={{ fontFamily: "'DM Mono', monospace", color: c6 }}>Stamp Card</span>
+                </div>
+                <div className="flex flex-col gap-2 items-center">
+                  <div className="w-full rounded-lg overflow-hidden flex items-center justify-center relative" style={{ aspectRatio: 0.7, background: c3, minHeight: 100 }}>
+                    <div className="relative flex flex-col items-center w-[50%] h-[60%]" style={{ opacity: 0.55 }}>
+                      <div className="w-[30%] h-[12%] rounded-b-[50%]" style={{ borderBottom: `2px solid ${c1}`, borderLeft: `2px solid ${c1}`, borderRight: `2px solid ${c1}` }} />
+                      <div className="w-full flex-1 rounded-b flex items-center justify-center mt-[-2px]" style={{ borderLeft: `2px solid ${c1}`, borderRight: `2px solid ${c1}`, borderBottom: `2px solid ${c1}` }}>
+                        <span className="font-serif tracking-widest lowercase" style={{ fontFamily: "'Libre Baskerville', serif", fontSize: 13, color: c1 }}>aura</span>
+                      </div>
+                      <div className="absolute bottom-[15%] left-1/2 -translate-x-1/2 w-[50%] h-[18%] rounded-b" style={{ border: `2px solid ${c1}`, borderTopWidth: 2.5 }} />
+                    </div>
+                  </div>
+                  <span className="font-mono text-[10px] uppercase tracking-wider text-center" style={{ fontFamily: "'DM Mono', monospace", color: c6 }}>Apron</span>
+                </div>
               </div>
-              <div className="mt-4 text-center text-sm text-gray-600">Fachada de local comercial</div>
+            </div>
+            {/* Marca de agua */}
+            <div className="absolute bottom-[2%] right-[-4%] z-[4] font-serif leading-[0.65] opacity-25 pointer-events-none select-none lowercase" style={{ fontFamily: "'Libre Baskerville', serif", fontSize: 180, color: c3 }}>a</div>
+            {/* Footer: aura y puntitos centrados, color suave para que se integren con el fondo */}
+            <div className="absolute bottom-0 left-0 right-0 z-[100] flex items-center justify-center" style={{ height: '4%', background: c1 }}>
+              <div className="flex items-center gap-2">
+                <div className="rounded-full" style={{ width: 4, height: 4, background: c3 }} />
+                <span className="font-serif text-[12px] tracking-[0.35em] lowercase" style={{ fontFamily: "'Libre Baskerville', serif", color: c3, textIndent: '0.35em' }}>aura</span>
+                <div className="rounded-full" style={{ width: 4, height: 4, background: c3 }} />
+              </div>
             </div>
           </div>
-        );
-      default:
-        return null;
-    }
+        </div>
+      </div>
+    );
+  };
+
+  const renderBranding = () => {
+    const brandingByVariant: Record<string, () => React.ReactNode> = {
+      'territorio-visual': renderBrandingTerritorioVisual,
+    };
+    return (brandingByVariant[currentVariant] ?? renderBrandingTerritorioVisual)();
+  };
+
+  const renderPoster = () => {
+    const posterByVariant: Record<string, () => React.ReactNode> = {
+      conference: renderPosterConference,
+      'exhibition-swiss': renderPosterExhibitionSwiss,
+      'festival-gig': renderPosterFestivalGig,
+      collage: renderPosterCollage,
+      competition: renderPosterCompetition,
+    };
+    return (posterByVariant[currentVariant] ?? renderPosterConference)();
   };
 
   const renderContent = () => {
-    switch (activeCategory) {
-      case 'logos': return renderLogos();
-      case 'posters': return renderPosters();
-      case 'cards': return renderCards();
-      case 'digital': return renderDigital();
-      case 'social': return renderSocial();
-      case 'patterns': return renderPatterns();
-      case 'print': return renderPrint();
-      case 'merch': return renderMerch();
-      case 'spaces': return renderSpaces();
-      default: return null;
-    }
+    if (activeCategory === 'poster') return renderPoster();
+    if (activeCategory === 'branding') return renderBranding();
+    return renderArchitecture();
   };
 
   return (
-    <div className="space-y-6">
-      {/* Tips */}
-      <div className="bg-gradient-to-r from-purple-900/30 to-indigo-900/30 rounded-xl p-4 border border-purple-500/20">
-        <div className="flex items-start gap-3">
-          <span className="text-2xl">💡</span>
-          <div>
-            <div className="font-medium text-gray-200">Consejo de aplicación</div>
-            <div className="text-sm text-gray-400 mt-1">
-              {currentCategory.tip}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Category Tabs */}
-      <div className="flex gap-2 overflow-x-auto pb-2">
-        {categories.map(cat => (
-          <button
-            key={cat.id}
-            onClick={() => setActiveCategory(cat.id)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all whitespace-nowrap ${
-              activeCategory === cat.id
-                ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/25'
-                : 'bg-gray-800/50 text-gray-300 hover:bg-gray-700/50 border border-gray-700/50'
-            }`}
-          >
-            <span>{cat.icon}</span>
-            <span>{cat.name}</span>
-          </button>
-        ))}
-      </div>
-
-      {/* Variant Selector */}
-      <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 border border-gray-700/50">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-sm font-medium text-gray-300">
-            Variantes de {currentCategory.name}
-          </span>
-          <div className="flex gap-3 items-center">
-            {/* Export buttons */}
-            <div className="flex gap-2">
+    <div className="grid grid-cols-[minmax(0,200px)_1fr_minmax(0,240px)] gap-4 min-h-0 flex-1 overflow-hidden">
+      {/* Columna izquierda: menú categorías + variantes */}
+      <div className="flex flex-col gap-3 min-h-0 overflow-y-auto bg-gray-800/40 rounded-2xl border border-gray-700/50 p-3">
+        <nav className="flex flex-col gap-1" aria-label="Categorías de aplicación">
+          {categories.map(cat => (
+            <div key={cat.id} className="flex flex-col gap-1">
               <button
-                onClick={handleExportPNG}
-                disabled={isExporting}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-green-600/20 text-green-400 hover:bg-green-600/30 border border-green-500/30 transition-all disabled:opacity-50"
-                title="Descargar esta vista como PNG"
+                type="button"
+                onClick={() => setActiveCategory(cat.id)}
+                className={`flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-left text-sm font-medium transition-all ${
+                  activeCategory === cat.id
+                    ? 'bg-indigo-600/80 text-white shadow-lg shadow-indigo-500/20'
+                    : 'text-gray-300 hover:bg-gray-700/60 hover:text-white'
+                }`}
               >
-                {isExporting ? (
-                  <div className="w-3 h-3 border-2 border-green-400/30 border-t-green-400 rounded-full animate-spin" />
-                ) : (
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                )}
-                <span>PNG</span>
+                <span className="shrink-0 text-gray-400 [.bg-indigo-600\/80_&]:text-indigo-200">
+                  {CategoryIcons[cat.id]}
+                </span>
+                <span className="truncate">{cat.name}</span>
               </button>
-              <button
-                onClick={handleExportAll}
-                disabled={isExportingAll}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-purple-600/20 text-purple-400 hover:bg-purple-600/30 border border-purple-500/30 transition-all disabled:opacity-50"
-                title="Descargar todo como ZIP"
-              >
-                {isExportingAll ? (
-                  <>
-                    <div className="w-3 h-3 border-2 border-purple-400/30 border-t-purple-400 rounded-full animate-spin" />
-                    <span>{exportProgress.current}/{exportProgress.total}</span>
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-                    </svg>
-                    <span>Todo ZIP</span>
-                  </>
-                )}
-              </button>
+              {activeCategory === cat.id && (
+                <div className="flex flex-col gap-1 pl-1 ml-5 border-l border-gray-600/60">
+                  {currentCategory.variants.map(variant => (
+                    <button
+                      key={variant.id}
+                      type="button"
+                      onClick={() => setActiveVariants(prev => ({ ...prev, [cat.id]: variant.id }))}
+                      className={`px-2.5 py-1.5 rounded-lg text-xs text-left transition-all ${
+                        currentVariant === variant.id
+                          ? 'bg-indigo-500/30 text-indigo-200 font-medium'
+                          : 'text-gray-400 hover:bg-gray-700/50 hover:text-gray-200'
+                      }`}
+                    >
+                      {variant.name}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
-            
-            {/* Divider */}
-            <div className="w-px h-6 bg-gray-600" />
-            
-            {/* Background selector */}
-            <div className="flex gap-2">
-              <button
-                onClick={() => setBgMode('dark')}
-                className={`w-7 h-7 rounded-full border-2 bg-gray-900 transition-all ${bgMode === 'dark' ? 'border-purple-500 scale-110' : 'border-gray-600 hover:border-gray-500'}`}
-                title="Fondo oscuro"
-              />
-              <button
-                onClick={() => setBgMode('light')}
-                className={`w-7 h-7 rounded-full border-2 bg-white transition-all ${bgMode === 'light' ? 'border-purple-500 scale-110' : 'border-gray-600 hover:border-gray-500'}`}
-                title="Fondo claro"
-              />
-              <button
-                onClick={() => setBgMode('color')}
-                className={`w-7 h-7 rounded-full border-2 transition-all ${bgMode === 'color' ? 'border-purple-500 scale-110' : 'border-gray-600 hover:border-gray-500'}`}
-                style={{ backgroundColor: getColor(0) }}
-                title="Fondo color"
-              />
-            </div>
-          </div>
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          {currentCategory.variants.map(variant => (
-            <button
-              key={variant.id}
-              onClick={() => setActiveVariants(prev => ({ ...prev, [activeCategory]: variant.id }))}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-all ${
-                currentVariant === variant.id
-                  ? 'bg-purple-600/30 text-purple-300 font-medium border border-purple-500/50'
-                  : 'bg-gray-700/50 text-gray-400 hover:bg-gray-700 border border-gray-600/50'
-              }`}
-            >
-              <span>{variant.icon}</span>
-              <span>{variant.name}</span>
-            </button>
           ))}
-        </div>
+        </nav>
       </div>
 
-      {/* Preview Area */}
-      <div 
+      {/* Columna central: vista previa - sin scroll, contenido centrado y ligeramente escalado para que quepa */}
+      <div
         ref={previewRef}
-        className="rounded-2xl p-8 min-h-[400px] flex items-center justify-center transition-colors duration-300 border border-gray-700/30"
+        className="rounded-2xl p-6 min-h-0 flex-1 flex items-center justify-center transition-colors duration-300 border border-gray-700/30 overflow-hidden"
         style={{ backgroundColor: getBgColor() }}
       >
         <AnimatePresence mode="wait">
@@ -2251,19 +1292,292 @@ export default function ApplicationShowcase({ colors, paletteName, onUpdateColor
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.3 }}
-            className="w-full"
+            className="w-full h-full flex items-center justify-center min-h-0"
           >
-            {renderContent()}
+            <div style={{ transform: 'scale(0.94)', transformOrigin: 'center center' }}>
+              {renderContent()}
+            </div>
           </motion.div>
         </AnimatePresence>
       </div>
 
-      {/* Palette Reference with Edit capabilities */}
-      <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 border border-gray-700/50">
-        <div className="flex items-center justify-between mb-3">
-          <div className="text-sm font-medium text-gray-300">Tu paleta</div>
-          <div className="text-xs text-gray-500">Arrastra para reordenar • Clic para editar</div>
+      {/* Columna derecha: dos estados — edición de color o vista normal (Estilo, Fondo, Exportar, paletas) */}
+      <div className="flex flex-col gap-4 min-h-0 overflow-y-auto">
+        {editingInRightColumn ? (() => {
+          const isMain = editingInRightColumn.type === 'main';
+          const isSupport = editingInRightColumn.type === 'support';
+          const currentHex = isMain
+            ? localColors[editingInRightColumn.index] ?? '#000000'
+            : isSupport
+              ? (supportColorsList.find((s) => s.role === editingInRightColumn.role)?.hex ?? '#000000')
+              : customBgColor;
+          const setHex = (hex: string) => {
+            if (isMain) handleColorChange(editingInRightColumn.index, hex);
+            else if (isSupport) updateSupportColor?.(editingInRightColumn.role, hex);
+            else setCustomBgColor(hex);
+          };
+          const title = isMain
+            ? `Editar ${getMainPaletteRole(editingInRightColumn.index).label}`
+            : isSupport
+              ? `Editar ${supportColorsList.find((s) => s.role === editingInRightColumn.role)?.label ?? 'color de apoyo'}`
+              : 'Editar fondo personalizado';
+          return (
+            <>
+            <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-5 border border-gray-700/50 flex flex-col gap-4 min-h-0 shrink-0">
+              <div className="flex items-center justify-between shrink-0">
+                <h3 className="text-sm font-semibold text-white">{title}</h3>
+              </div>
+              <div className="w-full h-24 rounded-xl shadow-inner shrink-0" style={{ backgroundColor: currentHex }} />
+              <div className="flex items-center gap-3">
+                <div className="relative w-14 h-14 shrink-0 rounded-lg border-2 border-gray-600 overflow-hidden">
+                  <input
+                    type="color"
+                    value={currentHex}
+                    onChange={(e) => setHex(e.target.value)}
+                    className="absolute inset-0 w-full h-full cursor-pointer bg-transparent opacity-0"
+                    style={{ padding: 0 }}
+                    aria-label="Elegir color"
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ backgroundColor: currentHex }} aria-hidden>
+                    <span className="w-7 h-7 rounded-full bg-black/40 flex items-center justify-center">
+                      <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                      </svg>
+                    </span>
+                  </div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <label className="text-[10px] text-gray-500 uppercase tracking-wider block mb-1">HEX</label>
+                  <input
+                    type="text"
+                    value={currentHex.toUpperCase()}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (/^#[0-9A-Fa-f]{6}$/.test(v)) setHex(v);
+                      const noHash = v.replace(/^#/, '');
+                      if (/^[0-9A-Fa-f]{6}$/.test(noHash)) setHex('#' + noHash);
+                    }}
+                    className="w-full bg-gray-700 text-white text-sm font-mono px-3 py-2 rounded-lg border border-gray-600 focus:border-indigo-500 focus:outline-none"
+                    aria-label="Código HEX"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const hsl = hexToHsl(currentHex);
+                    setHex(hslToHex(hsl.h, hsl.s, Math.min(95, hsl.l + 15)));
+                  }}
+                  className="py-2.5 bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm rounded-lg transition-colors font-medium"
+                >
+                  +Claro
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const hsl = hexToHsl(currentHex);
+                    setHex(hslToHex(hsl.h, hsl.s, Math.max(5, hsl.l - 15)));
+                  }}
+                  className="py-2.5 bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm rounded-lg transition-colors font-medium"
+                >
+                  +Oscuro
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditingInRightColumn(null)}
+                  className="py-2.5 bg-green-600 hover:bg-green-500 text-white text-sm rounded-lg transition-colors font-medium col-span-1"
+                >
+                  ✓ Aceptar cambio
+                </button>
+              </div>
+            </div>
+
+            {/* Tu paleta (referencia mientras editas) */}
+            <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 border border-gray-700/50 min-h-0 shrink-0">
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-sm font-medium text-gray-300">Tu paleta</div>
+                <div className="text-[10px] text-gray-500">Clic para editar otro</div>
+              </div>
+              <div className="flex gap-2">
+                {localColors.map((color, i) => (
+                  <div
+                    key={i}
+                    className="flex-1 relative group min-w-0"
+                    onMouseEnter={() => setHoveredMainIndex(i)}
+                    onMouseLeave={() => setHoveredMainIndex(null)}
+                    title={getMainPaletteRole(i).label}
+                  >
+                    {hoveredMainIndex === i && (
+                      <span className={paletteSwatchTooltipClass}>{getMainPaletteRole(i).label}</span>
+                    )}
+                    <div
+                      className={`h-12 rounded-lg shadow-lg ring-1 ring-white/10 transition-all hover:scale-105 cursor-pointer w-full ${editingInRightColumn?.type === 'main' && editingInRightColumn?.index === i ? 'ring-2 ring-purple-500' : ''}`}
+                      style={{ backgroundColor: color }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingInRightColumn(editingInRightColumn?.type === 'main' && editingInRightColumn?.index === i ? null : { type: 'main', index: i });
+                      }}
+                    />
+                    <div className="text-xs text-center text-gray-400 mt-1.5 font-medium truncate">{getMainPaletteRole(i).initial}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Tu paleta de apoyo (referencia mientras editas) */}
+            {supportColorsList.length > 0 && (
+              <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 border border-gray-700/50 min-h-0 shrink-0">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="text-sm font-medium text-gray-300">Tu paleta de apoyo</div>
+                  <div className="text-[10px] text-gray-500">{supportVariant === 'claro' ? 'Claro' : 'Oscuro'}</div>
+                </div>
+                <div className="flex gap-2">
+                  {supportColorsList.map((item) => (
+                    <div
+                      key={item.role}
+                      className="flex-1 relative group min-w-0"
+                      onMouseEnter={() => setHoveredSupportRole(item.role)}
+                      onMouseLeave={() => setHoveredSupportRole(null)}
+                      title={item.label}
+                    >
+                      {hoveredSupportRole === item.role && (
+                        <span className={paletteSwatchTooltipClass}>{item.label}</span>
+                      )}
+                      <div
+                        className={`h-12 rounded-lg shadow-lg ring-1 ring-white/10 transition-all hover:scale-105 cursor-pointer w-full ${editingInRightColumn?.type === 'support' && editingInRightColumn?.role === item.role ? 'ring-2 ring-indigo-500' : ''}`}
+                        style={{ backgroundColor: item.hex }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (updateSupportColor) setEditingInRightColumn(editingInRightColumn?.type === 'support' && editingInRightColumn?.role === item.role ? null : { type: 'support', role: item.role });
+                        }}
+                      />
+                      <div className="text-xs text-center text-gray-400 mt-1.5 font-medium truncate">{item.initial}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+          );
+        })() : (
+        <>
+        {/* Recuadro Estilo (claro / oscuro) */}
+        <div className="shrink-0 bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 border border-gray-700/50">
+          <div className="text-sm font-medium text-gray-300 mb-3">Estilo</div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setSupportVariant?.('claro')}
+              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${supportVariant === 'claro' ? 'bg-gray-200 text-gray-900' : 'bg-gray-700/50 text-gray-400 hover:bg-gray-700 hover:text-gray-200'}`}
+              aria-pressed={supportVariant === 'claro'}
+            >
+              Claro
+            </button>
+            <button
+              type="button"
+              onClick={() => setSupportVariant?.('oscuro')}
+              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${supportVariant === 'oscuro' ? 'bg-gray-700 text-white' : 'bg-gray-700/50 text-gray-400 hover:bg-gray-700 hover:text-gray-200'}`}
+              aria-pressed={supportVariant === 'oscuro'}
+            >
+              Oscuro
+            </button>
+          </div>
         </div>
+
+        {/* Recuadro Fondo */}
+        <div className="shrink-0 bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 border border-gray-700/50">
+          <div className="text-sm font-medium text-gray-300 mb-3">Fondo</div>
+          <div className="flex flex-wrap gap-2 items-center">
+            <button
+              type="button"
+              onClick={() => setBgMode('dark')}
+              className={`w-8 h-8 rounded-full border-2 bg-gray-900 transition-all shrink-0 ${bgMode === 'dark' ? 'border-indigo-500 scale-110 ring-2 ring-indigo-500/30' : 'border-gray-600 hover:border-gray-500'}`}
+              title="Fondo oscuro"
+              aria-pressed={bgMode === 'dark'}
+            />
+            <button
+              type="button"
+              onClick={() => setBgMode('light')}
+              className={`w-8 h-8 rounded-full border-2 bg-white transition-all shrink-0 ${bgMode === 'light' ? 'border-indigo-500 scale-110 ring-2 ring-indigo-500/30' : 'border-gray-600 hover:border-gray-500'}`}
+              title="Fondo claro"
+              aria-pressed={bgMode === 'light'}
+            />
+            <button
+              type="button"
+              onClick={() => setBgMode('color')}
+              className={`w-8 h-8 rounded-full border-2 transition-all shrink-0 ${bgMode === 'color' ? 'border-indigo-500 scale-110 ring-2 ring-indigo-500/30' : 'border-gray-600 hover:border-gray-500'}`}
+              style={{ backgroundColor: getColor(0) }}
+              title="Fondo color de la paleta"
+              aria-pressed={bgMode === 'color'}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setBgMode('custom');
+                setEditingInRightColumn({ type: 'background' });
+              }}
+              className={`w-8 h-8 rounded-full border-2 transition-all shrink-0 flex items-center justify-center bg-gray-700 hover:bg-gray-600 text-gray-300 ${bgMode === 'custom' ? 'border-indigo-500 scale-110 ring-2 ring-indigo-500/30 text-indigo-400' : 'border-gray-600 hover:border-gray-500'}`}
+              title="Fondo color personalizado"
+              aria-pressed={bgMode === 'custom'}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Recuadro Exportar */}
+        <div className="shrink-0 bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 border border-gray-700/50">
+          <div className="text-sm font-medium text-gray-300 mb-3">Exportar</div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleExportPNG}
+              disabled={isExporting}
+              className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-xs font-medium bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 border border-emerald-500/30 transition-all disabled:opacity-50"
+              title="Descargar esta vista como PNG"
+            >
+              {isExporting ? (
+                <div className="w-3 h-3 border-2 border-emerald-400/30 border-t-emerald-400 rounded-full animate-spin" />
+              ) : (
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+              )}
+              <span>PNG</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleExportAll}
+              disabled={isExportingAll}
+              className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-xs font-medium bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600/30 border border-indigo-500/30 transition-all disabled:opacity-50"
+              title="Descargar todo como ZIP"
+            >
+              {isExportingAll ? (
+                <>
+                  <div className="w-3 h-3 border-2 border-indigo-400/30 border-t-indigo-400 rounded-full animate-spin" />
+                  <span>{exportProgress.current}/{exportProgress.total}</span>
+                </>
+              ) : (
+                <>
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                  </svg>
+                  <span>ZIP</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Recuadro Tu paleta */}
+        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 border border-gray-700/50 min-h-0">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-sm font-medium text-gray-300">Tu paleta</div>
+            <div className="text-[10px] text-gray-500">Arrastra • Clic para editar</div>
+          </div>
         
         {/* Color items - using simple div for reordering */}
         <div className="flex gap-2">
@@ -2272,6 +1586,8 @@ export default function ApplicationShowcase({ colors, paletteName, onUpdateColor
               key={i}
               className="flex-1 relative group"
               draggable
+              onMouseEnter={() => setHoveredMainIndex(i)}
+              onMouseLeave={() => setHoveredMainIndex(null)}
               onDragStart={(e) => {
                 e.dataTransfer.setData('colorIndex', i.toString());
                 e.currentTarget.classList.add('opacity-50');
@@ -2297,161 +1613,104 @@ export default function ApplicationShowcase({ colors, paletteName, onUpdateColor
                   newColors.splice(toIndex, 0, moved);
                   setLocalColors(newColors);
                   onUpdateColors?.(newColors);
-                  // Keep same color selected
-                  if (editingColorIndex === fromIndex) {
-                    setEditingColorIndex(toIndex);
-                  } else if (editingColorIndex !== null) {
-                    if (fromIndex < editingColorIndex && toIndex >= editingColorIndex) {
-                      setEditingColorIndex(editingColorIndex - 1);
-                    } else if (fromIndex > editingColorIndex && toIndex <= editingColorIndex) {
-                      setEditingColorIndex(editingColorIndex + 1);
+                  // Keep editing index in sync when reordering main palette
+                  const ed = editingRef.current;
+                  if (ed && ed.type === 'main') {
+                    const idx = ed.index;
+                    if (fromIndex === idx) {
+                      setEditingInRightColumn({ type: 'main', index: toIndex });
+                    } else if (fromIndex < idx && toIndex >= idx) {
+                      setEditingInRightColumn({ type: 'main', index: idx - 1 });
+                    } else if (fromIndex > idx && toIndex <= idx) {
+                      setEditingInRightColumn({ type: 'main', index: idx + 1 });
                     }
                   }
                 }
               }}
             >
-              <div 
-                className={`h-12 rounded-lg shadow-lg ring-1 ring-white/10 transition-all hover:scale-105 cursor-grab active:cursor-grabbing ${editingColorIndex === i ? 'ring-2 ring-purple-500' : ''}`}
-                style={{ backgroundColor: color }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setEditingColorIndex(editingColorIndex === i ? null : i);
-                }}
-              >
-                {/* Drag indicator */}
-                <div className="absolute top-1 left-1/2 -translate-x-1/2 text-white/50 text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">
-                  ⋮⋮
-                </div>
-                {/* Edit indicator on hover */}
-                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                  <div className="w-6 h-6 rounded-full bg-black/40 flex items-center justify-center">
-                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                    </svg>
-                  </div>
-                </div>
-              </div>
-              <div className="text-xs text-center text-gray-400 mt-1.5 font-mono">
-                {color.toUpperCase()}
-              </div>
-              
-              {/* Inline color editor - positioned fixed to avoid clipping */}
-              {editingColorIndex === i && (
-                <div 
-                  className="fixed z-[9999]"
-                  style={{
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)'
+              {hoveredMainIndex === i && (
+                <span className={paletteSwatchTooltipClass}>{getMainPaletteRole(i).label}</span>
+              )}
+              <div className="flex flex-col items-center" title={getMainPaletteRole(i).label}>
+                <div
+                  className={`h-12 rounded-lg shadow-lg ring-1 ring-white/10 transition-all hover:scale-105 cursor-grab active:cursor-grabbing w-full ${editingRef.current?.type === 'main' && editingRef.current.index === i ? 'ring-2 ring-purple-500' : ''}`}
+                  style={{ backgroundColor: color }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const ed = editingRef.current;
+                    setEditingInRightColumn(ed?.type === 'main' && ed.index === i ? null : { type: 'main', index: i });
                   }}
                 >
-                  {/* Backdrop */}
-                  <div 
-                    className="fixed inset-0 bg-black/30"
-                    onClick={() => setEditingColorIndex(null)}
-                  />
-                  
-                  {/* Editor panel */}
-                  <div 
-                    className="relative bg-gray-800 rounded-xl p-5 shadow-2xl border border-gray-600 min-w-[280px]"
-                    onClick={e => e.stopPropagation()}
-                    onMouseDown={e => e.stopPropagation()}
-                    onPointerDown={e => e.stopPropagation()}
-                  >
-                    {/* Header */}
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="text-sm font-medium text-white">Editar color {i + 1}</div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditingColorIndex(null);
-                        }}
-                        className="w-7 h-7 bg-gray-700 hover:bg-gray-600 rounded-full flex items-center justify-center text-gray-400 hover:text-white transition-colors"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                    
-                    {/* Color preview */}
-                    <div 
-                      className="w-full h-20 rounded-lg mb-4 shadow-inner"
-                      style={{ backgroundColor: color }}
-                    />
-                    
-                    {/* Color picker and HEX input */}
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="relative">
-                        <input
-                          type="color"
-                          value={color}
-                          onChange={(e) => handleColorChange(i, e.target.value)}
-                          onMouseDown={e => e.stopPropagation()}
-                          onPointerDown={e => e.stopPropagation()}
-                          onClick={e => e.stopPropagation()}
-                          className="w-16 h-16 rounded-lg cursor-pointer border-2 border-gray-600 bg-transparent"
-                          style={{ padding: 0 }}
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <label className="text-[10px] text-gray-500 uppercase tracking-wider block mb-1">Código HEX</label>
-                        <input
-                          type="text"
-                          value={color.toUpperCase()}
-                          onChange={(e) => {
-                            let val = e.target.value;
-                            if (!val.startsWith('#')) val = '#' + val;
-                            if (/^#[0-9A-Fa-f]{0,6}$/.test(val) && val.length === 7) {
-                              handleColorChange(i, val);
-                            }
-                          }}
-                          onMouseDown={e => e.stopPropagation()}
-                          onClick={e => e.stopPropagation()}
-                          className="w-full bg-gray-700 text-white text-base font-mono px-3 py-2 rounded-lg border border-gray-600 focus:border-purple-500 focus:outline-none"
-                        />
-                      </div>
-                    </div>
-                    
-                    {/* Quick actions */}
-                    <div className="grid grid-cols-3 gap-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const hsl = hexToHsl(color);
-                          handleColorChange(i, hslToHex(hsl.h, hsl.s, Math.min(95, hsl.l + 15)));
-                        }}
-                        onMouseDown={e => e.stopPropagation()}
-                        className="py-2.5 bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm rounded-lg transition-colors font-medium"
-                      >
-                        +Claro
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const hsl = hexToHsl(color);
-                          handleColorChange(i, hslToHex(hsl.h, hsl.s, Math.max(5, hsl.l - 15)));
-                        }}
-                        onMouseDown={e => e.stopPropagation()}
-                        className="py-2.5 bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm rounded-lg transition-colors font-medium"
-                      >
-                        +Oscuro
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditingColorIndex(null);
-                        }}
-                        onMouseDown={e => e.stopPropagation()}
-                        className="py-2.5 bg-green-600 hover:bg-green-500 text-white text-sm rounded-lg transition-colors font-medium"
-                      >
-                        ✓ Listo
-                      </button>
+                  {/* Drag indicator */}
+                  <div className="absolute top-1 left-1/2 -translate-x-1/2 text-white/50 text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">
+                    ⋮⋮
+                  </div>
+                  {/* Edit indicator on hover */}
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    <div className="w-6 h-6 rounded-full bg-black/40 flex items-center justify-center">
+                      <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                      </svg>
                     </div>
                   </div>
                 </div>
-              )}
+                <div className="text-xs text-center text-gray-400 mt-1.5 font-medium w-full truncate">
+                  {getMainPaletteRole(i).initial}
+                </div>
+              </div>
             </div>
           ))}
         </div>
+        </div>
+
+        {/* Recuadro Tu paleta de apoyo */}
+        {supportColorsList.length > 0 && (
+          <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 border border-gray-700/50 min-h-0">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-sm font-medium text-gray-300">Tu paleta de apoyo</div>
+              <div className="text-[10px] text-gray-500">{supportVariant === 'claro' ? 'Claro' : 'Oscuro'}</div>
+            </div>
+            <div className="flex gap-2">
+              {supportColorsList.map((item) => (
+                <div
+                  key={item.role}
+                  className="flex-1 relative group min-w-0"
+                  onMouseEnter={() => setHoveredSupportRole(item.role)}
+                  onMouseLeave={() => setHoveredSupportRole(null)}
+                  title={item.label}
+                >
+                  {hoveredSupportRole === item.role && (
+                    <span className={paletteSwatchTooltipClass}>{item.label}</span>
+                  )}
+                  <div
+                    className={`h-12 rounded-lg shadow-lg ring-1 ring-white/10 transition-all hover:scale-105 cursor-pointer w-full ${editingRef.current?.type === 'support' && editingRef.current.role === item.role ? 'ring-2 ring-indigo-500' : ''}`}
+                    style={{ backgroundColor: item.hex }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (updateSupportColor) {
+                        const ed = editingRef.current;
+                        setEditingInRightColumn(ed?.type === 'support' && ed.role === item.role ? null : { type: 'support', role: item.role });
+                      }
+                    }}
+                  >
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                      <div className="w-6 h-6 rounded-full bg-black/40 flex items-center justify-center">
+                        <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-xs text-center text-gray-400 mt-1.5 font-medium truncate">
+                    {item.initial}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        </>
+        )}
       </div>
     </div>
   );

@@ -1,0 +1,18 @@
+export const HISTORY_MAX_SIZE = 20;
+
+export const COLOR_COUNT_MIN = 2;
+export const COLOR_COUNT_MAX = 8;
+
+export const SLIDER_SATURATION_LIGHTNESS_MIN = -40;
+export const SLIDER_SATURATION_LIGHTNESS_MAX = 40;
+
+export const SLIDER_HUE_MIN = -180;
+export const SLIDER_HUE_MAX = 180;
+
+export const PRESET_SATURATION_VIBRANT = 80;
+export const PRESET_SATURATION_MUTED = 30;
+export const PRESET_LIGHTNESS_PASTEL = 75;
+export const PRESET_LIGHTNESS_DARK = 30;
+export const PRESET_HUE_INVERT = 180;
+
+export const NOTIFICATION_DURATION_MS = 3000;

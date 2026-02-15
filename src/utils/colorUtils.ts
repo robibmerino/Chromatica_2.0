@@ -125,6 +125,47 @@ export const getTextColor = (bgColor: Color): string => {
   return luminance > 0.179 ? '#000000' : '#FFFFFF';
 };
 
+/** Color de texto legible sobre un fondo hex (para UI). L > 55 → oscuro, sino blanco. */
+export const getContrastColor = (hex: string): string => {
+  const { l } = hexToHsl(hex);
+  return l > 55 ? '#1a1a2e' : '#ffffff';
+};
+
+const HARMONY_TYPES: HarmonyType[] = [
+  'complementary',
+  'analogous',
+  'triadic',
+  'split-complementary',
+  'tetradic',
+  'monochromatic',
+];
+
+/** Normaliza hex para comparación (minúsculas, con #). */
+function norm(hex: string): string {
+  const h = hex.replace(/^#/, '').toLowerCase();
+  return h.length === 6 ? `#${h}` : hex;
+}
+
+/** Genera un nuevo color en armonía con la paleta actual (solo paleta principal; no usa fondo/sobrefondo/texto). */
+export function generateHarmoniousNewColor(existingHexes: string[]): string {
+  const existing = new Set(existingHexes.map(norm));
+  if (existing.size === 0) {
+    const { h, s, l } = hexToHsl('#6366f1');
+    return hslToHex((h + 120) % 360, Math.max(40, s), l);
+  }
+  const baseHex = existingHexes[Math.floor(Math.random() * existingHexes.length)];
+  const baseColor = createColor(baseHex);
+  const type = HARMONY_TYPES[Math.floor(Math.random() * HARMONY_TYPES.length)];
+  const count = Math.max(8, existing.size + 2);
+  const harmonious = generateHarmony(baseColor, type, count);
+  const candidateHexes = harmonious.map((c) => norm(c.hex));
+  const notExisting = candidateHexes.filter((hex) => !existing.has(hex));
+  if (notExisting.length > 0) {
+    return notExisting[Math.floor(Math.random() * notExisting.length)];
+  }
+  return candidateHexes[existing.size % candidateHexes.length];
+}
+
 export const generateHarmony = (baseColor: Color, type: HarmonyType, count: number = 5): Color[] => {
   const { h, s, l } = baseColor.hsl;
   const colors: Color[] = [{ ...baseColor }];

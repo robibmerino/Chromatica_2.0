@@ -1,7 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
+/**
+ * BACKUP: versión actual de ColorHarmonyCreator (Armonía de color).
+ * Para recuperar: renombrar este archivo a ColorHarmonyCreator.tsx
+ * y eliminar este .backup (o restaurar el contenido en ColorHarmonyCreator.tsx).
+ */
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import PosterExamples from '../PosterExamples';
-import { BaseColorPicker } from '../BaseColorPicker';
 
 interface ColorHarmonyCreatorProps {
   colorCount: number;
@@ -102,7 +106,6 @@ function generateHarmony(baseHue: number, baseSat: number, baseLight: number, ty
       break;
     }
     case 'tetradic': {
-      // Rectangular: dos pares complementarios con distancia de 60° entre ellos
       colors.push(hslToHex(baseHue, baseSat, baseLight));
       colors.push(hslToHex((baseHue + 60) % 360, baseSat, baseLight));
       colors.push(hslToHex((baseHue + 180) % 360, baseSat, baseLight));
@@ -146,247 +149,120 @@ function generateHarmony(baseHue: number, baseSat: number, baseLight: number, ty
   return colors.slice(0, count);
 }
 
-/** Offset en grados del color en índice i respecto al color base (para arrastrar burbujas). */
-function getHueOffset(index: number, type: HarmonyType, count: number): number {
-  switch (type) {
-    case 'monochromatic': return 0;
-    case 'analogous': return (index - Math.floor(count / 2)) * 30;
-    case 'complementary': return (index % 2) * 180;
-    case 'triadic': return (index % 3) * 120;
-    case 'split-complementary': return index === 0 ? 0 : index === 1 ? 150 : index === 2 ? 210 : 0;
-    case 'tetradic': return (index % 4) * 60;
-    case 'square': return (index % 4) * 90;
-    case 'double-complementary': return (index * 30) % 360;
-    default: return 0;
-  }
-}
-
-/** Convierte posición (x,y) en viewBox 200x200 a matiz 0-360. 12h = 0° (igual que el dibujo del círculo). */
-function xyToHue(x: number, y: number): number {
-  const dx = x - 100;
-  const dy = y - 100;
-  const angleRad = Math.atan2(dx, -dy);
-  return Math.round((angleRad * (180 / Math.PI) + 360) % 360);
-}
-
-const SAT_MIN = 10;
-const SAT_MAX = 100;
-const LIGHT_MIN = 15;
-const LIGHT_MAX = 85;
-
-/** Color base inicial al entrar en Armonía de color. */
-const DEFAULT_BASE_COLOR = '#D363F2';
-
 export default function ColorHarmonyCreator({ colorCount, onColorCountChange, onComplete, onBack }: ColorHarmonyCreatorProps) {
-  const [baseColor, setBaseColor] = useState(DEFAULT_BASE_COLOR);
+  const [baseColor, setBaseColor] = useState('#6366f1');
   const [harmonyType, setHarmonyType] = useState<HarmonyType>('analogous');
   const [generatedColors, setGeneratedColors] = useState<string[]>([]);
+  const [saturationAdjust, setSaturationAdjust] = useState(0);
+  const [lightnessAdjust, setLightnessAdjust] = useState(0);
+  
   const baseHsl = hexToHsl(baseColor);
-  const [effectiveSat, setEffectiveSat] = useState(() => Math.max(SAT_MIN, Math.min(SAT_MAX, baseHsl.s)));
-  const [effectiveLight, setEffectiveLight] = useState(() => Math.max(LIGHT_MIN, Math.min(LIGHT_MAX, baseHsl.l)));
 
   useEffect(() => {
-    const s = Math.max(SAT_MIN, Math.min(SAT_MAX, baseHsl.s));
-    const l = Math.max(LIGHT_MIN, Math.min(LIGHT_MAX, baseHsl.l));
-    setEffectiveSat(s);
-    setEffectiveLight(l);
-  }, [baseColor, baseHsl.s, baseHsl.l]);
-
-  const [showExamplesMobile, setShowExamplesMobile] = useState(false);
-  const [isLg, setIsLg] = useState(true);
-  useEffect(() => {
-    const m = window.matchMedia('(min-width: 1024px)');
-    setIsLg(m.matches);
-    const handler = () => setIsLg(m.matches);
-    m.addEventListener('change', handler);
-    return () => m.removeEventListener('change', handler);
-  }, []);
-
-  useEffect(() => {
-    const colors = generateHarmony(baseHsl.h, effectiveSat, effectiveLight, harmonyType, colorCount);
+    const colors = generateHarmony(
+      baseHsl.h,
+      Math.max(10, Math.min(100, baseHsl.s + saturationAdjust)),
+      Math.max(15, Math.min(85, baseHsl.l + lightnessAdjust)),
+      harmonyType,
+      colorCount
+    );
     setGeneratedColors(colors);
-  }, [baseColor, harmonyType, colorCount, effectiveSat, effectiveLight, baseHsl.h]);
+  }, [baseColor, harmonyType, colorCount, saturationAdjust, lightnessAdjust, baseHsl.h, baseHsl.s, baseHsl.l]);
 
   const wheelColors = generatedColors.map(color => {
     const hsl = hexToHsl(color);
     return { color, hue: hsl.h, sat: hsl.s, light: hsl.l };
   });
 
-  const [draggingBubble, setDraggingBubble] = useState<number | null>(null);
-  const wheelSvgRef = useRef<SVGSVGElement | null>(null);
-
-  const effectiveSatRef = useRef(effectiveSat);
-  const effectiveLightRef = useRef(effectiveLight);
-  effectiveSatRef.current = effectiveSat;
-  effectiveLightRef.current = effectiveLight;
-
-  useEffect(() => {
-    if (draggingBubble === null) return;
-    const svg = wheelSvgRef.current;
-    const onMove = (e: PointerEvent) => {
-      if (!svg) return;
-      const rect = svg.getBoundingClientRect();
-      const x = ((e.clientX - rect.left) / rect.width) * 200;
-      const y = ((e.clientY - rect.top) / rect.height) * 200;
-      const dx = x - 100, dy = y - 100;
-      const r = Math.sqrt(dx * dx + dy * dy);
-      if (r < 25 || r > 95) return;
-      const hue = xyToHue(x, y);
-      const offset = getHueOffset(draggingBubble, harmonyType, colorCount);
-      const newBaseHue = (hue - offset + 360) % 360;
-      setBaseColor(hslToHex(newBaseHue, effectiveSatRef.current, effectiveLightRef.current));
-    };
-    const onUp = () => setDraggingBubble(null);
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
-    window.addEventListener('pointercancel', onUp);
-    return () => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      window.removeEventListener('pointercancel', onUp);
-    };
-  }, [draggingBubble, harmonyType, colorCount]);
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex flex-col min-h-0 max-h-[calc(100vh-10rem)]"
+      className="space-y-6"
     >
-      {/* Banner integrado con el mismo estilo que las columnas */}
-      <div className="shrink-0 bg-gray-700/60 rounded-2xl border border-gray-600/50 px-6 py-4 flex items-center justify-between gap-4">
+      <div className="flex items-center justify-between">
         <button
           onClick={onBack}
-          type="button"
-          className="flex items-center gap-2 py-2 px-4 rounded-xl border border-gray-600 text-gray-300 hover:bg-gray-700/50 hover:text-white hover:border-gray-500 transition-all shrink-0 text-sm font-medium"
+          className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
         >
           <span>←</span>
           <span>Volver</span>
         </button>
-        <div className="flex items-center gap-3 min-w-0 flex-1 justify-center">
-          <span className="flex shrink-0 items-center justify-center w-9 h-9 rounded-lg bg-gray-700/80 border border-emerald-500/30 text-emerald-400" aria-hidden>
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <circle cx="12" cy="12" r="9" />
-              <path d="M12 3v9l6.5 3.75" />
-              <path d="M12 12L5.5 15.75" />
-              <path d="M12 12V21" />
-            </svg>
-          </span>
-          <div>
-            <h2 className="text-lg font-semibold text-white leading-tight">Armonía de Color</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Elige un color base y un tipo de armonía</p>
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={() => onComplete(generatedColors)}
-          className="shrink-0 py-2 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white border border-indigo-500/50 font-medium transition-all text-sm"
-        >
-          Usar paleta →
-        </button>
+        <h2 className="text-xl font-semibold text-white">🎨 Armonía de Color</h2>
+        <div className="w-20" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-0 overflow-hidden">
-        {/* Left: Color base + Aleatorio, adjustments and wheel */}
-        <div className="bg-gray-800/50 rounded-2xl p-6 flex flex-col min-h-0 overflow-y-auto inspiration-scroll-area">
-          <div className="flex items-center gap-3 mb-5">
-            <BaseColorPicker
-              value={baseColor}
-              onChange={setBaseColor}
-              label="Color base"
-              size="md"
-              className="flex-1 min-w-0"
-            />
-            <button
-              type="button"
-              onClick={() => {
-                const colors = generateHarmony(
-                  Math.random() * 360,
-                  effectiveSat,
-                  effectiveLight,
-                  harmonyType,
-                  colorCount
-                );
-                setBaseColor(colors[0]);
-              }}
-              className="shrink-0 mt-7 py-2 px-3 bg-gray-700 hover:bg-gray-600 text-white rounded-xl font-medium transition-colors text-sm whitespace-nowrap"
-              title="Color base aleatorio"
-            >
-              🎲 Aleatorio
-            </button>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="bg-gray-800/50 rounded-2xl p-6 flex flex-col">
+          <div className="mb-5">
+            <label className="text-sm text-gray-400 block mb-2">Color base</label>
+            <div className="flex gap-3">
+              <input
+                type="color"
+                value={baseColor}
+                onChange={(e) => setBaseColor(e.target.value)}
+                className="w-16 h-12 rounded-lg cursor-pointer border-2 border-gray-600"
+              />
+              <input
+                type="text"
+                value={baseColor.toUpperCase()}
+                onChange={(e) => {
+                  if (/^#[0-9A-Fa-f]{6}$/.test(e.target.value)) {
+                    setBaseColor(e.target.value);
+                  }
+                }}
+                className="flex-1 bg-gray-700 rounded-lg px-3 text-white font-mono text-sm"
+              />
+            </div>
           </div>
 
-          {/* Saturación y luminosidad para la armonía (rango completo alcanzable) */}
           <div className="mb-5 space-y-4">
             <div>
-              <label className="text-sm text-gray-400 flex justify-between mb-2" id="saturation-label">
+              <label className="text-sm text-gray-400 flex justify-between mb-2">
                 <span>Saturación</span>
-                <span>{effectiveSat}%</span>
+                <span>{saturationAdjust > 0 ? '+' : ''}{saturationAdjust}%</span>
               </label>
               <input
                 type="range"
-                min={SAT_MIN}
-                max={SAT_MAX}
-                value={effectiveSat}
-                onChange={(e) => setEffectiveSat(parseInt(e.target.value))}
-                aria-labelledby="saturation-label"
-                aria-valuetext={`${effectiveSat}%`}
+                min="-40"
+                max="40"
+                value={saturationAdjust}
+                onChange={(e) => setSaturationAdjust(parseInt(e.target.value))}
                 className="w-full h-3 rounded-full appearance-none cursor-pointer"
                 style={{
                   background: `linear-gradient(to right, 
-                    hsl(${baseHsl.h}, ${SAT_MIN}%, 50%),
-                    hsl(${baseHsl.h}, ${SAT_MAX}%, 50%))`
+                    hsl(${baseHsl.h}, 0%, 50%),
+                    hsl(${baseHsl.h}, 50%, 50%),
+                    hsl(${baseHsl.h}, 100%, 50%))`
                 }}
               />
             </div>
             <div>
-              <label className="text-sm text-gray-400 flex justify-between mb-2" id="lightness-label">
+              <label className="text-sm text-gray-400 flex justify-between mb-2">
                 <span>Luminosidad</span>
-                <span>{effectiveLight}%</span>
+                <span>{lightnessAdjust > 0 ? '+' : ''}{lightnessAdjust}%</span>
               </label>
               <input
                 type="range"
-                min={LIGHT_MIN}
-                max={LIGHT_MAX}
-                value={effectiveLight}
-                onChange={(e) => setEffectiveLight(parseInt(e.target.value))}
-                aria-labelledby="lightness-label"
-                aria-valuetext={`${effectiveLight}%`}
+                min="-30"
+                max="30"
+                value={lightnessAdjust}
+                onChange={(e) => setLightnessAdjust(parseInt(e.target.value))}
                 className="w-full h-3 rounded-full appearance-none cursor-pointer"
                 style={{
                   background: `linear-gradient(to right, 
-                    hsl(${baseHsl.h}, 70%, ${LIGHT_MIN}%),
-                    hsl(${baseHsl.h}, 70%, ${LIGHT_MAX}%))`
+                    hsl(${baseHsl.h}, 70%, 15%),
+                    hsl(${baseHsl.h}, 70%, 50%),
+                    hsl(${baseHsl.h}, 70%, 85%))`
                 }}
               />
             </div>
           </div>
 
           <h3 className="text-sm font-medium text-gray-300 mb-3">Círculo Cromático</h3>
-          <p className="text-[10px] text-gray-500 mb-2">Clic en la rueda o arrastra una burbuja para cambiar el matiz</p>
           
-          {/* Color Wheel - clic en rueda o arrastrar burbuja */}
-          <div className="relative w-44 h-44 mx-auto cursor-crosshair">
-            <svg
-              ref={wheelSvgRef}
-              viewBox="0 0 200 200"
-              className="w-full h-full select-none touch-none"
-              onClick={(e) => {
-                const target = e.target as SVGElement;
-                if (target.closest('[data-bubble]')) return;
-                const svg = e.currentTarget;
-                const rect = svg.getBoundingClientRect();
-                const x = ((e.clientX - rect.left) / rect.width) * 200;
-                const y = ((e.clientY - rect.top) / rect.height) * 200;
-                const dx = x - 100, dy = y - 100;
-                const radius = Math.sqrt(dx * dx + dy * dy);
-                if (radius < 40 || radius > 90) return;
-                const hue = xyToHue(x, y);
-                setBaseColor(hslToHex(hue, effectiveSat, effectiveLight));
-              }}
-              role="img"
-              aria-label="Rueda de color: clic o arrastra una burbuja para cambiar el matiz"
-            >
+          <div className="relative w-44 h-44 mx-auto">
+            <svg viewBox="0 0 200 200" className="w-full h-full">
               {Array.from({ length: 360 }, (_, i) => (
                 <line
                   key={i}
@@ -417,21 +293,9 @@ export default function ColorHarmonyCreator({ colorCount, onColorCountChange, on
                 const x = 100 + radius * Math.cos(angle);
                 const y = 100 + radius * Math.sin(angle);
                 return (
-                  <g
-                    key={i}
-                    data-bubble
-                    onPointerDown={(e) => {
-                      e.preventDefault();
-                      (e.currentTarget as SVGGElement).setPointerCapture(e.pointerId);
-                      setDraggingBubble(i);
-                    }}
-                    onPointerUp={() => setDraggingBubble(null)}
-                    onPointerCancel={() => setDraggingBubble(null)}
-                    style={{ cursor: draggingBubble !== null ? 'grabbing' : 'grab' }}
-                  >
-                    <circle cx={x} cy={y} r="16" fill="transparent" stroke="none" />
+                  <g key={i}>
                     <circle cx={x} cy={y} r="12" fill={c.color} stroke="white" strokeWidth="3" />
-                    <text x={x} y={y + 4} textAnchor="middle" fill="white" fontSize="10" fontWeight="bold" pointerEvents="none">
+                    <text x={x} y={y + 4} textAnchor="middle" fill="white" fontSize="10" fontWeight="bold">
                       {i + 1}
                     </text>
                   </g>
@@ -441,8 +305,7 @@ export default function ColorHarmonyCreator({ colorCount, onColorCountChange, on
           </div>
         </div>
 
-        {/* Center: Harmony Types */}
-        <div className="bg-gray-800/50 rounded-2xl p-6 flex flex-col min-h-0 overflow-y-auto inspiration-scroll-area">
+        <div className="bg-gray-800/50 rounded-2xl p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-medium text-gray-300">Tipo de Armonía</h3>
             <div className="flex items-center gap-2">
@@ -469,12 +332,9 @@ export default function ColorHarmonyCreator({ colorCount, onColorCountChange, on
             {harmonyTypes.map((harmony) => (
               <motion.button
                 key={harmony.id}
-                type="button"
                 onClick={() => setHarmonyType(harmony.id)}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                aria-pressed={harmonyType === harmony.id}
-                aria-label={`${harmony.name}: ${harmony.description}`}
                 className={`p-2.5 rounded-xl text-left transition-all ${
                   harmonyType === harmony.id
                     ? 'bg-indigo-600 ring-2 ring-indigo-400'
@@ -488,14 +348,8 @@ export default function ColorHarmonyCreator({ colorCount, onColorCountChange, on
             ))}
           </div>
 
-          {/* Color swatches - grid adaptable según número de colores */}
           <div className="mt-4">
-            <div
-              className="grid gap-2 mb-3"
-              style={{
-                gridTemplateColumns: `repeat(${Math.min(4, Math.max(2, generatedColors.length))}, minmax(0, 1fr))`,
-              }}
-            >
+            <div className="grid grid-cols-4 gap-2 mb-3">
               {generatedColors.map((color, index) => (
                 <motion.div
                   key={index}
@@ -518,25 +372,34 @@ export default function ColorHarmonyCreator({ colorCount, onColorCountChange, on
             </div>
           </div>
 
+          <div className="mt-4 flex gap-2">
+            <button
+              onClick={() => {
+                const colors = generateHarmony(
+                  Math.random() * 360,
+                  Math.max(10, Math.min(100, 60 + saturationAdjust)),
+                  Math.max(15, Math.min(85, 50 + lightnessAdjust)),
+                  harmonyType,
+                  colorCount
+                );
+                setBaseColor(colors[0]);
+              }}
+              className="flex-1 py-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-xl font-medium transition-colors text-sm"
+            >
+              🎲 Aleatorio
+            </button>
+            <button
+              onClick={() => onComplete(generatedColors)}
+              className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-medium transition-colors text-sm"
+            >
+              Usar paleta →
+            </button>
+          </div>
         </div>
 
-        {/* Right: Poster Examples - colapsable en móvil */}
-        <div className="bg-gray-800/50 rounded-2xl p-6 flex flex-col min-h-0 overflow-y-auto inspiration-scroll-area">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-medium text-gray-300">Ejemplos de aplicación</h3>
-            {!isLg && (
-              <button
-                type="button"
-                onClick={() => setShowExamplesMobile((v) => !v)}
-                className="lg:hidden text-xs text-indigo-400 hover:text-indigo-300 font-medium"
-              >
-                {showExamplesMobile ? 'Ocultar' : 'Ver ejemplos'}
-              </button>
-            )}
-          </div>
-          {(isLg || showExamplesMobile) && (
-            <PosterExamples colors={generatedColors} compact layout="preview-first" />
-          )}
+        <div className="bg-gray-800/50 rounded-2xl p-6 flex flex-col">
+          <h3 className="text-sm font-medium text-gray-300 mb-4">Ejemplos de aplicación</h3>
+          <PosterExamples colors={generatedColors} compact />
         </div>
       </div>
     </motion.div>
