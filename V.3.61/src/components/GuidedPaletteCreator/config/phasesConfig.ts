@@ -41,6 +41,7 @@ export const INSPIRATION_MODE_LABELS: Record<InspirationMode, string> = {
   archetypes: 'Explora Arquetipos',
   shapes: 'Formas',
   trending: 'Paletas en tendencia',
+  'multi-origin': 'Paleta combinada',
 };
 
 /** Acentos de color de la cadena según el flujo (mismo orden que los 4 botones del menú) */
@@ -109,6 +110,15 @@ const FLOW_ACCENT_MAP: Record<InspirationMode, FlowAccent> = {
     completedBg: 'rgba(234, 88, 12, 0.1)',
     completedBorder: 'rgba(249, 115, 22, 0.22)',
     particle: '#fb923c',
+  },
+  'multi-origin': {
+    active: '#0891b2',
+    activeBg: 'rgba(8, 145, 178, 0.18)',
+    activeRing: 'rgba(56, 189, 248, 0.35)',
+    completed: '#06b6d4',
+    completedBg: 'rgba(8, 145, 178, 0.1)',
+    completedBorder: 'rgba(6, 182, 212, 0.22)',
+    particle: '#22d3ee',
   },
 };
 

@@ -125,18 +125,18 @@ export const ShapesCreator: React.FC<ShapesCreatorProps> = ({
 
   // Fase 2: tres columnas (misma estructura que Arquetipos)
   if (phase === 2) {
-    return (
+  return (
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
         {/* Header: mismo patrón que Arquetipos (Volver | Título + subtítulo | Usar paleta) */}
         <div className="flex items-center justify-between gap-4 px-1 py-3 border-b border-gray-700/60 shrink-0">
-          <button
+            <button
             type="button"
             onClick={onBack}
             className="flex items-center gap-2 py-2 px-4 rounded-xl border border-gray-600 text-gray-300 hover:bg-gray-700/50 hover:text-white hover:border-gray-500 transition-all shrink-0 text-sm font-medium"
           >
             <span>←</span>
             <span>Volver</span>
-          </button>
+            </button>
           <div className="flex items-center gap-3 min-w-0 flex-1 justify-center">
             <span
               className={cn(
@@ -149,18 +149,18 @@ export const ShapesCreator: React.FC<ShapesCreatorProps> = ({
             >
               {SHAPE_BUTTON_CONFIG.icon}
             </span>
-            <div>
+              <div>
               <h2 className="text-lg font-semibold text-white leading-tight">{SHAPE_BUTTON_CONFIG.title}</h2>
               <p className="text-xs text-gray-400 mt-0.5">Desliza para descartar o hacer match con las tarjetas</p>
+              </div>
             </div>
-          </div>
-          <button
+            <button
             type="button"
             onClick={() => onComplete(NEUTRAL_PALETTE.slice(0, Math.max(colorCount, 4)))}
             className="shrink-0 py-2 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white border border-indigo-500/50 font-medium transition-all text-sm"
-          >
+            >
             Usar paleta →
-          </button>
+            </button>
         </div>
 
         <motion.div
@@ -194,13 +194,13 @@ export const ShapesCreator: React.FC<ShapesCreatorProps> = ({
               >
                 Resetear
               </button>
-            </div>
+          </div>
             <div className="flex flex-col gap-4">
               {sortedMatched.length === 0 ? (
                 <p className="text-xs text-gray-500">No hay tarjetas con match o SuperMatch.</p>
               ) : (
                 sortedMatched.map((item) => (
-                  <button
+              <button
                     key={item.card.id}
                     type="button"
                     onClick={() => updateFlow((p) => ({ ...p, selectedCard: item }))}
@@ -212,7 +212,7 @@ export const ShapesCreator: React.FC<ShapesCreatorProps> = ({
                     )}
                   >
                     <span className="text-xs text-gray-400">Forma {item.card.id.replace('shape-', '')}</span>
-                    <span
+                        <span 
                       className={cn(
                         'absolute top-2 left-2 z-10 px-2 py-0.5 rounded text-[10px] font-bold border',
                         item.direction === 'right'
@@ -221,12 +221,12 @@ export const ShapesCreator: React.FC<ShapesCreatorProps> = ({
                       )}
                     >
                       {item.direction === 'right' ? 'Match' : 'SuperMatch'}
-                    </span>
-                  </button>
+                        </span>
+                        </button>
                 ))
               )}
-            </div>
-          </div>
+                      </div>
+                  </div>
 
           {/* Columna central: Ajustes */}
           <div className="bg-gray-800/50 rounded-2xl p-6 flex flex-col min-h-0">
@@ -235,12 +235,12 @@ export const ShapesCreator: React.FC<ShapesCreatorProps> = ({
               <div className="flex flex-col items-center w-full min-w-0">
                 <div className="w-full aspect-[3/4] max-h-[280px] rounded-xl bg-gray-800/80 border border-gray-600/50 flex items-center justify-center text-gray-500 text-sm">
                   Vista previa: {selectedCard.card.id}
-                </div>
               </div>
+                </div>
             ) : (
               <p className="text-xs text-gray-500">Selecciona una tarjeta de la columna izquierda.</p>
             )}
-          </div>
+                </div>
 
           {/* Columna derecha: Opciones (placeholder) */}
           <div className="bg-gray-800/50 rounded-2xl p-6 flex flex-col min-h-0">
@@ -248,22 +248,22 @@ export const ShapesCreator: React.FC<ShapesCreatorProps> = ({
             <p className="text-xs text-gray-500">Contenido por definir.</p>
           </div>
         </motion.div>
-      </div>
-    );
-  }
-
+                      </div>
+                    );
+                  }
+                  
   // Fase 1: Tinder
-  return (
+                  return (
     <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
       <div className="flex items-center justify-between gap-4 px-1 py-3 border-b border-gray-700/60 shrink-0">
-        <button
+                          <button
           type="button"
           onClick={onBack}
           className="flex items-center gap-2 py-2 px-4 rounded-xl border border-gray-600 text-gray-300 hover:bg-gray-700/50 hover:text-white hover:border-gray-500 transition-all shrink-0 text-sm font-medium"
         >
           <span>←</span>
           <span>Volver</span>
-        </button>
+                    </button>
         <div className="flex items-center gap-3 min-w-0 flex-1 justify-center">
           <span
             className={cn(
@@ -276,28 +276,28 @@ export const ShapesCreator: React.FC<ShapesCreatorProps> = ({
           >
             {SHAPE_BUTTON_CONFIG.icon}
           </span>
-          <div>
+            <div>
             <h2 className="text-lg font-semibold text-white leading-tight">{SHAPE_BUTTON_CONFIG.title}</h2>
             <p className="text-xs text-gray-400 mt-0.5">Desliza para descartar o hacer match con las tarjetas</p>
-          </div>
-        </div>
+            </div>
+                  </div>
         {matchedCards.length > 0 ? (
-          <button
+                  <button
             type="button"
             onClick={() => updateFlow((p) => ({ ...p, phase: 2 }))}
             className="shrink-0 py-2 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white border border-indigo-500/50 font-medium transition-all text-sm"
           >
             Ver mis Match →
-          </button>
+                  </button>
         ) : (
           <div className="w-28 shrink-0" />
-        )}
-      </div>
+                    )}
+                  </div>
 
-      <motion.div
+                      <motion.div 
         key="shapes-tinder"
         initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
+                        animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -12 }}
         transition={ASCEND_TRANSITION_TINDER}
         className="flex-1 flex flex-col min-h-[400px] overflow-hidden mt-6"
@@ -316,7 +316,7 @@ export const ShapesCreator: React.FC<ShapesCreatorProps> = ({
                 ? () => (
                     <div className="text-center space-y-6 p-8 text-gray-400">
                       <p className="text-lg">Parece que esta vez no congeniaste con ninguna forma…</p>
-                      <button
+                            <button
                         type="button"
                         onClick={() =>
                           updateFlow((p) => ({
@@ -328,15 +328,15 @@ export const ShapesCreator: React.FC<ShapesCreatorProps> = ({
                         className="py-3 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition-all"
                       >
                         Reiniciar la Baraja
-                      </button>
-                    </div>
+                  </button>
+                </div>
                   )
                 : undefined
             }
             renderCard={renderCard}
           />
-        </div>
-      </motion.div>
+              </div>
+            </motion.div>
     </div>
   );
 };

@@ -712,6 +712,57 @@ export function useGuidedPalette() {
   const hasPersonalizedCurrentFlow =
     inspirationMode != null && flowPaletteStateByInspiration[inspirationMode] != null;
 
+  /** Indica si existe un flujo previo de paleta combinada ("multi-origin") con estado guardado. */
+  const hasMultiOriginFlow = flowPaletteStateByInspiration['multi-origin'] != null;
+
+  /** Paleta activa por flujo (cadena Refinar→Aplicar→Análisis→Guardar). Se usa para mostrarla en el menú de origen. */
+  const flowActivePaletteByMode = useMemo(() => {
+    const result: Partial<Record<InspirationMode, string[]>> = {};
+    const modes = Object.keys(flowPaletteStateByInspiration) as InspirationMode[];
+    for (const mode of modes) {
+      const snapshot = flowPaletteStateByInspiration[mode];
+      if (!snapshot) continue;
+      result[mode] = snapshot.colors.map((c) => c.hex);
+    }
+    return result;
+  }, [flowPaletteStateByInspiration]);
+
+  /** Usa la paleta combinada de orígenes como un flujo propio ("multi-origin"). */
+  const handleUseCombinedPalette = useCallback(
+    (combinedColors: string[]) => {
+      const mode: InspirationMode = 'multi-origin';
+      setInspirationMode(mode);
+      const hasFlowPalette = flowPaletteStateByInspiration[mode] != null;
+      if (hasFlowPalette) {
+        setPendingInspirationComplete({
+          newColors: combinedColors,
+          savedState: undefined,
+          inspirationMode: mode,
+        });
+        return;
+      }
+      setInspirationFlowEverCompleted((prev) => ({ ...prev, [mode]: true }));
+      setColors(
+        combinedColors.map((hex) => ({
+          id: generateId(),
+          hex,
+          locked: false,
+        }))
+      );
+      setRefinementGeneralSliders(DEFAULT_REFINEMENT_SLIDERS);
+      setPhase('refinement');
+    },
+    [
+      flowPaletteStateByInspiration,
+      setInspirationMode,
+      setInspirationFlowEverCompleted,
+      setColors,
+      setRefinementGeneralSliders,
+      setPhase,
+      setPendingInspirationComplete,
+    ]
+  );
+
   /** Qué secciones del eje Refinar-Aplicar-Análisis tienen ediciones en el flujo actual (para mostrar check solo ahí). */
   const flowSectionEdited: FlowSectionEdited =
     inspirationMode != null && flowPaletteStateByInspiration[inspirationMode]
@@ -798,5 +849,8 @@ export function useGuidedPalette() {
     resetApplicationToSnapshot,
     hasApplicationSnapshot: applicationSnapshot !== null,
     inspirationDetailSavedState,
+    flowActivePaletteByMode,
+    handleUseCombinedPalette,
+    hasMultiOriginFlow,
   };
 }

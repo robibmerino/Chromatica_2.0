@@ -1,5 +1,5 @@
-import { lazy, Suspense } from 'react';
-import { motion } from 'framer-motion';
+import { lazy, Suspense, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { COPY } from './config/copy';
 import { PhaseLayout } from './PhaseLayout';
 import { SectionBanner, SECTION_ICON_ACCENTS } from './SectionBanner';
@@ -14,7 +14,6 @@ import type { ImageExtractorSavedState } from '../inspiration/ImageColorExtracto
 const ColorHarmonyCreator = lazy(() => import('../inspiration/ColorHarmonyCreator').then((m) => ({ default: m.default })));
 const ImageColorExtractor = lazy(() => import('../inspiration/ImageColorExtractor').then((m) => ({ default: m.default })));
 const ArchetypesCreator = lazy(() => import('../inspiration/ArchetypesCreator').then((m) => ({ default: m.ArchetypesCreator })));
-const ShapesCreator = lazy(() => import('../inspiration/ShapesCreator').then((m) => ({ default: m.default })));
 const TrendingPalettes = lazy(() => import('../inspiration/TrendingPalettes').then((m) => ({ default: m.default })));
 
 const ModeFallback = () => (
@@ -57,6 +56,8 @@ export function InspirationDetailPhase({
   onStateChange,
   onGeneratedPaletteChange,
 }: InspirationDetailPhaseProps) {
+  const [showShapesComingSoon, setShowShapesComingSoon] = useState(false);
+
   return (
     <motion.div
       key="inspiration-detail"
@@ -106,7 +107,7 @@ export function InspirationDetailPhase({
         >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <ArchetypeOrShapeButton type="archetypes" onClick={() => onSetInspirationMode('archetypes')} />
-            <ArchetypeOrShapeButton type="shapes" onClick={() => onSetInspirationMode('shapes')} />
+            <ArchetypeOrShapeButton type="shapes" onClick={() => setShowShapesComingSoon(true)} />
           </div>
         </PhaseLayout>
       )}
@@ -121,16 +122,6 @@ export function InspirationDetailPhase({
           />
         </Suspense>
       )}
-      {inspirationMode === 'shapes' && (
-        <Suspense fallback={<ModeFallback />}>
-          <ShapesCreator
-            colorCount={colorCount}
-            onColorCountChange={onColorCountChange}
-            onComplete={onComplete}
-            onBack={() => onSetInspirationMode('archetypes-menu')}
-          />
-        </Suspense>
-      )}
       {inspirationMode === 'trending' && (
         <Suspense fallback={<ModeFallback />}>
           <TrendingPalettes
@@ -141,6 +132,76 @@ export function InspirationDetailPhase({
           />
         </Suspense>
       )}
+
+      <AnimatePresence>
+        {showShapesComingSoon && (
+          <motion.div
+            key="shapes-coming-soon"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 24, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 16, scale: 0.98 }}
+              transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+              className="relative w-full max-w-md rounded-2xl border border-fuchsia-500/40 bg-gradient-to-b from-slate-900 via-slate-900/98 to-slate-950 shadow-2xl shadow-black/60 px-6 py-6"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="shapes-coming-soon-title"
+            >
+              <button
+                type="button"
+                onClick={() => setShowShapesComingSoon(false)}
+                className="absolute right-3 top-3 inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-900/80 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors text-sm"
+                aria-label="Cerrar aviso"
+              >
+                ×
+              </button>
+
+              <div className="flex flex-col items-center text-center gap-4 pt-1">
+                <div className="relative inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-fuchsia-500/15 border border-fuchsia-400/40 shadow-[0_0_40px_rgba(217,70,239,0.45)]">
+                  <svg
+                    className="w-9 h-9 text-fuchsia-300"
+                    viewBox="0 0 40 40"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                  >
+                    <circle cx="13" cy="14" r="5.5" />
+                    <rect x="22" y="8" width="10" height="10" rx="2.5" />
+                    <path d="M8 28.5 L16 22.5 L24 28.5 L16 34.5 Z" />
+                  </svg>
+                </div>
+
+                <div className="space-y-1">
+                  <h2
+                    id="shapes-coming-soon-title"
+                    className="text-lg font-semibold text-white"
+                  >
+                    Formas llegará muy pronto
+                  </h2>
+                  <p className="text-sm text-slate-300/90">
+                    Estamos diseñando esta sección para que puedas crear paletas a partir de formas
+                    abstractas y composiciones visuales.{" "}
+                    <span className="text-fuchsia-300 font-medium">Próximamente</span>.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowShapesComingSoon(false)}
+                  className="mt-2 inline-flex items-center justify-center rounded-xl bg-fuchsia-600 hover:bg-fuchsia-500 text-white text-sm font-medium px-5 py-2.5 shadow-md shadow-fuchsia-900/40 transition-colors"
+                >
+                  Entendido
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

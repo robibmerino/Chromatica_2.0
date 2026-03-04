@@ -780,9 +780,17 @@ export const ArchetypesCreator: React.FC<ArchetypesCreatorProps> = ({
   const [comoPaletteLabels, setComoPaletteLabels] = useState<string[]>(
     () => initialState?.comoPaletteLabels ?? ['—', '—', '—', '—']
   );
-  const [combineMode, setCombineMode] = useState<CombineMode>(
-    () => initialState?.combineMode ?? 'balanced'
-  );
+  const [combineMode, setCombineMode] = useState<CombineMode>(() => {
+    const saved = (initialState?.combineMode ?? 'balanced') as string;
+    const valid: CombineMode[] = [
+      'balanced',
+      'flow-first',
+      'palette-first',
+      'soft-gradient',
+      'custom',
+    ];
+    return (valid as string[]).includes(saved) ? (saved as CombineMode) : 'balanced';
+  });
   const [hoveredMode, setHoveredMode] = useState<CombineMode | null>(null);
   const [activeColumnView, setActiveColumnView] = useState<ColumnKey | null>(
     () => initialState?.activeColumnView ?? null
@@ -819,12 +827,27 @@ export const ArchetypesCreator: React.FC<ArchetypesCreatorProps> = ({
   const [showGlobalSummary, setShowGlobalSummary] = useState(false);
   const [pendingSavedState, setPendingSavedState] = useState<ArchetypeSavedState | null>(null);
   const [pendingCombinedPalette, setPendingCombinedPalette] = useState<string[] | null>(null);
+  const [customCombinedPalette, setCustomCombinedPalette] = useState<string[] | null>(null);
 
-  const combinedPalette = useMemo(
+  const baseCombinedPalette = useMemo(
     () =>
-      combineColumnPalettes(quienPalette, quePalette, comoPalette, activatedColumns, colorCount, combineMode),
+      combineColumnPalettes(
+        quienPalette,
+        quePalette,
+        comoPalette,
+        activatedColumns,
+        colorCount,
+        combineMode === 'custom' ? 'balanced' : combineMode
+      ),
     [quienPalette, quePalette, comoPalette, activatedColumns, colorCount, combineMode]
   );
+
+  const combinedPalette = useMemo(() => {
+    if (combineMode === 'custom' && customCombinedPalette && customCombinedPalette.length > 0) {
+      return customCombinedPalette.slice(0, colorCount);
+    }
+    return baseCombinedPalette;
+  }, [baseCombinedPalette, combineMode, customCombinedPalette, colorCount]);
 
   const contentColumnKey = activeColumnView ? getContentColumnKey(activeColumnView) : null;
   const activeFlow = contentColumnKey ? columnFlowState[contentColumnKey] : null;
@@ -916,6 +939,52 @@ export const ArchetypesCreator: React.FC<ArchetypesCreatorProps> = ({
     },
     []
   );
+
+  const handleChangeCombineMode = useCallback(
+    (mode: CombineMode) => {
+      if (mode === 'custom') {
+        const seed = combineColumnPalettes(
+          quienPalette,
+          quePalette,
+          comoPalette,
+          activatedColumns,
+          colorCount,
+          'balanced'
+        );
+        setCustomCombinedPalette(seed);
+      }
+      setCombineMode(mode);
+    },
+    [activatedColumns, colorCount, comoPalette, quienPalette, quePalette]
+  );
+
+  // Si estamos en modo personalizado y el usuario cambia el número de colores,
+  // extendemos o recortamos la paleta custom para que siempre tenga colorCount entradas,
+  // conservando los colores ya editados y rellenando los nuevos con la paleta base equilibrada.
+  useEffect(() => {
+    if (combineMode !== 'custom') return;
+    setCustomCombinedPalette((prev) => {
+      const target = Math.max(1, colorCount);
+      const base = baseCombinedPalette;
+
+      // Si no hay paleta personalizada aún, partimos directamente de la base.
+      if (!prev || prev.length === 0) {
+        return base.slice(0, target);
+      }
+
+      if (prev.length === target) return prev;
+      if (prev.length > target) {
+        return prev.slice(0, target);
+      }
+
+      // Ampliar: mantener los existentes y rellenar con la base combinada.
+      const next = [...prev];
+      for (let i = prev.length; i < target; i++) {
+        next[i] = base[i] ?? base[base.length - 1] ?? '#666666';
+      }
+      return next;
+    });
+  }, [baseCombinedPalette, colorCount, combineMode]);
 
   return (
     <motion.div
@@ -1183,7 +1252,13 @@ export const ArchetypesCreator: React.FC<ArchetypesCreatorProps> = ({
                       onClick={() => handleColumnClick(key)}
                     />
                     {/* Paleta individual fuera del botón, debajo (gris cuando inactiva) */}
-                    <div className="flex flex-col gap-2">
+                    <div
+                      className={
+                        activatedColumns[key]
+                          ? 'flex flex-col gap-2'
+                          : 'flex flex-col gap-2 pt-1.5'
+                      }
+                    >
                       <div className="flex items-center justify-between gap-2">
                         <p className="text-xs text-gray-500">
                           {activatedColumns[key] ? 'Paleta individual' : 'Paleta individual (inactiva)'}
@@ -1192,14 +1267,12 @@ export const ArchetypesCreator: React.FC<ArchetypesCreatorProps> = ({
                       <PaletteBar
                         colors={
                           activatedColumns[key]
-                            ? columnPalettes[key].slice(0, colorCount)
-                            : NEUTRAL_PALETTE.slice(0, colorCount)
+                            ? columnPalettes[key].slice(0, 4)
+                            : NEUTRAL_PALETTE.slice(0, 4)
                         }
                         labels={
                           activatedColumns[key]
-                            ? Array.from({ length: colorCount }, (_, i) =>
-                                columnPaletteLabels[key][i] ?? '—'
-                              )
+                            ? Array.from({ length: 4 }, (_, i) => columnPaletteLabels[key][i] ?? '—')
                             : undefined
                         }
                         className="h-10"
@@ -1226,7 +1299,7 @@ export const ArchetypesCreator: React.FC<ArchetypesCreatorProps> = ({
                         <button
                           key={m}
                           type="button"
-                          onClick={() => setCombineMode(m)}
+                          onClick={() => handleChangeCombineMode(m)}
                           onMouseEnter={() => setHoveredMode(m)}
                           onMouseLeave={() => setHoveredMode(null)}
                           className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
@@ -1279,6 +1352,37 @@ export const ArchetypesCreator: React.FC<ArchetypesCreatorProps> = ({
                 </div>
               </div>
               <PaletteBar colors={combinedPalette} className="h-14" />
+              {combineMode === 'custom' && (
+                <div className="mt-3 flex flex-wrap justify-center gap-2">
+                  {combinedPalette.slice(0, colorCount).map((hex, index) => (
+                    <label
+                      key={`${index}-${hex}`}
+                      className="relative w-7 h-7 rounded-full overflow-hidden cursor-pointer border border-gray-600/70"
+                      style={{ backgroundColor: hex }}
+                      title="Pulsa para ajustar este color de la paleta general"
+                    >
+                      <input
+                        type="color"
+                        value={hex}
+                        onChange={(e) => {
+                          const newHex = e.target.value;
+                          setCustomCombinedPalette((prev) => {
+                            const base =
+                              prev && prev.length > 0
+                                ? [...prev]
+                                : [...combinedPalette];
+                            if (!base.length) return base;
+                            const next = [...base];
+                            next[index] = newHex;
+                            return next;
+                          });
+                        }}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      />
+                    </label>
+                  ))}
+                </div>
+              )}
             </div>
           </motion.div>
         )}

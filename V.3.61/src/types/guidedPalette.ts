@@ -18,7 +18,9 @@ export type InspirationMode =
   | 'archetypes'
   | 'shapes'
   | 'trending'
-  | 'archetypes-menu';
+  | 'archetypes-menu'
+  /** Flujo combinado creado desde las paletas activas de origen. */
+  | 'multi-origin';
 
 export interface SavedPalette {
   id: string;

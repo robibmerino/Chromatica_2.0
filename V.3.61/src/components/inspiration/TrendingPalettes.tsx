@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { hexToRgb } from '../../utils/colorUtils';
+import { SectionBanner, SECTION_ICON_ACCENTS } from '../GuidedPaletteCreator/SectionBanner';
 
 interface TrendingPalettesProps {
   colorCount: number;
@@ -151,6 +152,78 @@ const CATEGORIES = [
 
 type ViewMode = 'palette' | 'poster';
 
+const TRENDING_ICON = (
+  <svg
+    className="w-5 h-5"
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    aria-hidden
+  >
+    <path
+      d="M13.5 3.5C13.5 3.5 15 6 15 8.5C15 9.88071 13.8807 11 12.5 11C11.1193 11 10 9.88071 10 8.5C10 7 10.5 5.5 10.5 5.5C7 7 5 10.5 5 13.5C5 17.0899 7.91015 20 11.5 20C15.0899 20 18 17.0899 18 13.5C18 8.5 13.5 3.5 13.5 3.5Z"
+      fill="currentColor"
+    />
+  </svg>
+);
+
+const SEARCH_ICON = (
+  <svg
+    className="w-4 h-4"
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    aria-hidden
+  >
+    <circle
+      cx="11"
+      cy="11"
+      r="6"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <path
+      d="M15.5 15.5L19 19"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
+const COLOR_SWATCH_ICON = (
+  <svg
+    className="w-3.5 h-3.5"
+    viewBox="0 0 20 20"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    aria-hidden
+  >
+    <defs>
+      <linearGradient id="swatch-gradient" x1="0" y1="0" x2="20" y2="20" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stopColor="#4C7EFF" />
+        <stop offset="0.5" stopColor="#FF4EB8" />
+        <stop offset="1" stopColor="#F7D93D" />
+      </linearGradient>
+    </defs>
+    <rect
+      x="2"
+      y="3"
+      width="13"
+      height="11"
+      rx="3"
+      ry="3"
+      stroke="currentColor"
+      strokeWidth="1.2"
+      fill="url(#swatch-gradient)"
+    />
+    <circle cx="13.5" cy="13.5" r="2.2" stroke="currentColor" strokeWidth="1.2" fill="#0f172a" />
+  </svg>
+);
+
 export function TrendingPalettes({
   colorCount,
   onColorCountChange,
@@ -163,18 +236,30 @@ export function TrendingPalettes({
   const [selectedPalette, setSelectedPalette] = useState<CuratedPalette | null>(null);
   const [posterStyle, setPosterStyle] = useState(0);
   const [colorSearchActive, setColorSearchActive] = useState(false);
-  const [searchColor, setSearchColor] = useState('#6366f1');
+  const [searchColor, setSearchColor] = useState('#46903c');
+  const [categoryFilterActive, setCategoryFilterActive] = useState(false);
 
   // Filtrar paletas
   const filteredPalettes = useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+
     let palettes = CURATED_PALETTES.filter((palette) => {
-      const matchesCategory = selectedCategory === 'Todos' || palette.category === selectedCategory;
-      const matchesSearch =
-        searchTerm === '' ||
-        palette.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        palette.tags.some((tag) => tag.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        palette.inspiration?.toLowerCase().includes(searchTerm.toLowerCase());
-      return matchesCategory && matchesSearch;
+      const matchesCategory =
+        selectedCategory === 'Todos' || palette.category === selectedCategory;
+
+      if (normalizedSearch === '') {
+        return matchesCategory;
+      }
+
+      const nameMatches = palette.name.toLowerCase().includes(normalizedSearch);
+      const tagMatches = palette.tags.some((tag) =>
+        tag.toLowerCase().includes(normalizedSearch)
+      );
+      const inspirationMatches = palette.inspiration
+        ?.toLowerCase()
+        .includes(normalizedSearch);
+
+      return matchesCategory && (nameMatches || tagMatches || inspirationMatches);
     });
 
     // Si hay búsqueda por color activa, ordenar por proximidad al color
@@ -205,13 +290,16 @@ export function TrendingPalettes({
     return result;
   };
 
-  // Estilos de póster - Bold primero
+  // Estilos de póster - índice ligado al switch de renderPoster
   const posterStyles = [
-    { id: 'bold', name: 'Bold' },
-    { id: 'artistic', name: 'Artístico' },
-    { id: 'elegant', name: 'Elegante' },
-    { id: 'magazine', name: 'Magazine' },
+    { id: 'bold', name: 'Bold' },       // 0
+    { id: 'artistic', name: 'Artístico' }, // 1
+    { id: 'elegant', name: 'Magazine' },   // 2
+    { id: 'magazine', name: 'Pantone' },   // 3
   ];
+
+  // Orden visual de los estilos en la UI (Bold, Magazine, Elegante, Artístico)
+  const posterStyleOrder = [0, 3, 2, 1] as const;
 
   // Renderizar póster según estilo
   const renderPoster = (colors: string[], name: string, style: number) => {
@@ -265,122 +353,165 @@ export function TrendingPalettes({
           </div>
         );
 
-      case 1: // Artístico (nuevo, reemplaza Exhibición)
+      case 1: // Artístico
         return (
-          <div className="w-full aspect-[3/4] rounded-lg overflow-hidden relative" style={{ backgroundColor: '#0a0a0a' }}>
-            {/* Formas abstractas */}
-            <div 
-              className="absolute top-4 left-4 w-20 h-20 rounded-full blur-xl opacity-60"
-              style={{ backgroundColor: adaptedColors[0] }}
-            />
-            <div 
-              className="absolute top-12 right-6 w-16 h-16 rounded-full blur-lg opacity-70"
-              style={{ backgroundColor: adaptedColors[1] || adaptedColors[0] }}
-            />
-            <div 
-              className="absolute bottom-20 left-1/2 -translate-x-1/2 w-24 h-24 rounded-full blur-2xl opacity-50"
-              style={{ backgroundColor: adaptedColors[2] || adaptedColors[0] }}
-            />
-            {/* Líneas diagonales */}
-            <div className="absolute inset-0">
-              {adaptedColors.map((c, i) => (
-                <div 
-                  key={i}
-                  className="absolute h-[2px] origin-left"
-                  style={{ 
-                    backgroundColor: c,
-                    width: '150%',
-                    top: `${20 + i * 18}%`,
-                    left: '-10%',
-                    transform: `rotate(${-15 + i * 5}deg)`,
-                    opacity: 0.8
-                  }}
+          <div className="w-full aspect-[3/4] rounded-lg overflow-hidden bg-slate-950 relative">
+            <div className="absolute inset-3 rounded-2xl bg-slate-900 border border-slate-800/80 overflow-hidden">
+              {/* Composición geométrica */}
+              <div className="absolute inset-0">
+                {/* Bloque diagonal principal */}
+                <div
+                  className="absolute -left-10 top-6 w-40 h-24 rotate-[-18deg]"
+                  style={{ backgroundColor: adaptedColors[0] }}
                 />
-              ))}
-            </div>
-            {/* Texto */}
-            <div className="absolute bottom-6 left-4 right-4">
-              <div 
-                className="text-lg font-bold mb-2"
-                style={{ color: adaptedColors[0] }}
-              >
-                {name}
-              </div>
-              <div className="flex gap-2">
-                {adaptedColors.map((c, i) => (
-                  <div 
-                    key={i} 
-                    className="w-4 h-4 rounded-full ring-1 ring-white/20"
-                    style={{ backgroundColor: c }}
+                {/* Rectángulo superior */}
+                <div
+                  className="absolute right-0 top-3 w-16 h-10 rounded-l-2xl"
+                  style={{ backgroundColor: adaptedColors[1] || adaptedColors[0] }}
+                />
+                {/* Círculo central */}
+                <div
+                  className="absolute left-7 top-1/2 -translate-y-1/2 w-14 h-14 rounded-full border-2"
+                  style={{ borderColor: adaptedColors[3] || adaptedColors[0] }}
+                >
+                  <div
+                    className="m-2 rounded-full"
+                    style={{ backgroundColor: adaptedColors[4] || adaptedColors[1] || adaptedColors[0] }}
+                  />
+                </div>
+                {/* Banda inferior de bloques (responde al número de colores) */}
+                <div className="absolute left-0 right-0 bottom-16 flex gap-1 px-6">
+                  {adaptedColors.map((c, i) => (
+                    <div
+                      key={i}
+                      className="flex-1 h-3 rounded-md"
+                      style={{ backgroundColor: c }}
+                    />
+                  ))}
+                </div>
+                {/* Líneas finas horizontales */}
+                {[0, 1, 2].map((row) => (
+                  <div
+                    key={row}
+                    className="absolute left-3 right-3 h-px"
+                    style={{
+                      backgroundColor: adaptedColors[row + 1] || adaptedColors[0],
+                      top: `${24 + row * 10}%`,
+                      opacity: 0.6,
+                    }}
                   />
                 ))}
               </div>
-            </div>
-            {/* Círculo de acento */}
-            <div 
-              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 rounded-full border-2"
-              style={{ borderColor: adaptedColors[0] }}
-            >
-              <div 
-                className="absolute inset-2 rounded-full"
-                style={{ backgroundColor: adaptedColors[1] || adaptedColors[0] }}
-              />
+
+              {/* Franja inferior para texto (asegura contraste y alineación) */}
+              <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-slate-950/95 via-slate-950/85 to-transparent" />
+
+              {/* Nombre de la paleta con tipografía más artística */}
+              <div className="absolute left-4 bottom-3 right-4 flex items-end justify-between">
+                <div
+                  className="text-[10px] font-semibold italic tracking-[0.22em] uppercase break-words leading-tight max-w-[70%]"
+                  style={{ color: '#e5e7eb' }}
+                >
+                  {name}
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                  <span className="text-[7px] uppercase tracking-[0.3em] text-slate-500">
+                    Art Print
+                  </span>
+                  <div className="flex gap-1">
+                    {adaptedColors.slice(0, 3).map((c, i) => (
+                      <span
+                        key={i}
+                        className="w-3 h-3 rounded-full border border-slate-800"
+                        style={{ backgroundColor: c }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         );
 
-      case 2: // Elegante (mejorado del Minimal)
+      case 2: // Elegante
         return (
-          <div className="w-full aspect-[3/4] rounded-lg overflow-hidden relative" style={{ backgroundColor: '#FAFAF8' }}>
-            {/* Borde elegante */}
-            <div className="absolute inset-3 border border-gray-200 rounded-lg" />
-            <div className="absolute inset-5 border border-gray-100 rounded" />
-            
-            {/* Header minimal */}
-            <div className="absolute top-8 left-8 right-8">
-              <div className="text-[10px] text-gray-400 tracking-[0.4em] uppercase mb-1">Collection</div>
-              <div 
-                className="text-sm font-light tracking-wide"
-                style={{ color: adaptedColors[0] }}
-              >
-                {name}
-              </div>
-            </div>
-
-            {/* Paleta central */}
-            <div className="absolute top-1/2 left-8 right-8 -translate-y-1/2">
-              <div className="flex gap-3 mb-6">
-                {adaptedColors.map((c, i) => (
-                  <div key={i} className="flex-1">
-                    <div 
-                      className="aspect-square rounded shadow-sm"
-                      style={{ backgroundColor: c }}
-                    />
+          <div
+            className="w-full aspect-[3/4] rounded-lg overflow-hidden relative"
+            style={{ backgroundColor: adaptedColors[adaptedColors.length - 1] || '#e5e7eb' }}
+          >
+            <div className="absolute inset-4 rounded-2xl bg-white/95 shadow-[0_18px_35px_rgba(15,23,42,0.32)] overflow-hidden flex flex-col">
+              <div className="flex-1 flex">
+                {/* Faja lateral */}
+                <div
+                  className="w-8 flex flex-col items-center justify-between py-3"
+                  style={{ backgroundColor: adaptedColors[0] || '#111827' }}
+                >
+                  <div className="flex flex-col gap-1">
+                    {adaptedColors.slice(0, 3).map((c, i) => (
+                      <div
+                        key={i}
+                        className="w-2.5 h-2.5 rounded-full"
+                        style={{ backgroundColor: c }}
+                      />
+                    ))}
                   </div>
-                ))}
-              </div>
-              <div className="h-px bg-gray-200" />
-            </div>
+                  <div className="text-[8px] tracking-[0.3em] text-white/70 rotate-180 [writing-mode:vertical-rl]">
+                    ELEGANT
+                  </div>
+                </div>
 
-            {/* Footer con códigos */}
-            <div className="absolute bottom-8 left-8 right-8">
-              <div className="flex justify-between items-end">
-                {adaptedColors.slice(0, 3).map((c, i) => (
-                  <div key={i} className="text-center">
-                    <div 
-                      className="w-2 h-2 rounded-full mx-auto mb-2"
-                      style={{ backgroundColor: c }}
-                    />
-                    <div className="text-[8px] font-mono text-gray-400">
-                      {c.toUpperCase()}
+                {/* Contenido principal */}
+                <div className="flex-1 px-3 py-3 flex flex-col justify-between">
+                  <div>
+                    <div className="text-[9px] text-gray-400 tracking-[0.35em] uppercase mb-1.5">
+                      Collection
+                    </div>
+                    <div
+                      className="text-[11px] font-medium leading-snug line-clamp-2 break-words h-[32px]"
+                      style={{ color: adaptedColors[0] }}
+                    >
+                      {name}
                     </div>
                   </div>
-                ))}
-              </div>
-              <div className="mt-4 text-center">
-                <div className="text-[8px] text-gray-300 tracking-widest">
-                  {adaptedColors.length} COLORS
+
+                  <div className="mt-3 space-y-3">
+                    {/* Banda de color */}
+                    <div className="h-8 rounded-xl overflow-hidden flex bg-gray-100">
+                      {adaptedColors.map((c, i) => (
+                        <div
+                          key={i}
+                          className="flex-1"
+                          style={{ backgroundColor: c }}
+                        />
+                      ))}
+                    </div>
+
+                    {/* Chips individuales */}
+                    <div className="flex flex-wrap gap-x-2 gap-y-1">
+                      {adaptedColors.slice(0, 3).map((c, i) => (
+                        <div key={i} className="flex items-center gap-1">
+                          <span
+                            className="w-3.5 h-3.5 rounded-full border border-gray-200"
+                            style={{ backgroundColor: c }}
+                          />
+                          <span className="text-[7px] font-mono text-gray-400">
+                            {c.toUpperCase()}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
+              </div>
+
+              {/* Footer */}
+              <div className="px-4 py-2.5 border-t border-gray-200 flex items-center justify-between">
+                <span className="text-[9px] text-gray-400 uppercase tracking-[0.25em]">
+                  {adaptedColors.length} Colores
+                </span>
+                <span className="text-[9px] text-gray-500 font-mono">
+                  {adaptedColors[0]?.toUpperCase()}
+                </span>
               </div>
             </div>
           </div>
@@ -428,234 +559,324 @@ export function TrendingPalettes({
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <button
-          onClick={onBack}
-          className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
-        >
-          <span>←</span>
-          <span>Volver</span>
-        </button>
-        <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-          <span>🔥</span> Paletas en Tendencia
-        </h2>
-        <div className="w-20" />
-      </div>
+    <div className="w-full h-full flex flex-col min-h-0 gap-4">
+      <SectionBanner
+        onBack={onBack}
+        title="Paletas en Tendencia"
+        subtitle="Explora paletas curadas por estilo, sector y tendencia."
+        icon={TRENDING_ICON}
+        iconBoxClassName={SECTION_ICON_ACCENTS.orange}
+      />
 
-      {/* Controls */}
-      <div className="bg-gray-800/50 rounded-2xl p-4 border border-gray-700/50">
-        <div className="flex flex-wrap gap-4 items-center justify-between">
-          {/* Search */}
-          <div className="relative flex-1 min-w-[200px]">
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar paletas, estilos, inspiraciones..."
-              className="w-full bg-gray-700/50 text-white px-4 py-2.5 pl-10 rounded-xl border border-gray-600/50 focus:border-purple-500/50 outline-none text-sm"
-            />
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">🔍</span>
-          </div>
-
-          {/* Color search */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setColorSearchActive(!colorSearchActive)}
-              className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all ${
-                colorSearchActive
-                  ? 'bg-purple-600/30 text-purple-300 border border-purple-500/50'
-                  : 'bg-gray-700/50 text-gray-400 hover:bg-gray-600/50'
-              }`}
-            >
-              <span>🎨</span>
-              <span>Por color</span>
-            </button>
-            {colorSearchActive && (
-              <div className="flex items-center gap-2 bg-gray-700/50 rounded-xl p-2">
-                <input
-                  type="color"
-                  value={searchColor}
-                  onChange={(e) => setSearchColor(e.target.value)}
-                  className="w-8 h-8 rounded cursor-pointer bg-transparent border-0"
-                />
-                <input
-                  type="text"
-                  value={searchColor.toUpperCase()}
-                  onChange={(e) => setSearchColor(e.target.value)}
-                  className="w-20 bg-transparent text-white text-sm font-mono outline-none"
-                />
+      {/* Layout sin scroll global: izquierda fija, derecha con scroll propio */}
+      <div className="flex-1 min-h-0 flex flex-col gap-4">
+        <div className="flex flex-col md:flex-row gap-4 min-h-0 items-start h-[calc(100vh-180px)]">
+          {/* Columna izquierda: filtros y configuraciones */}
+          <aside className="w-full md:w-80 lg:w-96 shrink-0 self-start flex flex-col gap-3">
+            {/* Panel principal de control */}
+            <div className="bg-gray-900/70 rounded-2xl p-4 md:p-5 border border-gray-800/80 shadow-sm flex flex-col gap-5">
+              {/* Buscador */}
+              <div className="space-y-2">
+                <span className="text-[11px] text-gray-400 uppercase tracking-[0.18em]">
+                  Buscar paletas
+                </span>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                    {SEARCH_ICON}
+                  </span>
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Nombre, tags o inspiración…"
+                    className="w-full bg-gray-800/80 text-sm text-gray-50 placeholder:text-gray-500 rounded-xl pl-9 pr-3 py-2.5 border border-gray-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/60 outline-none transition-colors"
+                  />
+                </div>
               </div>
-            )}
-          </div>
 
-          {/* Color count */}
-          <div className="flex items-center gap-3">
-            <span className="text-gray-400 text-sm">Colores:</span>
-            <div className="flex gap-1">
-              {[3, 4, 5, 6].map((num) => (
-                <button
-                  key={num}
-                  onClick={() => onColorCountChange(num)}
-                  className={`w-8 h-8 rounded-lg text-sm font-medium transition-all ${
-                    colorCount === num
-                      ? 'bg-purple-600 text-white'
-                      : 'bg-gray-700/50 text-gray-400 hover:bg-gray-600/50'
-                  }`}
-                >
-                  {num}
-                </button>
-              ))}
-            </div>
-          </div>
+              {/* Búsqueda por color (progresiva) */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] text-gray-400 uppercase tracking-[0.18em]">
+                    Busqueda por Color
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setColorSearchActive(!colorSearchActive)}
+                    className="inline-flex items-center justify-end gap-2 text-[11px] text-gray-300"
+                  >
+                    <span
+                      className={`inline-flex h-5 w-9 items-center rounded-full p-0.5 transition-colors ${
+                        colorSearchActive ? 'bg-indigo-500/70' : 'bg-gray-700'
+                      }`}
+                    >
+                      <span
+                        className={`h-4 w-4 rounded-full bg-white shadow-sm transform transition-transform ${
+                          colorSearchActive ? 'translate-x-3.5 bg-indigo-100' : ''
+                        }`}
+                      />
+                    </span>
+                    <span>{colorSearchActive ? 'Activo' : 'Filtrar'}</span>
+                  </button>
+                </div>
+                {colorSearchActive && (
+                  <div className="flex items-center gap-3 pt-1">
+                    <div className="w-8 h-8 rounded-lg border border-gray-700 bg-gray-900/80 overflow-hidden shadow-sm">
+                      <input
+                        type="color"
+                        value={searchColor}
+                        onChange={(e) => setSearchColor(e.target.value)}
+                        className="w-full h-full cursor-pointer border-0 bg-transparent p-0"
+                      />
+                    </div>
+                    <span className="text-xs font-mono text-gray-100">
+                      {searchColor.toUpperCase()}
+                    </span>
+                  </div>
+                )}
+              </div>
 
-          {/* View mode */}
-          <div className="flex items-center gap-2 bg-gray-700/50 rounded-xl p-1">
-            <button
-              onClick={() => setViewMode('palette')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                viewMode === 'palette'
-                  ? 'bg-purple-600 text-white'
-                  : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              <span className="flex items-center gap-2">
-                <span>🎨</span> Paleta
-              </span>
-            </button>
-            <button
-              onClick={() => setViewMode('poster')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                viewMode === 'poster'
-                  ? 'bg-purple-600 text-white'
-                  : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              <span className="flex items-center gap-2">
-                <span>🖼️</span> Aplicada
-              </span>
-            </button>
-          </div>
-        </div>
+              {/* Búsqueda por categoría (progresiva) */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] text-gray-400 uppercase tracking-[0.18em]">
+                    Busqueda por categoria
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCategoryFilterActive(!categoryFilterActive);
+                      if (categoryFilterActive) {
+                        setSelectedCategory('Todos');
+                      }
+                    }}
+                    className="inline-flex items-center justify-end gap-2 text-[11px] text-gray-300"
+                  >
+                    <span
+                      className={`inline-flex h-5 w-9 items-center rounded-full p-0.5 transition-colors ${
+                        categoryFilterActive ? 'bg-indigo-500/70' : 'bg-gray-700'
+                      }`}
+                    >
+                      <span
+                        className={`h-4 w-4 rounded-full bg-white shadow-sm transform transition-transform ${
+                          categoryFilterActive ? 'translate-x-3.5 bg-indigo-100' : ''
+                        }`}
+                      />
+                    </span>
+                    <span>{categoryFilterActive ? 'Activo' : 'Filtrar'}</span>
+                  </button>
+                </div>
 
-        {/* Categories */}
-        <div className="flex gap-2 mt-4 overflow-x-auto pb-2 scrollbar-thin">
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
-                selectedCategory === cat
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-gray-700/50 text-gray-400 hover:bg-gray-600/50 hover:text-white'
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-
-        {/* Poster style selector (only in poster mode) */}
-        {viewMode === 'poster' && (
-          <div className="flex gap-2 mt-3 pt-3 border-t border-gray-700/50">
-            <span className="text-gray-500 text-sm self-center">Estilo:</span>
-            {posterStyles.map((style, idx) => (
-              <button
-                key={style.id}
-                onClick={() => setPosterStyle(idx)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                  posterStyle === idx
-                    ? 'bg-amber-600/30 text-amber-300 border border-amber-500/50'
-                    : 'bg-gray-700/30 text-gray-400 hover:bg-gray-600/50'
-                }`}
-              >
-                {style.name}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Results count */}
-      <div className="text-gray-500 text-sm">
-        {filteredPalettes.length} paletas encontradas
-        {colorSearchActive && (
-          <span className="ml-2 text-purple-400">
-            · Ordenadas por proximidad a {searchColor.toUpperCase()}
-          </span>
-        )}
-      </div>
-
-      {/* Palettes grid */}
-      <div className={`grid gap-4 ${viewMode === 'palette' ? 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4' : 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4'}`}>
-        {filteredPalettes.map((palette) => {
-          const adaptedColors = adaptPalette(palette.colors, colorCount);
-
-          return (
-            <motion.button
-              key={palette.id}
-              onClick={() => setSelectedPalette(palette)}
-              whileHover={{ scale: 1.02, y: -4 }}
-              whileTap={{ scale: 0.98 }}
-              className="bg-gray-800/50 rounded-xl overflow-hidden border border-gray-700/50 hover:border-purple-500/50 transition-all group text-left"
-            >
-              {viewMode === 'palette' ? (
-                <>
-                  {/* Palette bar */}
-                  <div className="h-20 flex">
-                    {adaptedColors.map((color, i) => (
-                      <div key={i} className="flex-1" style={{ backgroundColor: color }} />
+                {categoryFilterActive && (
+                  <div className="pt-1 grid grid-cols-3 gap-2">
+                    {CATEGORIES.map((cat) => (
+                      <button
+                        key={cat}
+                        onClick={() => setSelectedCategory(cat)}
+                        className={`h-9 rounded-lg text-[11px] font-medium px-1.5 flex items-center justify-center text-center transition-all ${
+                          selectedCategory === cat
+                            ? 'bg-indigo-500 text-white shadow-sm shadow-indigo-500/40'
+                            : 'bg-gray-800/80 text-gray-300 hover:bg-gray-700/70'
+                        }`}
+                      >
+                        {cat}
+                      </button>
                     ))}
                   </div>
-                  {/* Info */}
-                  <div className="p-3">
-                    <h3 className="text-white text-sm font-medium truncate">{palette.name}</h3>
-                    <p className="text-gray-500 text-xs mt-0.5 truncate">{palette.inspiration}</p>
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {palette.tags.slice(0, 2).map((tag) => (
-                        <span key={tag} className="text-[10px] px-2 py-0.5 bg-gray-700/50 text-gray-400 rounded-full">
-                          {tag}
-                        </span>
+                )}
+              </div>
+            </div>
+
+            {/* Panel de ajustes de presentación + estilo aplicado */}
+            <div className="bg-gray-900/70 rounded-2xl p-4 md:p-5 border border-gray-800/80 shadow-sm flex flex-col gap-4">
+              {/* Ajustes de presentación */}
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Número de colores */}
+                  <div className="space-y-2">
+                    <span className="text-[11px] text-gray-400 uppercase tracking-[0.18em]">
+                      Número de colores
+                    </span>
+                    <div className="inline-flex rounded-xl bg-gray-800/80 p-1 gap-1">
+                      {[3, 4, 5, 6].map((num) => (
+                        <button
+                          key={num}
+                          onClick={() => onColorCountChange(num)}
+                          className={`w-9 h-8 rounded-lg text-[13px] font-medium transition-all ${
+                            colorCount === num
+                              ? 'bg-indigo-500 text-white shadow-sm shadow-indigo-500/40'
+                              : 'text-gray-300 hover:bg-gray-700/70'
+                          }`}
+                        >
+                          {num}
+                        </button>
                       ))}
                     </div>
                   </div>
-                </>
-              ) : (
-                <>
-                  {/* Poster view */}
-                  <div className="p-3">
-                    {renderPoster(palette.colors, palette.name, posterStyle)}
-                  </div>
-                  {/* Info */}
-                  <div className="px-3 pb-3">
-                    <h3 className="text-white text-sm font-medium truncate">{palette.name}</h3>
-                    <p className="text-gray-500 text-xs truncate">{palette.category}</p>
-                  </div>
-                </>
-              )}
-            </motion.button>
-          );
-        })}
-      </div>
 
-      {/* Empty state */}
-      {filteredPalettes.length === 0 && (
-        <div className="text-center py-16">
-          <span className="text-4xl block mb-4">🔍</span>
-          <p className="text-gray-400">No se encontraron paletas</p>
-          <button
-            onClick={() => {
-              setSearchTerm('');
-              setSelectedCategory('Todos');
-              setColorSearchActive(false);
-            }}
-            className="mt-4 text-purple-400 hover:text-purple-300 text-sm"
-          >
-            Limpiar filtros
-          </button>
+                  {/* Modo de vista */}
+                  <div className="space-y-2">
+                    <span className="text-[11px] text-gray-400 uppercase tracking-[0.18em]">
+                      Modo de vista
+                    </span>
+                    <div className="inline-flex w-full rounded-xl bg-gray-800/80 p-1">
+                      <button
+                        onClick={() => setViewMode('palette')}
+                        className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                          viewMode === 'palette'
+                            ? 'bg-indigo-500 text-white shadow-sm shadow-indigo-500/40'
+                            : 'text-gray-300 hover:text-white'
+                        }`}
+                      >
+                        Paleta
+                      </button>
+                      <button
+                        onClick={() => setViewMode('poster')}
+                        className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                          viewMode === 'poster'
+                            ? 'bg-indigo-500 text-white shadow-sm shadow-indigo-500/40'
+                            : 'text-gray-300 hover:text-white'
+                        }`}
+                      >
+                        Aplicada
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Estilo aplicado */}
+              {viewMode === 'poster' && (
+                <div className="space-y-2">
+                  <span className="text-[11px] text-gray-400 uppercase tracking-[0.18em]">
+                    Estilo aplicado
+                  </span>
+                  <div className="mt-1 grid grid-cols-4 gap-2">
+                    {posterStyleOrder.map((styleIndex) => {
+                      const style = posterStyles[styleIndex];
+                      return (
+                        <button
+                          key={style.id}
+                          onClick={() => setPosterStyle(styleIndex)}
+                          className={`h-9 w-full rounded-lg text-[11px] font-medium flex items-center justify-center text-center transition-all ${
+                            posterStyle === styleIndex
+                              ? 'bg-indigo-500 text-white shadow-sm shadow-indigo-500/40'
+                              : 'bg-gray-800/80 text-gray-300 hover:bg-gray-700/70'
+                          }`}
+                        >
+                          {style.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </aside>
+
+          {/* Columna derecha: resultados y grid (con scroll propio) */}
+          <section className="flex-1 min-w-0 flex flex-col min-h-0">
+            <div className="bg-gray-900/70 rounded-2xl border border-gray-800/80 shadow-sm px-4 py-3 md:px-5 md:py-4 flex flex-col gap-3 min-h-0">
+              <div className="text-gray-500 text-sm flex items-center justify-between">
+                <span>
+                  {filteredPalettes.length} paletas encontradas
+                  {colorSearchActive && (
+                    <span className="ml-2 text-purple-400">
+                      · Ordenadas por proximidad a {searchColor.toUpperCase()}
+                    </span>
+                  )}
+                </span>
+              </div>
+
+              <div className="inspiration-scroll-area overflow-y-auto pr-4 pb-4 max-h-[66vh]">
+                <div
+                  className={`grid gap-4 ${
+                    viewMode === 'palette'
+                      ? 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4'
+                      : 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4'
+                  }`}
+                >
+                  {filteredPalettes.map((palette) => {
+                    const adaptedColors = adaptPalette(palette.colors, colorCount);
+
+                    return (
+                      <motion.button
+                        key={palette.id}
+                        onClick={() => setSelectedPalette(palette)}
+                        whileHover={{ scale: 1.02, y: -4 }}
+                        whileTap={{ scale: 0.98 }}
+                        className="bg-gray-800/50 rounded-xl overflow-hidden border border-gray-700/50 hover:border-purple-500/50 transition-all group text-left"
+                      >
+                        {viewMode === 'palette' ? (
+                          <>
+                            {/* Palette bar */}
+                            <div className="h-20 flex">
+                              {adaptedColors.map((color, i) => (
+                                <div key={i} className="flex-1" style={{ backgroundColor: color }} />
+                              ))}
+                            </div>
+                            {/* Info */}
+                            <div className="p-3">
+                              <h3 className="text-white text-sm font-medium truncate">
+                                {palette.name}
+                              </h3>
+                              <p className="text-gray-500 text-xs mt-0.5 truncate">
+                                {palette.inspiration}
+                              </p>
+                            <div className="flex flex-nowrap gap-1 mt-2 overflow-hidden">
+                                {palette.tags.slice(0, 2).map((tag) => (
+                                  <span
+                                    key={tag}
+                                  className="text-[10px] px-2 py-0.5 bg-gray-700/50 text-gray-400 rounded-full whitespace-nowrap max-w-[96px] overflow-hidden text-ellipsis"
+                                  >
+                                    {tag}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            {/* Poster view */}
+                            <div className="p-3">
+                              {renderPoster(palette.colors, palette.name, posterStyle)}
+                            </div>
+                            {/* Info */}
+                            <div className="px-3 pb-3">
+                              <h3 className="text-white text-sm font-medium truncate">
+                                {palette.name}
+                              </h3>
+                              <p className="text-gray-500 text-xs truncate">{palette.category}</p>
+                            </div>
+                          </>
+                        )}
+                      </motion.button>
+                    );
+                  })}
+                </div>
+
+                {/* Empty state */}
+                {filteredPalettes.length === 0 && (
+                  <div className="text-center py-16">
+                    <span className="text-4xl block mb-4">🔍</span>
+                    <p className="text-gray-400">No se encontraron paletas</p>
+                    <button
+                      onClick={() => {
+                        setSearchTerm('');
+                        setSelectedCategory('Todos');
+                        setColorSearchActive(false);
+                      }}
+                      className="mt-4 text-purple-400 hover:text-purple-300 text-sm"
+                    >
+                      Limpiar filtros
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
         </div>
-      )}
+      </div>
 
       {/* Selected palette modal */}
       <AnimatePresence>
@@ -680,7 +901,7 @@ export function TrendingPalettes({
                   <h3 className="text-2xl font-bold text-white">{selectedPalette.name}</h3>
                   <p className="text-gray-400 mt-1">{selectedPalette.inspiration}</p>
                   <div className="flex gap-2 mt-3">
-                    <span className="text-xs px-3 py-1 bg-purple-600/30 text-purple-300 rounded-full">
+                    <span className="text-xs px-3 py-1 bg-indigo-600/30 text-indigo-200 rounded-full">
                       {selectedPalette.category}
                     </span>
                     {selectedPalette.tags.map((tag) => (
@@ -718,14 +939,17 @@ export function TrendingPalettes({
 
               {/* Poster examples */}
               <div className="grid grid-cols-4 gap-3 mb-6">
-                {posterStyles.map((style, idx) => (
-                  <div key={style.id} className="text-center">
-                    <div className="text-gray-500 text-xs mb-2">{style.name}</div>
-                    <div className="transform scale-75 origin-top">
-                      {renderPoster(selectedPalette.colors, selectedPalette.name, idx)}
+                {posterStyleOrder.map((styleIndex) => {
+                  const style = posterStyles[styleIndex];
+                  return (
+                    <div key={style.id} className="text-center">
+                      <div className="text-gray-500 text-xs mb-2">{style.name}</div>
+                      <div className="transform scale-75 origin-top">
+                        {renderPoster(selectedPalette.colors, selectedPalette.name, styleIndex)}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Color count selector */}
@@ -754,7 +978,7 @@ export function TrendingPalettes({
                   onSelectPalette(adaptPalette(selectedPalette.colors, colorCount));
                   setSelectedPalette(null);
                 }}
-                className="w-full py-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-xl font-medium transition-all flex items-center justify-center gap-2"
+                className="w-full py-4 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white rounded-xl font-medium transition-all flex items-center justify-center gap-2"
               >
                 <span>Usar esta paleta</span>
                 <span>→</span>

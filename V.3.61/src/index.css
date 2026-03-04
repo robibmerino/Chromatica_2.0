@@ -32,21 +32,15 @@ body {
   background: rgba(100, 116, 139, 0.8);
 }
 
-/* Scrollbar solo visible al hover (Inspiración / Armonía): no molesta cuando todo cabe en pantalla */
+/* Scrollbar visible en áreas de inspiración, alineada con el resto de la app */
 .inspiration-scroll-area::-webkit-scrollbar-track {
-  background: transparent;
-}
-.inspiration-scroll-area::-webkit-scrollbar-thumb {
-  background: transparent;
-  border-radius: 4px;
-}
-.inspiration-scroll-area:hover::-webkit-scrollbar-track {
   background: rgba(30, 41, 59, 0.5);
 }
-.inspiration-scroll-area:hover::-webkit-scrollbar-thumb {
+.inspiration-scroll-area::-webkit-scrollbar-thumb {
   background: rgba(100, 116, 139, 0.5);
+  border-radius: 4px;
 }
-.inspiration-scroll-area:hover::-webkit-scrollbar-thumb:hover {
+.inspiration-scroll-area::-webkit-scrollbar-thumb:hover {
   background: rgba(100, 116, 139, 0.8);
 }
 

@@ -26,64 +26,16 @@ const getColorRole = (index: number): string => {
   }
 };
 
-// Sub-secciones de análisis con etiquetas amigables
+// Sub-secciones de análisis (sin emojis; se usa color y etiqueta)
 const ANALYSIS_SECTIONS = [
-  {
-    id: 'readability',
-    name: '¿Se lee bien?',
-    icon: '👁️',
-    description: 'Contraste y legibilidad',
-    color: '#6366f1'
-  },
-  {
-    id: 'emotions',
-    name: '¿Qué transmite?',
-    icon: '💭',
-    description: 'Psicología del color',
-    color: '#ec4899'
-  },
-  {
-    id: 'accessibility',
-    name: '¿Es para todos?',
-    icon: '♿',
-    description: 'Accesibilidad visual',
-    color: '#14b8a6'
-  },
-  {
-    id: 'harmony',
-    name: '¿Funciona en conjunto?',
-    icon: '🎨',
-    description: 'Armonía y equilibrio',
-    color: '#f59e0b'
-  },
-  {
-    id: 'attention',
-    name: '¿Guía la mirada?',
-    icon: '🎯',
-    description: 'Jerarquía visual',
-    color: '#8b5cf6'
-  },
-  {
-    id: 'cultural',
-    name: '¿Comunica bien?',
-    icon: '🌍',
-    description: 'Significados culturales',
-    color: '#10b981'
-  },
-  {
-    id: 'memory',
-    name: '¿Se recuerda?',
-    icon: '🧠',
-    description: 'Memorabilidad',
-    color: '#f97316'
-  },
-  {
-    id: 'trends',
-    name: '¿Está actualizada?',
-    icon: '✨',
-    description: 'Tendencias actuales',
-    color: '#06b6d4'
-  }
+  { id: 'readability', name: '¿Se lee bien?', description: 'Contraste y legibilidad', color: '#6366f1' },
+  { id: 'emotions', name: '¿Qué transmite?', description: 'Psicología del color', color: '#ec4899' },
+  { id: 'accessibility', name: '¿Es para todos?', description: 'Accesibilidad visual', color: '#14b8a6' },
+  { id: 'harmony', name: '¿Funciona en conjunto?', description: 'Armonía y equilibrio', color: '#f59e0b' },
+  { id: 'attention', name: '¿Guía la mirada?', description: 'Jerarquía visual', color: '#8b5cf6' },
+  { id: 'cultural', name: '¿Comunica bien?', description: 'Significados culturales', color: '#10b981' },
+  { id: 'memory', name: '¿Se recuerda?', description: 'Memorabilidad', color: '#f97316' },
+  { id: 'trends', name: '¿Está actualizada?', description: 'Tendencias actuales', color: '#06b6d4' },
 ];
 
 interface CaseConfig {
@@ -1148,26 +1100,28 @@ export const ScientificAnalysis: React.FC<ScientificAnalysisProps> = ({
                 setSelectedIssue(null);
                 setExpandedCase(null);
               }}
-              className={`px-4 py-2.5 rounded-xl border-2 transition-all ${
+              className={`px-4 py-2.5 rounded-xl border-2 transition-all flex items-center gap-3 ${
                 activeSection === section.id
                   ? 'border-white/30 bg-white/10'
                   : 'border-gray-700/50 bg-gray-800/30 hover:bg-gray-800/50'
               }`}
               style={{
-                borderColor: activeSection === section.id ? section.color : undefined
+                borderColor: activeSection === section.id ? section.color : undefined,
               }}
             >
-              <div className="flex items-center gap-2">
-                <span className="text-xl">{section.icon}</span>
-                <div className="text-left">
-                  <div className="text-sm font-medium text-white">{section.name}</div>
-                  <div className="text-[10px] text-gray-400">{section.description}</div>
-                </div>
-                <div className="ml-1">
-                  {hasCritical && <span className="w-2 h-2 bg-red-500 rounded-full inline-block" />}
-                  {!hasCritical && hasWarning && <span className="w-2 h-2 bg-yellow-500 rounded-full inline-block" />}
-                  {allOptimal && <span className="w-2 h-2 bg-green-500 rounded-full inline-block" />}
-                </div>
+              <span
+                className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                style={{ backgroundColor: section.color }}
+                aria-hidden
+              />
+              <div className="text-left min-w-0">
+                <div className="text-sm font-medium text-white truncate">{section.name}</div>
+                <div className="text-[10px] text-gray-400 truncate">{section.description}</div>
+              </div>
+              <div className="flex-shrink-0 ml-1">
+                {hasCritical && <span className="w-2 h-2 bg-red-500 rounded-full inline-block" aria-hidden />}
+                {!hasCritical && hasWarning && <span className="w-2 h-2 bg-yellow-500 rounded-full inline-block" aria-hidden />}
+                {allOptimal && <span className="w-2 h-2 bg-emerald-500 rounded-full inline-block" aria-hidden />}
               </div>
             </motion.button>
           );
@@ -1180,10 +1134,9 @@ export const ScientificAnalysis: React.FC<ScientificAnalysisProps> = ({
         <div className="w-96 flex-shrink-0 space-y-4 overflow-y-auto sticky top-0">
           {/* Case Previews - Only for readability section */}
           {activeSection === 'readability' && (
-            <div className="bg-gradient-to-br from-gray-800/70 to-gray-800/40 rounded-xl p-4 border border-gray-600/50">
-              <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-                <span className="text-lg">👁️</span> Casos de Aplicación
-              </h3>
+            <div className="bg-gray-900/60 rounded-2xl p-4 border border-gray-700/70">
+              <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-gray-400 mb-1">Contexto</p>
+              <h3 className="text-sm font-semibold text-white">Casos de aplicación</h3>
               <div className="grid grid-cols-2 gap-3">
                 {caseConfigs.map((cfg, idx) => {
                   const caseIssues = issuesByCase[cfg.id] || [];
@@ -1208,8 +1161,8 @@ export const ScientificAnalysis: React.FC<ScientificAnalysisProps> = ({
                         <span className="text-[10px] text-gray-300">
                           {idx + 1}. {cfg.name}
                         </span>
-                        <span className="text-[10px]">
-                          {hasCritical ? '🚨' : hasWarning ? '⚠️' : '✓'}
+                        <span className="text-[10px] font-medium uppercase tracking-wider">
+                          {hasCritical ? 'Alta' : hasWarning ? 'Media' : 'Ok'}
                         </span>
                       </div>
                     </motion.div>
@@ -1221,10 +1174,9 @@ export const ScientificAnalysis: React.FC<ScientificAnalysisProps> = ({
 
           {/* Accessibility - Color blindness simulation */}
           {activeSection === 'accessibility' && (
-            <div className="bg-gradient-to-br from-teal-900/30 to-gray-800/40 rounded-xl p-4 border border-teal-500/30">
-              <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-                <span className="text-lg">👁️</span> Simulación de daltonismo
-              </h3>
+            <div className="bg-gray-900/60 rounded-2xl p-4 border border-gray-700/70">
+              <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-gray-400 mb-1">Visión</p>
+              <h3 className="text-sm font-semibold text-white">Simulación de daltonismo</h3>
               <div className="space-y-3">
                 {/* Normal vision */}
                 <div>
@@ -1267,14 +1219,15 @@ export const ScientificAnalysis: React.FC<ScientificAnalysisProps> = ({
           )}
 
           {/* Tu Paleta */}
-          <div className="bg-gradient-to-br from-gray-800/70 to-gray-800/40 rounded-xl p-4 border border-gray-600/50">
+          <div className="bg-gray-900/60 rounded-2xl p-4 border border-gray-700/70">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-                <span className="text-lg">🎨</span> Tu Paleta
-                <span className="text-[10px] bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded-full">
-                  {localColors.length} colores
-                </span>
-              </h3>
+              <div>
+                <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-gray-400 mb-0.5">Edición</p>
+                <h3 className="text-sm font-semibold text-white">
+                  Tu paleta
+                  <span className="ml-2 text-[10px] font-normal text-gray-400">({localColors.length} colores)</span>
+                </h3>
+              </div>
               <div className="flex gap-1 bg-gray-700/50 rounded-lg p-1">
                 <button
                   onClick={undo}
@@ -1295,10 +1248,9 @@ export const ScientificAnalysis: React.FC<ScientificAnalysisProps> = ({
               </div>
             </div>
             
-            <div className="flex items-center gap-2 mb-3 text-[10px] text-gray-400 bg-gray-700/30 rounded-lg px-2 py-1.5">
-              <span>💡</span>
-              <span>Clic para editar • Arrastra para reordenar</span>
-            </div>
+            <p className="text-[10px] text-gray-500 mb-3 bg-gray-800/50 rounded-lg px-2.5 py-1.5 border border-gray-700/50">
+              Clic para editar • Arrastra para reordenar
+            </p>
             
             <div className="grid grid-cols-4 gap-2">
               {localColors.map((color, idx) => (
@@ -1430,12 +1382,11 @@ export const ScientificAnalysis: React.FC<ScientificAnalysisProps> = ({
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-purple-900/30 rounded-xl p-3 border border-purple-500/50"
+              className="bg-purple-900/20 rounded-2xl p-3 border border-purple-500/40"
             >
+              <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-purple-300/90 mb-0.5">Borrador</p>
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-sm font-medium text-purple-300 flex items-center gap-2">
-                  <span>✨</span> Paleta Corregida
-                </h3>
+                <h3 className="text-sm font-medium text-purple-200">Paleta corregida</h3>
                 <div className="flex gap-1">
                   <button onClick={undoTemp} disabled={tempHistoryIndex <= 0} className="p-1 text-purple-400 hover:text-white disabled:opacity-30">↶</button>
                   <button onClick={redoTemp} disabled={tempHistoryIndex >= tempHistory.length - 1} className="p-1 text-purple-400 hover:text-white disabled:opacity-30">↷</button>
@@ -1456,8 +1407,8 @@ export const ScientificAnalysis: React.FC<ScientificAnalysisProps> = ({
                 ))}
               </div>
               <div className="flex gap-2">
-                <button onClick={applyTempColors} className="flex-1 py-1.5 bg-green-600 hover:bg-green-500 rounded-lg text-xs font-medium">✓ Aplicar</button>
-                <button onClick={discardTempColors} className="flex-1 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-xs font-medium">✕ Descartar</button>
+                <button onClick={applyTempColors} className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-xs font-medium text-white">Aplicar</button>
+                <button onClick={discardTempColors} className="flex-1 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-xs font-medium text-gray-200">Descartar</button>
               </div>
             </motion.div>
           )}
@@ -1468,36 +1419,38 @@ export const ScientificAnalysis: React.FC<ScientificAnalysisProps> = ({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               onClick={saveAllChanges}
-              className="w-full py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 rounded-xl text-sm font-medium"
+              className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-sm font-medium text-white border border-emerald-500/50 transition-colors"
             >
-              💾 Guardar cambios
+              Guardar cambios
             </motion.button>
           )}
         </div>
         
         {/* Center Column - Scrollable */}
         <div className="flex-1 min-w-0 overflow-y-auto pr-2">
-          <div className="bg-gray-800/30 rounded-xl p-4 border border-gray-700/50">
-            <div className="flex items-center justify-between mb-4">
+          <div className="bg-gray-900/50 rounded-2xl p-4 md:p-5 border border-gray-700/70">
+            <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
               <div>
-                <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-                  <span>{currentSection.icon}</span> {currentSection.name}
-                </h2>
-                <p className="text-sm text-gray-400">{currentSection.description}</p>
+                <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-gray-400 mb-1">Evidencia científica</p>
+                <h2 className="text-lg font-semibold text-white">{currentSection.name}</h2>
+                <p className="text-sm text-gray-400 mt-0.5">{currentSection.description}</p>
               </div>
               <div className="flex gap-2">
                 {summary.critical > 0 && (
-                  <span className="px-2 py-1 bg-red-500/20 text-red-400 rounded-lg text-xs">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-red-500/15 border border-red-500/40 text-red-200 rounded-lg text-xs font-medium">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-400" aria-hidden />
                     {summary.critical} crítico
                   </span>
                 )}
                 {summary.warning > 0 && (
-                  <span className="px-2 py-1 bg-yellow-500/20 text-yellow-400 rounded-lg text-xs">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/15 border border-amber-500/40 text-amber-200 rounded-lg text-xs font-medium">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400" aria-hidden />
                     {summary.warning} aviso
                   </span>
                 )}
                 {summary.optimal > 0 && (
-                  <span className="px-2 py-1 bg-green-500/20 text-green-400 rounded-lg text-xs">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/15 border border-emerald-500/40 text-emerald-200 rounded-lg text-xs font-medium">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" aria-hidden />
                     {summary.optimal} óptimo
                   </span>
                 )}
@@ -1535,8 +1488,8 @@ export const ScientificAnalysis: React.FC<ScientificAnalysisProps> = ({
                                 </span>
                               )}
                               {caseIssues.every(i => i.type === 'optimal') && (
-                                <span className="text-[10px] bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded">
-                                  ✓ Óptimo
+                                <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded">
+                                  Óptimo
                                 </span>
                               )}
                             </div>
@@ -1566,10 +1519,13 @@ export const ScientificAnalysis: React.FC<ScientificAnalysisProps> = ({
                                   }`}
                                 >
                                   <div className="flex items-start gap-3">
-                                    <span className="text-lg flex-shrink-0">
-                                      {issue.type === 'critical' ? '🚨' : 
-                                       issue.type === 'warning' ? '⚠️' : 
-                                       issue.type === 'glare' ? '💡' : '✓'}
+                                    <span className={`text-[10px] font-semibold uppercase tracking-wider flex-shrink-0 px-2 py-0.5 rounded-full border ${
+                                      issue.type === 'critical' ? 'text-red-400 border-red-500/40 bg-red-500/10' :
+                                      issue.type === 'warning' ? 'text-amber-400 border-amber-500/40 bg-amber-500/10' :
+                                      issue.type === 'glare' ? 'text-orange-400 border-orange-500/40 bg-orange-500/10' :
+                                      'text-emerald-400 border-emerald-500/40 bg-emerald-500/10'
+                                    }`}>
+                                      {issue.type === 'critical' ? 'Crítico' : issue.type === 'warning' ? 'Aviso' : issue.type === 'glare' ? 'Respl.' : 'Ok'}
                                     </span>
                                     <div className="flex-1 min-w-0">
                                       <span className={`text-sm font-medium ${
@@ -1613,20 +1569,17 @@ export const ScientificAnalysis: React.FC<ScientificAnalysisProps> = ({
                     }`}
                   >
                     <div className="flex items-start gap-3">
-                      <span className="text-xl flex-shrink-0">
-                        {issue.type === 'critical' ? '🚨' : 
-                         issue.type === 'warning' ? '⚠️' : 
-                         issue.type === 'glare' ? '💡' :
-                         issue.type === 'info' ? 'ℹ️' : '✓'}
+                      <span className={`text-[10px] font-semibold uppercase tracking-wider flex-shrink-0 px-2 py-0.5 rounded-full border ${
+                        issue.type === 'critical' ? 'text-red-400 border-red-500/40 bg-red-500/10' :
+                        issue.type === 'warning' ? 'text-amber-400 border-amber-500/40 bg-amber-500/10' :
+                        issue.type === 'glare' ? 'text-orange-400 border-orange-500/40 bg-orange-500/10' :
+                        issue.type === 'info' ? 'text-sky-400 border-sky-500/40 bg-sky-500/10' :
+                        'text-emerald-400 border-emerald-500/40 bg-emerald-500/10'
+                      }`}>
+                        {issue.type === 'critical' ? 'Crítico' : issue.type === 'warning' ? 'Aviso' : issue.type === 'glare' ? 'Respl.' : issue.type === 'info' ? 'Info' : 'Ok'}
                       </span>
                       <div className="flex-1 min-w-0">
-                        <span className={`text-sm font-medium ${
-                          issue.type === 'critical' ? 'text-red-400' :
-                          issue.type === 'warning' ? 'text-yellow-400' :
-                          issue.type === 'glare' ? 'text-orange-400' :
-                          issue.type === 'info' ? 'text-blue-400' :
-                          'text-green-400'
-                        }`}>
+                        <span className="text-sm font-medium text-white">
                           {issue.element}
                         </span>
                         <p className="text-xs text-gray-400 mt-1 line-clamp-2">
@@ -1660,13 +1613,13 @@ export const ScientificAnalysis: React.FC<ScientificAnalysisProps> = ({
                 {/* Header */}
                 <div className="p-4 border-b border-white/10">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-2xl">
-                      {selectedIssue.type === 'critical' ? '🚨' : 
-                       selectedIssue.type === 'warning' ? '⚠️' : 
-                       selectedIssue.type === 'glare' ? '💡' :
-                       selectedIssue.type === 'info' ? 'ℹ️' : '✓'}
+                    <span className="text-[11px] font-semibold uppercase tracking-wider">
+                      {selectedIssue.type === 'critical' ? 'Crítico' :
+                       selectedIssue.type === 'warning' ? 'Aviso' :
+                       selectedIssue.type === 'glare' ? 'Resplandor' :
+                       selectedIssue.type === 'info' ? 'Info' : 'Óptimo'}
                     </span>
-                    <button onClick={() => setSelectedIssue(null)} className="text-gray-400 hover:text-white p-1">✕</button>
+                    <button onClick={() => setSelectedIssue(null)} className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors" aria-label="Cerrar">×</button>
                   </div>
                   <h3 className="font-semibold text-white">{selectedIssue.element}</h3>
                   {selectedIssue.ratio && selectedIssue.fg && selectedIssue.bg && (
@@ -1693,7 +1646,7 @@ export const ScientificAnalysis: React.FC<ScientificAnalysisProps> = ({
                 {/* Solutions */}
                 {selectedIssue.solutions.length > 0 && (
                   <div className="p-4 border-b border-white/10">
-                    <h4 className="text-xs font-medium text-gray-400 mb-2">💡 Soluciones</h4>
+                    <h4 className="text-[11px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-2">Soluciones</h4>
                     <div className="space-y-2">
                       {selectedIssue.solutions.map((sol, i) => (
                         <button
@@ -1710,27 +1663,27 @@ export const ScientificAnalysis: React.FC<ScientificAnalysisProps> = ({
                 
                 {/* Importance */}
                 <div className="p-4 border-b border-white/10">
-                  <h4 className="text-xs font-medium text-gray-400 mb-2">🧠 ¿Por qué es importante?</h4>
+                  <h4 className="text-[11px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-2">Por qué es importante</h4>
                   <p className="text-xs text-gray-300 leading-relaxed">{selectedIssue.importance}</p>
                 </div>
                 
                 {/* Technical */}
                 <div className="p-4 border-b border-white/10">
-                  <h4 className="text-xs font-medium text-gray-400 mb-2">🔬 Detalle técnico</h4>
+                  <h4 className="text-[11px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-2">Detalle técnico</h4>
                   <p className="text-xs text-gray-400 leading-relaxed">{selectedIssue.technical}</p>
                 </div>
                 
                 {/* Citation */}
                 <div className="p-4 bg-gray-800/50">
-                  <h4 className="text-xs font-medium text-gray-400 mb-2">📚 Referencia científica</h4>
+                  <h4 className="text-[11px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-2">Referencia científica</h4>
                   <p className="text-[10px] text-gray-500 italic">{selectedIssue.citation}</p>
                 </div>
               </div>
             </motion.div>
           ) : (
             <div className="w-80 flex-shrink-0">
-              <div className="rounded-xl bg-gray-800/30 border border-gray-700/50 p-6 text-center">
-                <span className="text-4xl mb-3 block">👆</span>
+              <div className="rounded-2xl bg-gray-900/60 border border-gray-700/70 p-6 text-center">
+                <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-gray-500 mb-2">Detalle</p>
                 <p className="text-sm text-gray-400">
                   Selecciona un elemento del análisis para ver detalles y soluciones
                 </p>

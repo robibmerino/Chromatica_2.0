@@ -5,7 +5,12 @@
 import { hexToHsl, hslToHex } from '../../utils/colorUtils';
 import type { ColumnKey } from '../GuidedPaletteCreator/config/archetypeColumnButtonConfig';
 
-export type CombineMode = 'balanced' | 'quien-first' | 'que-first' | 'como-first';
+export type CombineMode =
+  | 'balanced'
+  | 'flow-first'
+  | 'palette-first'
+  | 'soft-gradient'
+  | 'custom';
 
 /** Paletas por defecto por columna (placeholder hasta que se definan flujos de creación). */
 export const DEFAULT_COLUMN_PALETTES: Record<ColumnKey, string[]> = {
@@ -21,20 +26,33 @@ export const NEUTRAL_PALETTE = [
 ];
 
 export const COMBINE_MODE_LABELS: Record<CombineMode, string> = {
-  balanced: 'Equilibrado',
-  'quien-first': 'Quién primero',
-  'que-first': 'Qué primero',
-  'como-first': 'Cómo primero',
+  balanced: 'Equilibrada',
+  'flow-first': 'Orden de flujos',
+  'palette-first': 'Orden de paleta',
+  'soft-gradient': 'Gradiente suave',
+  custom: 'Personalizada',
 };
 
 export const COMBINE_MODE_TOOLTIPS: Record<CombineMode, string> = {
-  balanced: 'Mezcla los colores de las tres columnas equilibradamente, preservando saturación',
-  'quien-first': 'Alterna priorizando Quién, luego Qué y Cómo',
-  'que-first': 'Alterna priorizando Qué, luego Quién y Cómo',
-  'como-first': 'Alterna priorizando Cómo, luego Quién y Qué',
+  balanced:
+    'Mezcla las columnas activas a partes iguales y reduce saturaciones demasiado altas.',
+  'flow-first':
+    'Recorre 1º color de cada columna activa, luego el 2º, etc., respetando el orden.',
+  'palette-first':
+    'Avanza dentro de cada paleta: 1º de la primera, 2º de la segunda, 3º de la tercera…',
+  'soft-gradient':
+    'Construye un degradado continuo mezclando suavemente todos los colores activos.',
+  custom:
+    'Punto de partida editable: parte de un equilibrio suave para que puedas ajustarla después.',
 };
 
-export const COMBINE_MODES: CombineMode[] = ['balanced', 'quien-first', 'que-first', 'como-first'];
+export const COMBINE_MODES: CombineMode[] = [
+  'balanced',
+  'flow-first',
+  'palette-first',
+  'soft-gradient',
+  'custom',
+];
 
 /**
  * Mezcla colores en HSL con refuerzo de saturación para evitar resultados apagados.
@@ -74,39 +92,84 @@ export function combineColumnPalettes(
   count: number,
   mode: CombineMode
 ): string[] {
-  const activePalettes: [ColumnKey, string[]][] = [];
-  if (activated.quien) activePalettes.push(['quien', quien]);
-  if (activated.que) activePalettes.push(['que', que]);
-  if (activated.como) activePalettes.push(['como', como]);
+  const palettes: string[][] = [];
+  if (activated.quien) palettes.push(quien);
+  if (activated.que) palettes.push(que);
+  if (activated.como) palettes.push(como);
 
-  if (activePalettes.length === 0) {
+  if (palettes.length === 0) {
     return NEUTRAL_PALETTE.slice(0, count);
   }
 
-  const get = (col: string[], i: number) => col[i % col.length] ?? col[col.length - 1] ?? '#666666';
-  const order: (0 | 1 | 2)[] =
-    mode === 'quien-first' ? [0, 1, 2] : mode === 'que-first' ? [1, 0, 2] : [2, 0, 1];
+  const safeCount = Math.max(1, count);
+  const getPaletteColor = (palette: string[], index: number) =>
+    palette[index % palette.length] ?? palette[palette.length - 1] ?? '#666666';
 
-  if (mode === 'balanced') {
-    const toBlend = activePalettes.map(([, pal]) => pal);
-    return Array.from({ length: count }, (_, i) =>
-      blendColorsVibrant(toBlend.map((pal) => get(pal, i)))
+  const MAX_SAT = 72;
+  let result: string[] = [];
+
+  if (mode === 'balanced' || mode === 'custom') {
+    const raw = Array.from({ length: safeCount }, (_, i) =>
+      blendColorsVibrant(palettes.map((pal) => getPaletteColor(pal, i)))
     );
+    result = raw.map((hex) => {
+      const hsl = hexToHsl(hex);
+      if (hsl.s <= MAX_SAT) return hex;
+      const newS = MAX_SAT;
+      return hslToHex(hsl.h, newS, hsl.l);
+    });
+  } else if (mode === 'flow-first') {
+    let round = 0;
+    while (result.length < safeCount) {
+      for (const pal of palettes) {
+        if (!pal.length) continue;
+        result.push(getPaletteColor(pal, round));
+        if (result.length >= safeCount) break;
+      }
+      round += 1;
+    }
+  } else if (mode === 'palette-first') {
+    const n = palettes.length;
+    if (n === 0) {
+      return NEUTRAL_PALETTE.slice(0, safeCount);
+    }
+    let cycle = 0;
+    while (result.length < safeCount) {
+      for (let pIdx = 0; pIdx < n && result.length < safeCount; pIdx++) {
+        const pal = palettes[pIdx];
+        if (!pal.length) continue;
+        const colorIndex = pIdx + cycle;
+        result.push(getPaletteColor(pal, colorIndex));
+      }
+      cycle += 1;
+    }
+  } else if (mode === 'soft-gradient') {
+    const flattened: string[] = [];
+    palettes.forEach((pal) => {
+      pal.forEach((hex) => flattened.push(hex));
+    });
+    if (!flattened.length) {
+      return NEUTRAL_PALETTE.slice(0, safeCount);
+    }
+    const len = flattened.length;
+    const raw = Array.from({ length: safeCount }, (_, i) => {
+      if (safeCount === 1) return flattened[0];
+      const t = i / (safeCount - 1);
+      const idxFloat = t * (len - 1);
+      const idx0 = Math.floor(idxFloat);
+      const idx1 = Math.min(len - 1, idx0 + 1);
+      const c0 = flattened[idx0];
+      const c1 = flattened[idx1];
+      if (c0 === c1) return c0;
+      return blendColorsVibrant([c0, c1]);
+    });
+    result = raw.map((hex) => {
+      const hsl = hexToHsl(hex);
+      if (hsl.s <= MAX_SAT) return hex;
+      const newS = MAX_SAT;
+      return hslToHex(hsl.h, newS, hsl.l);
+    });
   }
 
-  const columns = [quien, que, como];
-  const activeIndices = activePalettes.map(([k]) => (k === 'quien' ? 0 : k === 'que' ? 1 : 2));
-  const sortedByMode = order.filter((idx) => activeIndices.includes(idx));
-  if (sortedByMode.length === 0) return NEUTRAL_PALETTE.slice(0, count);
-
-  const result: string[] = [];
-  let colOrderIdx = 0;
-  let rowIdx = 0;
-  while (result.length < count) {
-    const colIdx = sortedByMode[colOrderIdx % sortedByMode.length];
-    result.push(get(columns[colIdx], rowIdx));
-    colOrderIdx++;
-    if (colOrderIdx % sortedByMode.length === 0) rowIdx++;
-  }
   return result;
 }

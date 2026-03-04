@@ -498,12 +498,12 @@ export const PaletteAnalysis: React.FC<PaletteAnalysisProps> = ({ colors, onAppl
   }, [colors, hasChanges, overallScore]);
 
   const categories = [
-    { id: 'all', label: 'Todos', icon: '📋' },
-    { id: 'contrast', label: 'Contraste', icon: '🔲' },
-    { id: 'accessibility', label: 'Accesibilidad', icon: '♿' },
-    { id: 'harmony', label: 'Armonía', icon: '🎨' },
-    { id: 'balance', label: 'Equilibrio', icon: '⚖️' },
-    { id: 'similarity', label: 'Similitud', icon: '👯' },
+    { id: 'all', label: 'Todos' },
+    { id: 'contrast', label: 'Contraste' },
+    { id: 'accessibility', label: 'Accesibilidad' },
+    { id: 'harmony', label: 'Armonía' },
+    { id: 'balance', label: 'Equilibrio' },
+    { id: 'similarity', label: 'Similitud' },
   ];
 
   const filteredIssues = activeCategory === 'all' 
@@ -515,14 +515,6 @@ export const PaletteAnalysis: React.FC<PaletteAnalysisProps> = ({ colors, onAppl
       case 'error': return 'bg-red-500/20 border-red-500 text-red-400';
       case 'warning': return 'bg-yellow-500/20 border-yellow-500 text-yellow-400';
       default: return 'bg-blue-500/20 border-blue-500 text-blue-400';
-    }
-  };
-
-  const getSeverityIcon = (severity: string) => {
-    switch (severity) {
-      case 'error': return '🚨';
-      case 'warning': return '⚠️';
-      default: return '💡';
     }
   };
 
@@ -641,34 +633,48 @@ export const PaletteAnalysis: React.FC<PaletteAnalysisProps> = ({ colors, onAppl
       </AnimatePresence>
 
       {/* Header con puntuación */}
-      <div className="bg-gray-800/50 rounded-2xl p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="text-xl font-bold text-white">Análisis de tu paleta</h3>
+      <div className="bg-gray-900/70 border border-gray-700/70 rounded-2xl p-5 md:p-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+          <div className="space-y-1">
+            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-gray-400">
+              Diagnóstico guiado
+            </p>
+            <h3 className="text-lg md:text-xl font-semibold text-white">Análisis de tu paleta</h3>
             <p className="text-gray-400 text-sm">
-              {hasChanges 
-                ? 'Analizando paleta con correcciones' 
-                : 'Revisa posibles mejoras antes de guardar'}
+              {hasChanges
+                ? 'Estás viendo la paleta con correcciones pendientes de aplicar.'
+                : 'Detectamos puntos de mejora en contraste, armonía y accesibilidad.'}
             </p>
           </div>
-          <div className="text-center">
-            <div className={`text-4xl font-bold ${
-              overallScore >= 80 ? 'text-green-400' : 
-              overallScore >= 50 ? 'text-yellow-400' : 'text-red-400'
-            }`}>
-              {overallScore}
+          <div className="flex items-center gap-4">
+            <div className="text-right">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-gray-400 mb-1">
+                Puntuación global
+              </p>
+              <div
+                className={`text-3xl md:text-4xl font-bold ${
+                  overallScore >= 80
+                    ? 'text-emerald-400'
+                    : overallScore >= 50
+                      ? 'text-amber-300'
+                      : 'text-red-400'
+                }`}
+              >
+                {overallScore}
+              </div>
             </div>
-            <p className="text-xs text-gray-400">Puntuación</p>
           </div>
         </div>
 
         {/* Barra de puntuación visual */}
-        <div className="h-3 bg-gray-700 rounded-full overflow-hidden">
-          <motion.div 
+        <div className="h-3 bg-gray-800 rounded-full overflow-hidden">
+          <motion.div
             className={`h-full rounded-full ${
-              overallScore >= 80 ? 'bg-gradient-to-r from-green-500 to-emerald-400' : 
-              overallScore >= 50 ? 'bg-gradient-to-r from-yellow-500 to-amber-400' : 
-              'bg-gradient-to-r from-red-500 to-orange-400'
+              overallScore >= 80
+                ? 'bg-gradient-to-r from-emerald-400 to-teal-300'
+                : overallScore >= 50
+                  ? 'bg-gradient-to-r from-amber-300 to-yellow-400'
+                  : 'bg-gradient-to-r from-red-400 to-orange-400'
             }`}
             initial={{ width: 0 }}
             animate={{ width: `${overallScore}%` }}
@@ -677,24 +683,45 @@ export const PaletteAnalysis: React.FC<PaletteAnalysisProps> = ({ colors, onAppl
         </div>
 
         {/* Resumen rápido */}
-        <div className="flex gap-4 mt-4">
-          {issues.filter(i => i.severity === 'error').length > 0 && (
-            <span className="text-sm text-red-400">
-              🚨 {issues.filter(i => i.severity === 'error').length} problema{issues.filter(i => i.severity === 'error').length > 1 ? 's' : ''}
+        <div className="flex flex-wrap gap-3 mt-4 text-xs md:text-sm">
+          {issues.filter((i) => i.severity === 'error').length > 0 && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 border border-red-500/40 px-3 py-1 text-red-200">
+              <span
+                className="inline-block w-1.5 h-1.5 rounded-full bg-red-400"
+                aria-hidden
+              />
+              {issues.filter((i) => i.severity === 'error').length} problema
+              {issues.filter((i) => i.severity === 'error').length > 1 ? 's críticos' : ' crítico'}
             </span>
           )}
-          {issues.filter(i => i.severity === 'warning').length > 0 && (
-            <span className="text-sm text-yellow-400">
-              ⚠️ {issues.filter(i => i.severity === 'warning').length} advertencia{issues.filter(i => i.severity === 'warning').length > 1 ? 's' : ''}
+          {issues.filter((i) => i.severity === 'warning').length > 0 && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 border border-amber-500/40 px-3 py-1 text-amber-100">
+              <span
+                className="inline-block w-1.5 h-1.5 rounded-full bg-amber-300"
+                aria-hidden
+              />
+              {issues.filter((i) => i.severity === 'warning').length} advertencia
+              {issues.filter((i) => i.severity === 'warning').length > 1 ? 's' : ''}
             </span>
           )}
-          {issues.filter(i => i.severity === 'suggestion').length > 0 && (
-            <span className="text-sm text-blue-400">
-              💡 {issues.filter(i => i.severity === 'suggestion').length} sugerencia{issues.filter(i => i.severity === 'suggestion').length > 1 ? 's' : ''}
+          {issues.filter((i) => i.severity === 'suggestion').length > 0 && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-sky-500/10 border border-sky-500/40 px-3 py-1 text-sky-100">
+              <span
+                className="inline-block w-1.5 h-1.5 rounded-full bg-sky-300"
+                aria-hidden
+              />
+              {issues.filter((i) => i.severity === 'suggestion').length} sugerencia
+              {issues.filter((i) => i.severity === 'suggestion').length > 1 ? 's' : ''}
             </span>
           )}
           {issues.length === 0 && (
-            <span className="text-sm text-green-400">✨ ¡Tu paleta se ve genial!</span>
+            <span className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 border border-emerald-500/40 px-3 py-1 text-emerald-100">
+              <span
+                className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-300"
+                aria-hidden
+              />
+              Tu paleta se ve equilibrada según los criterios básicos.
+            </span>
           )}
         </div>
       </div>
@@ -724,36 +751,46 @@ export const PaletteAnalysis: React.FC<PaletteAnalysisProps> = ({ colors, onAppl
       {issues.length > 0 && (
         <>
           {/* Filtros por categoría */}
-          <div className="flex gap-2 overflow-x-auto pb-2">
-            {categories.map(cat => {
-              const count = cat.id === 'all' ? issues.length : issues.filter(i => i.type === cat.id).length;
+          <div className="flex flex-wrap gap-2 pb-1">
+            {categories.map((cat) => {
+              const count =
+                cat.id === 'all'
+                  ? issues.length
+                  : issues.filter((i) => i.type === cat.id).length;
               if (count === 0 && cat.id !== 'all') return null;
+              const isActive = activeCategory === cat.id;
               return (
                 <button
                   key={cat.id}
                   onClick={() => setActiveCategory(cat.id)}
-                  className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
-                    activeCategory === cat.id
-                      ? 'bg-purple-500 text-white'
-                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  className={`px-3 py-1.5 rounded-full text-xs md:text-sm font-medium whitespace-nowrap transition-all border ${
+                    isActive
+                      ? 'bg-purple-600 text-white border-purple-400/80 shadow-sm shadow-purple-900/40'
+                      : 'bg-gray-800/80 text-gray-300 border-gray-700 hover:bg-gray-700/80'
                   }`}
                 >
-                  {cat.icon} {cat.label} {count > 0 && `(${count})`}
+                  <span className="mr-1 text-[11px] uppercase tracking-[0.14em] text-gray-400">
+                    {cat.id === 'all' ? 'VISTA' : 'FOCO'}
+                  </span>
+                  <span>{cat.label}</span>
+                  {count > 0 && (
+                    <span className="ml-1 text-[11px] opacity-80">({count})</span>
+                  )}
                 </button>
               );
             })}
           </div>
 
           {/* Lista de problemas */}
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <AnimatePresence mode="popLayout">
               {filteredIssues.map((issue) => (
                 <motion.div
                   key={issue.id}
                   layout
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
+                  initial={{ opacity: 0, y: 16, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -12, scale: 0.98 }}
                   className={`border rounded-xl overflow-hidden ${getSeverityColor(issue.severity)}`}
                 >
                   {/* Header del problema */}
@@ -762,7 +799,13 @@ export const PaletteAnalysis: React.FC<PaletteAnalysisProps> = ({ colors, onAppl
                     className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-colors"
                   >
                     <div className="flex items-center gap-3">
-                      <span className="text-2xl">{getSeverityIcon(issue.severity)}</span>
+                      <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-black/30 border border-current/40 text-[11px] font-semibold uppercase tracking-[0.14em]">
+                        {issue.severity === 'error'
+                          ? 'ALTA'
+                          : issue.severity === 'warning'
+                            ? 'MEDIA'
+                            : 'INFO'}
+                      </span>
                       <div className="text-left">
                         <h4 className="font-semibold text-white">{issue.title}</h4>
                         <p className="text-sm opacity-80">{issue.description}</p>

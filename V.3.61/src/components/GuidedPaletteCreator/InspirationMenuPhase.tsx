@@ -1,16 +1,56 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import ButtonParticles from '../ButtonParticles';
 import { FluidTetradicBar } from './FluidTetradicBar';
 import { COPY } from './config/copy';
 import { INSPIRATION_MENU_OPTIONS } from './config/inspirationMenuOptions';
 import type { InspirationMode } from '../../types/guidedPalette';
+import { PaletteBar } from '../inspiration/PaletteBar';
+import { blendColorsVibrant } from '../inspiration/archetypePaletteUtils';
 
 interface InspirationMenuPhaseProps {
   onSelectOption: (mode: InspirationMode) => void;
+  /** Paletas activas por flujo (cadena Refinar→Aplicar→Análisis→Guardar). */
+  activePalettesByMode?: Partial<Record<InspirationMode, string[]>>;
+  /** Abre la vista emergente para ver/editar la paleta combinada. */
+  onOpenCombinedPalette?: (colors: string[]) => void;
 }
 
-export function InspirationMenuPhase({ onSelectOption }: InspirationMenuPhaseProps) {
+function buildCombinedPaletteFromOrigins(
+  activePalettesByMode?: Partial<Record<InspirationMode, string[]>>,
+  maxColors = 8
+): string[] {
+  if (!activePalettesByMode) return [];
+  const palettes = Object.entries(activePalettesByMode)
+    .filter(
+      ([mode, colors]): colors is string[] =>
+        mode !== 'multi-origin' && Array.isArray(colors) && colors.length > 0
+    )
+    .map(([, colors]) => colors);
+  if (palettes.length <= 1) return [];
+  const targetCount = Math.min(
+    maxColors,
+    Math.max(...palettes.map((p) => p.length))
+  );
+  if (targetCount <= 0) return [];
+  const getColor = (palette: string[], index: number) =>
+    palette[index % palette.length] ?? palette[palette.length - 1] ?? '#666666';
+  return Array.from({ length: targetCount }, (_, i) =>
+    blendColorsVibrant(palettes.map((pal) => getColor(pal, i)))
+  );
+}
+
+export function InspirationMenuPhase({
+  onSelectOption,
+  activePalettesByMode,
+  onOpenCombinedPalette,
+}: InspirationMenuPhaseProps) {
+  const combinedPalette = useMemo(
+    () => buildCombinedPaletteFromOrigins(activePalettesByMode),
+    [activePalettesByMode]
+  );
+  const hasCombinedPalette = combinedPalette.length > 0;
+
   return (
     <motion.div
       key="inspiration-menu"
@@ -45,14 +85,43 @@ export function InspirationMenuPhase({ onSelectOption }: InspirationMenuPhasePro
         aria-label="Opciones de inspiración"
       >
         {INSPIRATION_MENU_OPTIONS.map((opt, index) => (
-          <InspirationCard
-            key={opt.id}
-            option={opt}
-            index={index}
-            onSelectOption={onSelectOption}
-          />
+          <div key={opt.id} className="flex flex-col gap-3">
+            <InspirationCard
+              option={opt}
+              index={index}
+              onSelectOption={onSelectOption}
+            />
+            {activePalettesByMode?.[opt.id] && activePalettesByMode[opt.id]!.length > 0 && (
+              <div className="flex flex-col gap-1">
+                <p className="text-xs text-gray-400">Paleta activa</p>
+                <PaletteBar
+                  colors={activePalettesByMode[opt.id]!.slice(0, 8)}
+                  className="h-8"
+                />
+              </div>
+            )}
+          </div>
         ))}
       </div>
+      {hasCombinedPalette && onOpenCombinedPalette && (
+        <div className="mt-8 rounded-2xl border border-gray-700/60 bg-gray-800/40 px-5 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h3 className="text-sm font-medium text-gray-200">Paleta combinada</h3>
+              <p className="text-xs text-gray-400">
+                Generada a partir de las paletas activas de los orígenes seleccionados.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => onOpenCombinedPalette(combinedPalette)}
+              className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-medium border border-sky-400/60 transition-colors"
+            >
+              Ver / Editar →
+            </button>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 }
@@ -81,7 +150,7 @@ const InspirationCard = React.memo(function InspirationCard({
       transition={{ delay: index * 0.06, duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
       whileHover={{ y: -4, transition: { duration: 0.2 } }}
       whileTap={{ scale: 0.98 }}
-      className={`group relative flex flex-col items-center rounded-2xl p-8 md:p-9 min-h-[240px] md:min-h-[260px] border backdrop-blur-sm overflow-hidden ${option.bgColor} ${option.borderColor} ${option.hoverBorder} transition-colors duration-200`}
+      className={`group relative flex flex-col items-center rounded-2xl p-8 md:p-9 h-[230px] md:h-[240px] border backdrop-blur-sm overflow-hidden ${option.bgColor} ${option.borderColor} ${option.hoverBorder} transition-colors duration-200`}
       aria-label={`${option.title}. ${option.description}`}
     >
       <ButtonParticles isHovered={isHovered} color={option.particleColor} count={12} intensity="light" />
@@ -110,15 +179,6 @@ const InspirationCard = React.memo(function InspirationCard({
           {option.description}
         </p>
       </div>
-      <span
-        className={`relative z-10 mt-3 flex items-center gap-1 text-xs font-medium ${option.iconColor} opacity-0 group-hover:opacity-100 transition-opacity`}
-        aria-hidden
-      >
-        Elegir
-        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-        </svg>
-      </span>
     </motion.button>
   );
 });
