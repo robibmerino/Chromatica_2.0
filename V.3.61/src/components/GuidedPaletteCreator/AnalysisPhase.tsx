@@ -60,72 +60,56 @@ function AnalysisPhaseInner({
           subtitle="Detecta problemas de contraste, equilibrio y accesibilidad y aplica correcciones guiadas."
           icon={ANALYSIS_ICON}
           iconBoxClassName={SECTION_ICON_ACCENTS.blue}
+          primaryLabel="Guardar / Exportar →"
+          onPrimaryClick={goNext}
         />
       }
-      footer={
-        <PhaseNav
-          onBack={goBack}
-          onNext={goNext}
-          backLabel={COPY.nav.backToApplication}
-          nextLabel={COPY.nav.savePalette}
-          nextVariant="green"
-          nextIcon="💾"
-          className="pt-4"
-        />
-      }
+      footer={null}
     >
-      <div className="flex flex-col gap-4 flex-1 min-h-0 overflow-hidden max-w-6xl mx-auto w-full">
-        <section className="rounded-2xl bg-gray-800/60 border border-gray-700/70 px-4 py-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium uppercase tracking-[0.16em] text-gray-400">
-                Paleta actual
-              </span>
-              <span className="inline-flex items-center rounded-full border border-gray-600/70 bg-gray-900/70 px-2 py-0.5 text-[11px] text-gray-300">
-                {colors.length} colores
-              </span>
+      <div className="flex flex-col gap-4 flex-1 min-h-0 overflow-hidden w-full">
+        <section className="rounded-2xl bg-gray-800/60 border border-gray-700/70 px-4 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          {/* Izquierda: tabs Guiado/Avanzado */}
+          <div className="flex justify-start">
+            <div
+              className="flex gap-2 bg-gray-900/70 p-1.5 rounded-xl border border-gray-700/80"
+              role="tablist"
+              aria-label="Tipo de análisis"
+            >
+              {ANALYSIS_TYPE_TABS.map((tab) => {
+                const isActive = analysisType === tab.id;
+            const activeClasses =
+              'bg-indigo-600 text-white shadow-lg shadow-indigo-900/40 border border-indigo-400/70';
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    onClick={() => setAnalysisType(tab.id)}
+                    className={`px-5 py-2.5 rounded-lg font-medium text-sm transition-all flex items-center gap-2 ${
+                      isActive
+                        ? activeClasses
+                        : 'text-gray-300 bg-gray-800/80 hover:bg-gray-700/80 hover:text-white border border-gray-700/80'
+                    }`}
+                  >
+                    <span className="text-xs uppercase tracking-[0.14em]">
+                      {tab.id === 'basic' ? 'GUIADO' : 'AVANZADO'}
+                    </span>
+                    <span className="text-sm">{tab.label}</span>
+                  </button>
+                );
+              })}
             </div>
-            <p className="hidden md:block text-xs text-gray-400">
-              Revisa cómo se comporta esta paleta en contraste, equilibrio y accesibilidad.
-            </p>
           </div>
-          <div className="flex-1 min-w-[180px] md:max-w-md">
+
+          {/* Derecha: paleta */}
+          <div className="w-full max-w-md md:ml-auto">
+            <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-gray-400 mb-1 text-right">
+              Paleta actual
+            </p>
             <PaletteBar colors={colors.map((c) => c.hex)} className="h-6" />
           </div>
         </section>
-
-        <div
-          className="flex gap-2 bg-gray-800/60 p-1.5 rounded-xl w-fit mx-auto border border-gray-700/70"
-          role="tablist"
-          aria-label="Tipo de análisis"
-        >
-          {ANALYSIS_TYPE_TABS.map((tab) => {
-            const isActive = analysisType === tab.id;
-            const activeClasses =
-              tab.id === 'basic'
-                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/40 border border-indigo-400/70'
-                : 'bg-purple-600 text-white shadow-lg shadow-purple-900/40 border border-purple-400/70';
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                role="tab"
-                aria-selected={isActive}
-                onClick={() => setAnalysisType(tab.id)}
-                className={`px-5 py-2.5 rounded-lg font-medium text-sm transition-all flex items-center gap-2 ${
-                  isActive
-                    ? activeClasses
-                    : 'text-gray-300 bg-gray-800/80 hover:bg-gray-700/80 hover:text-white border border-gray-700/80'
-                }`}
-              >
-                <span className="text-xs uppercase tracking-[0.14em]">
-                  {tab.id === 'basic' ? 'GUIADO' : 'AVANZADO'}
-                </span>
-                <span className="text-sm">{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
 
         <div className="flex-1 min-h-0 overflow-hidden rounded-2xl border border-gray-700/70 bg-gray-900/60">
           <AnimatePresence mode="wait">

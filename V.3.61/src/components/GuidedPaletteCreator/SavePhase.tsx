@@ -42,10 +42,11 @@ function SavePhaseInner({
       phaseKey="save"
       title="🎉 ¡Tu paleta está lista!"
       onBack={goBack}
-      className="space-y-8"
+      className="flex flex-col gap-8 min-h-0 max-h-[calc(100vh-10rem)]"
     >
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <div className="xl:col-span-1">
+      <div className="flex-1 min-h-0 overflow-y-auto space-y-8">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          <div className="xl:col-span-1">
           <div className="bg-gradient-to-br from-green-900/30 to-emerald-900/20 rounded-2xl p-6 border border-green-500/30 h-full">
             <div className="flex items-center gap-3 mb-5">
               <div className="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center">
@@ -265,7 +266,7 @@ function SavePhaseInner({
           </div>
         </div>
 
-        <div className="xl:col-span-2">
+          <div className="xl:col-span-2">
           <div className="bg-gradient-to-br from-purple-900/30 to-indigo-900/20 rounded-2xl p-6 border border-purple-500/30">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center">
@@ -297,9 +298,9 @@ function SavePhaseInner({
             />
           </div>
         </div>
-      </div>
+        </div>
 
-      <div className="flex flex-col items-center gap-4 pt-6 border-t border-gray-700/50">
+        <div className="flex flex-col items-center gap-4 pt-6 border-t border-gray-700/50">
         <p className="text-gray-400 text-sm">¿Listo para crear más?</p>
         <button
           onClick={onStartNewPalette}
@@ -309,6 +310,7 @@ function SavePhaseInner({
           Crear nueva paleta
           <span>→</span>
         </button>
+        </div>
       </div>
     </PhaseLayout>
   );
