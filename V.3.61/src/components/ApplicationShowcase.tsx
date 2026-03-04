@@ -1,0 +1,807 @@
+import { useState, useRef, useEffect, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import html2canvas from 'html2canvas';
+import JSZip from 'jszip';
+import type { InteriorPalette } from './InteriorPreviews';
+import { hexToHsl, hslToHex } from '../utils/colorUtils';
+import {
+  type ApplicationShowcaseProps,
+  type EditingInRightColumn,
+  type CategoryType,
+  categories,
+  CategoryIcons,
+} from './ApplicationShowcase/types';
+import { cn } from '../utils/cn';
+import { getMainPaletteRole } from './ApplicationShowcase/constants';
+import { ArchitectureSection } from './ApplicationShowcase/ArchitectureSection';
+import { PosterSection } from './ApplicationShowcase/PosterSection';
+import { BrandingSection } from './ApplicationShowcase/BrandingSection';
+
+export type { SupportPaletteVariant, SupportColorItem } from './ApplicationShowcase/types';
+
+export default function ApplicationShowcase({
+  colors,
+  paletteName,
+  onUpdateColors,
+  supportColorsList = [],
+  supportVariant = 'claro',
+  setSupportVariant,
+  updateSupportColor,
+}: ApplicationShowcaseProps) {
+  const [activeCategory, setActiveCategory] = useState<CategoryType>('architecture');
+  /** Cuando no es null, la columna derecha muestra solo la interfaz de edición de color (en lugar de Estilo/Fondo/Exportar/paletas). */
+  const [editingInRightColumn, setEditingInRightColumn] = useState<EditingInRightColumn>(null);
+  const editingRef = useRef<EditingInRightColumn>(null);
+  editingRef.current = editingInRightColumn;
+  const [hoveredMainIndex, setHoveredMainIndex] = useState<number | null>(null);
+  const [hoveredSupportRole, setHoveredSupportRole] = useState<string | null>(null);
+  const [activeVariants, setActiveVariants] = useState<Record<CategoryType, string>>({
+    architecture: 'estudio',
+    poster: 'conference',
+    branding: 'territorio-visual',
+  });
+  const [bgMode, setBgMode] = useState<'light' | 'dark' | 'color' | 'custom'>('dark');
+  const [customBgColor, setCustomBgColor] = useState('#6366f1');
+  const [isExporting, setIsExporting] = useState(false);
+  const [isExportingAll, setIsExportingAll] = useState(false);
+  const [exportProgress, setExportProgress] = useState({ current: 0, total: 0 });
+  const previewRef = useRef<HTMLDivElement>(null);
+  const [localColors, setLocalColors] = useState<string[]>(colors);
+
+  /** Clase del tooltip al pasar el ratón sobre un color en las paletas (igual que en Refinar). */
+  const paletteSwatchTooltipClass = 'absolute -top-6 left-1/2 -translate-x-1/2 z-10 px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap bg-gray-700 text-gray-200 shadow-lg';
+
+  // Sync local colors with props (evitar setState durante render; no sincronizar mientras se edita un color principal)
+  const isEditingMain = editingInRightColumn?.type === 'main';
+  useEffect(() => {
+    if (isEditingMain) return;
+    setLocalColors((prev) => (JSON.stringify(colors) === JSON.stringify(prev) ? prev : colors));
+  }, [colors, isEditingMain]);
+
+  const handleColorChange = (index: number, newColor: string) => {
+    const newColors = [...localColors];
+    newColors[index] = newColor;
+    setLocalColors(newColors);
+    onUpdateColors?.(newColors);
+  };
+  
+  // Reorder handled via drag and drop
+
+  // Función para convertir colores modernos (oklab, etc) a RGB
+  const convertColorToRgb = (colorValue: string): string => {
+    if (!colorValue || colorValue === 'transparent' || colorValue === 'inherit' || colorValue === 'initial') {
+      return colorValue;
+    }
+    if (colorValue.includes('oklab') || colorValue.includes('oklch') || colorValue.includes('lab(') || colorValue.includes('lch(')) {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = 1;
+        canvas.height = 1;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.fillStyle = colorValue;
+          ctx.fillRect(0, 0, 1, 1);
+          const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data;
+          return a < 255 ? `rgba(${r}, ${g}, ${b}, ${(a / 255).toFixed(2)})` : `rgb(${r}, ${g}, ${b})`;
+        }
+      } catch {
+        return colorValue;
+      }
+    }
+    return colorValue;
+  };
+
+  // Función para sanitizar colores en el clone antes de captura
+  const sanitizeCloneColors = (clonedDoc: Document) => {
+    const allElements = clonedDoc.querySelectorAll('*');
+    const colorProperties = [
+      'color', 'background-color', 'border-color', 'border-top-color',
+      'border-right-color', 'border-bottom-color', 'border-left-color',
+      'outline-color', 'text-decoration-color'
+    ];
+    
+    allElements.forEach((element) => {
+      const el = element as HTMLElement;
+      const computedStyle = window.getComputedStyle(el);
+      
+      colorProperties.forEach(prop => {
+        const value = computedStyle.getPropertyValue(prop);
+        if (value && (value.includes('oklab') || value.includes('oklch') || value.includes('lab(') || value.includes('lch('))) {
+          el.style.setProperty(prop, convertColorToRgb(value));
+        }
+      });
+      
+      // Box shadow
+      const boxShadow = computedStyle.getPropertyValue('box-shadow');
+      if (boxShadow && (boxShadow.includes('oklab') || boxShadow.includes('oklch'))) {
+        el.style.setProperty('box-shadow', 'none');
+      }
+      
+      // Background image (gradients)
+      const bgImage = computedStyle.getPropertyValue('background-image');
+      if (bgImage && (bgImage.includes('oklab') || bgImage.includes('oklch'))) {
+        const bgColor = computedStyle.getPropertyValue('background-color');
+        el.style.setProperty('background-image', 'none');
+        el.style.setProperty('background-color', convertColorToRgb(bgColor) || '#ffffff');
+      }
+    });
+  };
+
+  // Exportar PNG actual
+  const handleExportPNG = async () => {
+    if (!previewRef.current) return;
+    
+    setIsExporting(true);
+    try {
+      const canvas = await html2canvas(previewRef.current, {
+        scale: 2,
+        backgroundColor: getBgColor(),
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        onclone: (clonedDoc) => {
+          sanitizeCloneColors(clonedDoc);
+        }
+      });
+      
+      const link = document.createElement('a');
+      const fileName = `${(paletteName || 'paleta').replace(/\s+/g, '-')}-${activeCategory}-${activeVariants[activeCategory]}.png`;
+      link.download = fileName;
+      link.href = canvas.toDataURL('image/png');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Error exporting PNG:', error);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  /** Espera al siguiente frame de pintado (doble rAF). Más fiable que un timeout fijo. */
+  const waitForPaint = () =>
+    new Promise<void>((resolve) => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => resolve());
+      });
+    });
+
+  // Exportar todo en ZIP
+  const handleExportAll = async () => {
+    if (!previewRef.current) return;
+
+    const savedCategory = activeCategory;
+    const savedVariants = { ...activeVariants };
+
+    setIsExportingAll(true);
+    const zip = new JSZip();
+
+    const totalItems = categories.reduce((acc, cat) => acc + cat.variants.length, 0);
+    setExportProgress({ current: 0, total: totalItems });
+
+    let currentItem = 0;
+
+    try {
+      for (const category of categories) {
+        const folder = zip.folder(category.name);
+
+        for (const variant of category.variants) {
+          setActiveCategory(category.id);
+          setActiveVariants((prev) => ({ ...prev, [category.id]: variant.id }));
+
+          await waitForPaint();
+
+          if (previewRef.current) {
+            try {
+              const canvas = await html2canvas(previewRef.current, {
+                scale: 2,
+                backgroundColor: getBgColor(),
+                useCORS: true,
+                allowTaint: true,
+                logging: false,
+                onclone: (clonedDoc) => {
+                  sanitizeCloneColors(clonedDoc);
+                }
+              });
+              
+              const dataUrl = canvas.toDataURL('image/png');
+              const base64Data = dataUrl.split(',')[1];
+              const fileName = `${variant.name.replace(/\s+/g, '-')}.png`;
+              folder?.file(fileName, base64Data, { base64: true });
+            } catch (err) {
+              console.error(`Error capturing ${category.name}/${variant.name}:`, err);
+            }
+          }
+          
+          currentItem++;
+          setExportProgress({ current: currentItem, total: totalItems });
+        }
+      }
+      
+      // Generar y descargar ZIP
+      const content = await zip.generateAsync({ type: 'blob' });
+      const link = document.createElement('a');
+      link.download = `${(paletteName || 'paleta').replace(/\s+/g, '-')}-aplicaciones.zip`;
+      link.href = URL.createObjectURL(content);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+      
+    } catch (error) {
+      console.error('Error exporting all:', error);
+    } finally {
+      setActiveCategory(savedCategory);
+      setActiveVariants(savedVariants);
+      setIsExportingAll(false);
+      setExportProgress({ current: 0, total: 0 });
+    }
+  };
+
+  const currentCategory = categories.find(c => c.id === activeCategory)!;
+  const currentVariant = activeVariants[activeCategory];
+
+  const getColor = (index: number) => colors[index % colors.length];
+
+  /**
+   * Paleta para previews de interiores (memoizada para evitar recálculos en cada render).
+   * - primary, secondary, accent = paleta principal (índices 0, 1, 2).
+   * - background, surface, muted = paleta de apoyo (fondo, sobrefondo, texto fino) o índices 3–5.
+   */
+  const interiorColors = useMemo((): InteriorPalette => {
+    const main = (i: number) => localColors[i % localColors.length] ?? colors[i % colors.length];
+    const fondo = supportColorsList.find((s) => s.role === 'fondo')?.hex;
+    const sobrefondo = supportColorsList.find((s) => s.role === 'sobrefondo')?.hex;
+    const textoFino = supportColorsList.find((s) => s.role === 'texto fino')?.hex;
+    const texto = supportColorsList.find((s) => s.role === 'texto')?.hex;
+    return {
+      primary: main(0),
+      secondary: main(1),
+      accent: main(2),
+      background: fondo ?? main(3) ?? '#1a1a2e',
+      surface: sobrefondo ?? main(4) ?? '#2d2d44',
+      muted: textoFino ?? texto ?? main(5) ?? '#6b7280',
+    };
+  }, [localColors, colors, supportColorsList]);
+
+  /** Paleta para pósters: interiores + text, textLight y accent2 (4º color principal). */
+  const posterColors = useMemo(() => {
+    const main = (i: number) => localColors[i % localColors.length] ?? colors[i % colors.length];
+    const texto = supportColorsList.find((s) => s.role === 'texto')?.hex;
+    const textoFino = supportColorsList.find((s) => s.role === 'texto fino')?.hex;
+    return {
+      ...interiorColors,
+      text: texto ?? interiorColors.muted ?? '#e5e7eb',
+      textLight: textoFino ?? interiorColors.muted ?? '#9ca3af',
+      accent2: localColors.length > 3 ? main(3) : interiorColors.accent,
+    };
+  }, [interiorColors, localColors, colors, supportColorsList]);
+
+  const getBgColor = () => {
+    switch (bgMode) {
+      case 'light': return '#ffffff';
+      case 'dark': return '#1a1a2e';
+      case 'color': return localColors[0] ?? getColor(0);
+      case 'custom': return customBgColor;
+    }
+  };
+
+  const renderContent = () => {
+    if (activeCategory === 'architecture') return <ArchitectureSection palette={interiorColors} variant={currentVariant} />;
+    if (activeCategory === 'poster') return <PosterSection posterColors={posterColors} variant={currentVariant} />;
+    if (activeCategory === 'branding') return <BrandingSection posterColors={posterColors} variant={currentVariant} />;
+    return null;
+  };
+
+  return (
+    <div className="grid grid-cols-[minmax(0,200px)_1fr_minmax(0,240px)] gap-4 min-h-0 flex-1 overflow-hidden">
+      {/* Columna izquierda: menú categorías + variantes */}
+      <div className="flex flex-col gap-3 min-h-0 overflow-y-auto bg-gray-800/40 rounded-2xl border border-gray-700/50 p-3">
+        <nav className="flex flex-col gap-1" aria-label="Categorías de aplicación">
+          {categories.map(cat => (
+            <div key={cat.id} className="flex flex-col gap-1">
+              <button
+                type="button"
+                onClick={() => setActiveCategory(cat.id)}
+                className={cn(
+                  'flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-left text-sm font-medium transition-all',
+                  activeCategory === cat.id
+                    ? 'bg-indigo-600/80 text-white shadow-lg shadow-indigo-500/20'
+                    : 'text-gray-300 hover:bg-gray-700/60 hover:text-white'
+                )}
+              >
+                <span className="shrink-0 text-gray-400 [.bg-indigo-600\/80_&]:text-indigo-200">
+                  {CategoryIcons[cat.id]}
+                </span>
+                <span className="truncate">{cat.name}</span>
+              </button>
+              {activeCategory === cat.id && (
+                <div className="flex flex-col gap-1 pl-1 ml-5 border-l border-gray-600/60">
+                  {currentCategory.variants.map(variant => (
+                    <button
+                      key={variant.id}
+                      type="button"
+                      onClick={() => setActiveVariants(prev => ({ ...prev, [cat.id]: variant.id }))}
+                      className={cn(
+                        'px-2.5 py-1.5 rounded-lg text-xs text-left transition-all',
+                        currentVariant === variant.id
+                          ? 'bg-indigo-500/30 text-indigo-200 font-medium'
+                          : 'text-gray-400 hover:bg-gray-700/50 hover:text-gray-200'
+                      )}
+                    >
+                      {variant.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </nav>
+      </div>
+
+      {/* Columna central: vista previa - sin scroll, contenido centrado y ligeramente escalado para que quepa */}
+      <div
+        ref={previewRef}
+        className="rounded-2xl p-6 min-h-0 flex-1 flex items-center justify-center transition-colors duration-300 border border-gray-700/30 overflow-hidden"
+        style={{ backgroundColor: getBgColor() }}
+      >
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={`${activeCategory}-${currentVariant}`}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+            className="w-full h-full flex items-center justify-center min-h-0"
+          >
+            <div style={{ transform: 'scale(0.94)', transformOrigin: 'center center' }}>
+              {renderContent()}
+            </div>
+          </motion.div>
+        </AnimatePresence>
+      </div>
+
+      {/* Columna derecha: dos estados — edición de color o vista normal (Estilo, Fondo, Exportar, paletas) */}
+      <div className="flex flex-col gap-4 min-h-0 overflow-y-auto">
+        {editingInRightColumn ? (() => {
+          const isMain = editingInRightColumn.type === 'main';
+          const isSupport = editingInRightColumn.type === 'support';
+          const currentHex = isMain
+            ? localColors[editingInRightColumn.index] ?? '#000000'
+            : isSupport
+              ? (supportColorsList.find((s) => s.role === editingInRightColumn.role)?.hex ?? '#000000')
+              : customBgColor;
+          const setHex = (hex: string) => {
+            if (isMain) handleColorChange(editingInRightColumn.index, hex);
+            else if (isSupport) updateSupportColor?.(editingInRightColumn.role, hex);
+            else setCustomBgColor(hex);
+          };
+          const title = isMain
+            ? `Editar ${getMainPaletteRole(editingInRightColumn.index).label}`
+            : isSupport
+              ? `Editar ${supportColorsList.find((s) => s.role === editingInRightColumn.role)?.label ?? 'color de apoyo'}`
+              : 'Editar fondo personalizado';
+          return (
+            <>
+            <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-5 border border-gray-700/50 flex flex-col gap-4 min-h-0 shrink-0">
+              <div className="flex items-center justify-between shrink-0">
+                <h3 className="text-sm font-semibold text-white">{title}</h3>
+              </div>
+              <div className="w-full h-24 rounded-xl shadow-inner shrink-0" style={{ backgroundColor: currentHex }} />
+              <div className="flex items-center gap-3">
+                <div className="relative w-14 h-14 shrink-0 rounded-lg border-2 border-gray-600 overflow-hidden">
+                  <input
+                    type="color"
+                    value={currentHex}
+                    onChange={(e) => setHex(e.target.value)}
+                    className="absolute inset-0 w-full h-full cursor-pointer bg-transparent opacity-0"
+                    style={{ padding: 0 }}
+                    aria-label="Elegir color"
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ backgroundColor: currentHex }} aria-hidden>
+                    <span className="w-7 h-7 rounded-full bg-black/40 flex items-center justify-center">
+                      <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                      </svg>
+                    </span>
+                  </div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <label className="text-[10px] text-gray-500 uppercase tracking-wider block mb-1">HEX</label>
+                  <input
+                    type="text"
+                    value={currentHex.toUpperCase()}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (/^#[0-9A-Fa-f]{6}$/.test(v)) setHex(v);
+                      const noHash = v.replace(/^#/, '');
+                      if (/^[0-9A-Fa-f]{6}$/.test(noHash)) setHex('#' + noHash);
+                    }}
+                    className="w-full bg-gray-700 text-white text-sm font-mono px-3 py-2 rounded-lg border border-gray-600 focus:border-indigo-500 focus:outline-none"
+                    aria-label="Código HEX"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const hsl = hexToHsl(currentHex);
+                    setHex(hslToHex(hsl.h, hsl.s, Math.min(95, hsl.l + 15)));
+                  }}
+                  className="py-2.5 bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm rounded-lg transition-colors font-medium"
+                >
+                  +Claro
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const hsl = hexToHsl(currentHex);
+                    setHex(hslToHex(hsl.h, hsl.s, Math.max(5, hsl.l - 15)));
+                  }}
+                  className="py-2.5 bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm rounded-lg transition-colors font-medium"
+                >
+                  +Oscuro
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditingInRightColumn(null)}
+                  className="py-2.5 bg-green-600 hover:bg-green-500 text-white text-sm rounded-lg transition-colors font-medium col-span-1"
+                >
+                  ✓ Aceptar cambio
+                </button>
+              </div>
+            </div>
+
+            {/* Tu paleta (referencia mientras editas) */}
+            <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 border border-gray-700/50 min-h-0 shrink-0">
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-sm font-medium text-gray-300">Tu paleta</div>
+                <div className="text-[10px] text-gray-500">Clic para editar otro</div>
+              </div>
+              <div className="flex gap-2">
+                {localColors.map((color, i) => (
+                  <div
+                    key={i}
+                    className="flex-1 relative group min-w-0"
+                    onMouseEnter={() => setHoveredMainIndex(i)}
+                    onMouseLeave={() => setHoveredMainIndex(null)}
+                    title={getMainPaletteRole(i).label}
+                  >
+                    {hoveredMainIndex === i && (
+                      <span className={paletteSwatchTooltipClass}>{getMainPaletteRole(i).label}</span>
+                    )}
+                    <div
+                      className={cn(
+                        'h-12 rounded-lg shadow-lg ring-1 ring-white/10 transition-all hover:scale-105 cursor-pointer w-full',
+                        editingInRightColumn?.type === 'main' && editingInRightColumn?.index === i && 'ring-2 ring-purple-500'
+                      )}
+                      style={{ backgroundColor: color }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingInRightColumn(editingInRightColumn?.type === 'main' && editingInRightColumn?.index === i ? null : { type: 'main', index: i });
+                      }}
+                    />
+                    <div className="text-xs text-center text-gray-400 mt-1.5 font-medium truncate">{getMainPaletteRole(i).initial}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Tu paleta de apoyo (referencia mientras editas) */}
+            {supportColorsList.length > 0 && (
+              <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 border border-gray-700/50 min-h-0 shrink-0">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="text-sm font-medium text-gray-300">Tu paleta de apoyo</div>
+                  <div className="text-[10px] text-gray-500">{supportVariant === 'claro' ? 'Claro' : 'Oscuro'}</div>
+                </div>
+                <div className="flex gap-2">
+                  {supportColorsList.map((item) => (
+                    <div
+                      key={item.role}
+                      className="flex-1 relative group min-w-0"
+                      onMouseEnter={() => setHoveredSupportRole(item.role)}
+                      onMouseLeave={() => setHoveredSupportRole(null)}
+                      title={item.label}
+                    >
+                      {hoveredSupportRole === item.role && (
+                        <span className={paletteSwatchTooltipClass}>{item.label}</span>
+                      )}
+                      <div
+                        className={cn(
+                          'h-12 rounded-lg shadow-lg ring-1 ring-white/10 transition-all hover:scale-105 cursor-pointer w-full',
+                          editingInRightColumn?.type === 'support' && editingInRightColumn?.role === item.role && 'ring-2 ring-indigo-500'
+                        )}
+                        style={{ backgroundColor: item.hex }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (updateSupportColor) setEditingInRightColumn(editingInRightColumn?.type === 'support' && editingInRightColumn?.role === item.role ? null : { type: 'support', role: item.role });
+                        }}
+                      />
+                      <div className="text-xs text-center text-gray-400 mt-1.5 font-medium truncate">{item.initial}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+          );
+        })() : (
+        <>
+        {/* Recuadro Estilo (claro / oscuro) */}
+        <div className="shrink-0 bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 border border-gray-700/50">
+          <div className="text-sm font-medium text-gray-300 mb-3">Estilo</div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setSupportVariant?.('claro')}
+              className={cn(
+                'flex-1 py-2 rounded-lg text-sm font-medium transition-all',
+                supportVariant === 'claro' ? 'bg-gray-200 text-gray-900' : 'bg-gray-700/50 text-gray-400 hover:bg-gray-700 hover:text-gray-200'
+              )}
+              aria-pressed={supportVariant === 'claro'}
+            >
+              Claro
+            </button>
+            <button
+              type="button"
+              onClick={() => setSupportVariant?.('oscuro')}
+              className={cn(
+                'flex-1 py-2 rounded-lg text-sm font-medium transition-all',
+                supportVariant === 'oscuro' ? 'bg-gray-700 text-white' : 'bg-gray-700/50 text-gray-400 hover:bg-gray-700 hover:text-gray-200'
+              )}
+              aria-pressed={supportVariant === 'oscuro'}
+            >
+              Oscuro
+            </button>
+          </div>
+        </div>
+
+        {/* Recuadro Fondo */}
+        <div className="shrink-0 bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 border border-gray-700/50">
+          <div className="text-sm font-medium text-gray-300 mb-3">Fondo</div>
+          <div className="flex flex-wrap gap-2 items-center">
+            <button
+              type="button"
+              onClick={() => setBgMode('dark')}
+              className={cn(
+                'w-8 h-8 rounded-full border-2 bg-gray-900 transition-all shrink-0',
+                bgMode === 'dark' ? 'border-indigo-500 scale-110 ring-2 ring-indigo-500/30' : 'border-gray-600 hover:border-gray-500'
+              )}
+              title="Fondo oscuro"
+              aria-pressed={bgMode === 'dark'}
+            />
+            <button
+              type="button"
+              onClick={() => setBgMode('light')}
+              className={cn(
+                'w-8 h-8 rounded-full border-2 bg-white transition-all shrink-0',
+                bgMode === 'light' ? 'border-indigo-500 scale-110 ring-2 ring-indigo-500/30' : 'border-gray-600 hover:border-gray-500'
+              )}
+              title="Fondo claro"
+              aria-pressed={bgMode === 'light'}
+            />
+            <button
+              type="button"
+              onClick={() => setBgMode('color')}
+              className={cn(
+                'w-8 h-8 rounded-full border-2 transition-all shrink-0',
+                bgMode === 'color' ? 'border-indigo-500 scale-110 ring-2 ring-indigo-500/30' : 'border-gray-600 hover:border-gray-500'
+              )}
+              style={{ backgroundColor: getColor(0) }}
+              title="Fondo color de la paleta"
+              aria-pressed={bgMode === 'color'}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setBgMode('custom');
+                setEditingInRightColumn({ type: 'background' });
+              }}
+              className={cn(
+                'w-8 h-8 rounded-full border-2 transition-all shrink-0 flex items-center justify-center bg-gray-700 hover:bg-gray-600 text-gray-300',
+                bgMode === 'custom' ? 'border-indigo-500 scale-110 ring-2 ring-indigo-500/30 text-indigo-400' : 'border-gray-600 hover:border-gray-500'
+              )}
+              title="Fondo color personalizado"
+              aria-pressed={bgMode === 'custom'}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Recuadro Exportar */}
+        <div className="shrink-0 bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 border border-gray-700/50">
+          <div className="text-sm font-medium text-gray-300 mb-3">Exportar</div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleExportPNG}
+              disabled={isExporting}
+              className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-xs font-medium bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 border border-emerald-500/30 transition-all disabled:opacity-50"
+              title="Descargar esta vista como PNG"
+            >
+              {isExporting ? (
+                <div className="w-3 h-3 border-2 border-emerald-400/30 border-t-emerald-400 rounded-full animate-spin" />
+              ) : (
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+              )}
+              <span>PNG</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleExportAll}
+              disabled={isExportingAll}
+              className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-xs font-medium bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600/30 border border-indigo-500/30 transition-all disabled:opacity-50"
+              title="Descargar todo como ZIP"
+            >
+              {isExportingAll ? (
+                <>
+                  <div className="w-3 h-3 border-2 border-indigo-400/30 border-t-indigo-400 rounded-full animate-spin" />
+                  <span>{exportProgress.current}/{exportProgress.total}</span>
+                </>
+              ) : (
+                <>
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                  </svg>
+                  <span>ZIP</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Recuadro Tu paleta */}
+        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 border border-gray-700/50 min-h-0">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-sm font-medium text-gray-300">Tu paleta</div>
+            <div className="text-[10px] text-gray-500">Arrastra • Clic para editar</div>
+          </div>
+        
+        {/* Color items - using simple div for reordering */}
+        <div className="flex gap-2">
+          {localColors.map((color, i) => (
+            <div
+              key={i}
+              className="flex-1 relative group"
+              draggable
+              onMouseEnter={() => setHoveredMainIndex(i)}
+              onMouseLeave={() => setHoveredMainIndex(null)}
+              onDragStart={(e) => {
+                e.dataTransfer.setData('colorIndex', i.toString());
+                e.currentTarget.classList.add('opacity-50');
+              }}
+              onDragEnd={(e) => {
+                e.currentTarget.classList.remove('opacity-50');
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.currentTarget.classList.add('scale-105');
+              }}
+              onDragLeave={(e) => {
+                e.currentTarget.classList.remove('scale-105');
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                e.currentTarget.classList.remove('scale-105');
+                const fromIndex = parseInt(e.dataTransfer.getData('colorIndex'));
+                const toIndex = i;
+                if (fromIndex !== toIndex) {
+                  const newColors = [...localColors];
+                  const [moved] = newColors.splice(fromIndex, 1);
+                  newColors.splice(toIndex, 0, moved);
+                  setLocalColors(newColors);
+                  onUpdateColors?.(newColors);
+                  // Keep editing index in sync when reordering main palette
+                  const ed = editingRef.current;
+                  if (ed && ed.type === 'main') {
+                    const idx = ed.index;
+                    if (fromIndex === idx) {
+                      setEditingInRightColumn({ type: 'main', index: toIndex });
+                    } else if (fromIndex < idx && toIndex >= idx) {
+                      setEditingInRightColumn({ type: 'main', index: idx - 1 });
+                    } else if (fromIndex > idx && toIndex <= idx) {
+                      setEditingInRightColumn({ type: 'main', index: idx + 1 });
+                    }
+                  }
+                }
+              }}
+            >
+              {hoveredMainIndex === i && (
+                <span className={paletteSwatchTooltipClass}>{getMainPaletteRole(i).label}</span>
+              )}
+              <div className="flex flex-col items-center" title={getMainPaletteRole(i).label}>
+                <div
+                  className={cn(
+                    'h-12 rounded-lg shadow-lg ring-1 ring-white/10 transition-all hover:scale-105 cursor-grab active:cursor-grabbing w-full',
+                    editingRef.current?.type === 'main' && editingRef.current.index === i && 'ring-2 ring-purple-500'
+                  )}
+                  style={{ backgroundColor: color }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const ed = editingRef.current;
+                    setEditingInRightColumn(ed?.type === 'main' && ed.index === i ? null : { type: 'main', index: i });
+                  }}
+                >
+                  {/* Drag indicator */}
+                  <div className="absolute top-1 left-1/2 -translate-x-1/2 text-white/50 text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">
+                    ⋮⋮
+                  </div>
+                  {/* Edit indicator on hover */}
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    <div className="w-6 h-6 rounded-full bg-black/40 flex items-center justify-center">
+                      <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+                <div className="text-xs text-center text-gray-400 mt-1.5 font-medium w-full truncate">
+                  {getMainPaletteRole(i).initial}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        </div>
+
+        {/* Recuadro Tu paleta de apoyo */}
+        {supportColorsList.length > 0 && (
+          <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 border border-gray-700/50 min-h-0">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-sm font-medium text-gray-300">Tu paleta de apoyo</div>
+              <div className="text-[10px] text-gray-500">{supportVariant === 'claro' ? 'Claro' : 'Oscuro'}</div>
+            </div>
+            <div className="flex gap-2">
+              {supportColorsList.map((item) => (
+                <div
+                  key={item.role}
+                  className="flex-1 relative group min-w-0"
+                  onMouseEnter={() => setHoveredSupportRole(item.role)}
+                  onMouseLeave={() => setHoveredSupportRole(null)}
+                  title={item.label}
+                >
+                  {hoveredSupportRole === item.role && (
+                    <span className={paletteSwatchTooltipClass}>{item.label}</span>
+                  )}
+                  <div
+                    className={cn(
+                        'h-12 rounded-lg shadow-lg ring-1 ring-white/10 transition-all hover:scale-105 cursor-pointer w-full',
+                        editingRef.current?.type === 'support' && editingRef.current.role === item.role && 'ring-2 ring-indigo-500'
+                      )}
+                    style={{ backgroundColor: item.hex }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (updateSupportColor) {
+                        const ed = editingRef.current;
+                        setEditingInRightColumn(ed?.type === 'support' && ed.role === item.role ? null : { type: 'support', role: item.role });
+                      }
+                    }}
+                  >
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                      <div className="w-6 h-6 rounded-full bg-black/40 flex items-center justify-center">
+                        <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-xs text-center text-gray-400 mt-1.5 font-medium truncate">
+                    {item.initial}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        </>
+        )}
+      </div>
+    </div>
+  );
+}

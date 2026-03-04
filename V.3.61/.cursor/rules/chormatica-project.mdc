@@ -1,0 +1,24 @@
+---
+description: Contexto y convenciones del proyecto Chormatica (paletas, branding, Ilustraciones)
+alwaysApply: true
+---
+
+# Chormatica — Regla de proyecto
+
+- **Idioma**: Responde siempre en español al usuario.
+
+- **Proyecto**: App de creación de paletas de color (React 19, TypeScript, Vite, Tailwind). Flujo: Splash → GuidedPaletteCreator (análisis, inspiración, refinamiento, aplicación, guardado). Vistas aplicadas (Poster, Branding) en ApplicationShowcase.
+
+- **Estructura**: Para orientarte rápido, lee `ESTRUCTURA.md` en la raíz si existe. Archivos clave: `ApplicationShowcase.tsx` (incl. getPosterColors y getInteriorColors), `GuidedPaletteCreator.tsx`, `colorUtils.ts` (hexToHsl, hslToHex, getContrastColor, etc.). Tipos en `ApplicationShowcase/types.tsx` y `src/types/`.
+
+- **Paleta (PosterPalette)**: En componentes de branding/póster se usan alias: c1=primary, c2=accent, cA2=accent2??c2, c3=surface, c4=secondary, c5=background, c6=muted, cText=text, textAlpha≈0.58. Usar solo colores de la paleta en Ilustraciones; no colores de sistema (p. ej. emojis sin color explícito).
+
+- **Ilustraciones** (`ApplicationShowcase/branding/Ilustraciones.tsx`): Póster con header, hero (Bru + mini beans), grid 4 tarjetas (Icon Set, Mascot Poses, Patterns, Sticker Sheet), Illustration Guidelines, footer. Constantes: ILLUST_GRID_TOP_PCT=45, ILLUST_GUIDELINES_TOP_PCT=78, LEAF_SVG_PATH, WAVES_TOP_PERCENTS, GEOMETRIC_ROW_LEFT_PCTS, GEOMETRIC_DIAMOND_SIZE. Subcomponentes: MiniBru (variant hero|pose), PatternFoliage, PatternBeans, PatternGeometric, PatternWaves. Fuentes: FONT_SANS, FONT_SERIF, FONT_MONO, AURA_LOWERCASE desde brandingFonts.
+
+- **Personajes Quién** (`QuienTinderCards/characters/`): Para posicionar/escalar, usar `getCharacterTransform({ scale?, translateY?, centerX?, centerY? })` de `characterTransform.ts`. Centros por defecto 100×160. Sin wrapper `<g>` cuando la transformación es identidad (p. ej. Voltaje, Eco).
+
+- **Intercambio Quién↔Qué** (ArchetypesCreator): `getContentColumnKey` intercambia botones: el botón "Quién" usa flow `que` (siluetas), el botón "Qué" usa flow `quien` (criaturas). Para ejes: `columnKey 'que'` = UI Quién (Herramientas), `columnKey 'quien'` = UI Qué (Esencia). Ver `docs/ARQUETIPOS.md` para guía completa de Explora Arquetipos.
+
+- **Ejes arquetipo** (inspiración, Quién/Qué/Cómo): Los ejes están en `archetypeAxesConfig.ts`. Cada opción puede tener `defaultColorLeft`, `defaultColorRight`, `defaultSliderValue`. Los componentes de tarjeta (fondos, etc.) que rotan su paleta según el eje usan: 1) `useAxisRotatedPalette(palette, { colorLeft, colorRight, defaultColorLeft, sliderValue })` del hook en `archetypeCardComponents/useAxisRotatedPalette.ts`; 2) utilidades `computeAxisHueRotation` y `rotatePaletteHues` en `colorUtils.ts`. El padre pasa `defaultColorLeft` desde `getComponentStateFromAxes` cuando la opción lo define. Ejemplo: EnchantedForest.
+
+- **Convenciones**: Componentes funcionales, TypeScript estricto. Tailwind para layout; estilos que dependen de paleta con `style={{ }}` y c1–c6/cText. Sin colores hardcodeados fuera de paleta en branding. Clases condicionales con `cn()` si existe.
