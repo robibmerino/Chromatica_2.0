@@ -17,7 +17,10 @@ export function App() {
     const timer = setTimeout(() => {
       setIsLoading(false);
       const hasShare = new URLSearchParams(window.location.search).get('share')?.trim();
-      if (hasShare) setShowSplash(false);
+      const returningFromOAuth =
+        typeof window !== 'undefined' &&
+        (window.location.hash.includes('access_token=') || window.location.hash.includes('refresh_token='));
+      if (hasShare || returningFromOAuth) setShowSplash(false);
     }, 500);
     return () => clearTimeout(timer);
   }, []);
