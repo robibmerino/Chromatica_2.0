@@ -57,7 +57,7 @@ Ejecuta en **SQL Editor** el archivo **`docs/supabase-realtime-storage-share.sql
 - **Storage** bucket `user-assets`: para avatares o imágenes de inspiración (rutas `user_id/nombre.png`). La app usa el helper `src/lib/supabaseStorage.ts` (upload, URL pública).
 - **Tabla `palette_share_tokens`** y políticas RLS para compartir paleta por link.
 
-Luego **despliega** las Edge Functions **`create-share-link`** y **`get-shared-palette`**: ver guía paso a paso en **`docs/DESPLIEGUE_EDGE_FUNCTIONS.md`** (resumen: `npx supabase link --project-ref TU_REF` y `npx supabase functions deploy create-share-link` + `get-shared-palette`). En la app, en el panel de cuenta hay un botón "Compartir enlace" que genera un enlace de solo lectura (válido 30 días); quien abre el enlace puede ver la paleta en la app.
+En la app, el botón "Compartir enlace" (panel de cuenta) **crea el enlace en el cliente** (insert en `palette_share_tokens`). Quien abre `?share=TOKEN` **carga la paleta vía RPC** `get_shared_palette` en la BD (no usa Edge Function). Las Edge Functions `create-share-link` y `get-shared-palette` son opcionales; si quieres desplegarlas, ver **`docs/DESPLIEGUE_EDGE_FUNCTIONS.md`**.
 
 ## 7. Investigación (opcional)
 
@@ -77,7 +77,7 @@ Para la pestaña **Análisis de datos para investigación** (solo usuarios en al
 
 | Qué | Dónde | Notas |
 |-----|--------|--------|
-| **Redirect URLs** (OAuth) | Supabase → **Authentication** → **URL Configuration** | Añade **Site URL** y **Redirect URLs** con tu app (ej. `http://localhost:5173`, `https://tu-app.vercel.app`). Si no, al volver de Google/GitHub puede fallar. Ver `docs/OAUTH_GOOGLE_GITHUB.md` al final. |
+| **Redirect URLs** (OAuth) | Supabase → **Authentication** → **URL Configuration** | **Site URL** en producción debe ser tu URL de Vercel (ej. `https://chromatica-2-0.vercel.app`). Si está en `localhost`, tras Google/GitHub verás "localhost ha rechazado la conexión". Añade también **Redirect URLs**. Ver `docs/OAUTH_GOOGLE_GITHUB.md` al final. |
 | **Variables en producción** | Vercel (u otro host) → Environment Variables | `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` para que auth y paletas funcionen en la URL pública. |
 | **Iconos PWA** | Carpeta `public/` | Añade `icon-192.png` e `icon-512.png` para que "Añadir a la pantalla de inicio" muestre icono. Opcional; la PWA funciona sin ellos. Ver `docs/INTEGRACIONES.md` §5. |
 | **Investigación** | Solo si quieres la pestaña "Análisis de datos" | Ejecuta `docs/supabase-research-demographics.sql`, despliega Edge Functions `export-research-data` y `export-research-demographics`, configura `RESEARCH_ADMIN_EMAILS`. Solo usuarios en allowlist ven la pestaña. |

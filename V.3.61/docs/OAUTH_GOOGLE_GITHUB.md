@@ -60,15 +60,17 @@ La **Callback URL** es siempre la que pone Supabase en su pantalla (`.../auth/v1
 
 ---
 
-## Después de guardar: Redirect URLs en Supabase
+## Después de guardar: Redirect URLs en Supabase (importante en producción)
 
 Para que al iniciar sesión con Google o GitHub el navegador vuelva a **tu** app (y no falle), Supabase debe tener tu URL en la lista de permitidas:
 
 1. En Supabase: **Authentication** → **URL Configuration** (o **Auth** → configuración de URLs).
-2. **Site URL:** pon la URL principal de tu app (ej. `https://tu-app.vercel.app` o `http://localhost:5173` para desarrollo).
+2. **Site URL:** pon la URL principal de tu app.
+   - **En producción (Vercel):** usa tu URL de Vercel, p. ej. `https://chromatica-2-0.vercel.app`.
+   - Si dejas aquí `http://localhost:5173`, tras iniciar sesión con Google/GitHub te redirigirá a localhost y verás **"La página localhost ha rechazado la conexión"**. Cámbiala a la URL de tu app en producción.
 3. **Redirect URLs:** añade todas las URLs desde las que los usuarios pueden iniciar sesión, por ejemplo:
    - `http://localhost:5173` (desarrollo)
-   - `https://tu-dominio.vercel.app` (producción)
+   - `https://tu-dominio.vercel.app` (producción; la misma que Site URL si solo usas una)
    - Si usas previews: `https://*.vercel.app` (o las URLs concretas).
 
 Si no añades tu URL aquí, OAuth puede redirigir a una página en blanco o mostrar error de "redirect URL not allowed".

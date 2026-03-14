@@ -32,7 +32,7 @@ Resumen de librerías y herramientas añadidas al proyecto.
 - **OAuth (Google / GitHub)**: En `AuthContext` está `signInWithOAuth(provider)`; en `AuthPage` hay botones "Google" y "GitHub". Hay que activar los proveedores y configurar Client ID/Secret en Supabase → Authentication → Providers. Ver `docs/SUPABASE_SETUP.md` §5.
 - **Realtime**: Suscripción a cambios en `palettes` en `usePalettesRealtime(userId)`; al insert/update/delete se invalida React Query. Se usa en `MainView`. Hay que ejecutar el SQL que añade la tabla a la publicación Realtime (`docs/supabase-realtime-storage-share.sql`).
 - **Storage**: Bucket `user-assets` con RLS por carpeta `user_id/`. Helper en `src/lib/supabaseStorage.ts`: `uploadUserAsset(userId, file)`, `getPublicUrl(userId, filename)`. Pensado para avatares e imágenes de inspiración.
-- **Compartir paleta por link**: Tabla `palette_share_tokens`, Edge Functions `create-share-link` (POST, auth) y `get-shared-palette` (GET, anónimo). En el panel de cuenta, botón "Compartir enlace" que copia la URL; quien abre `/?share=TOKEN` ve la paleta en la app. Ver `docs/SUPABASE_SETUP.md` §6.
+- **Compartir paleta por link**: Tabla `palette_share_tokens`. Crear enlace: en el cliente (insert con RLS). Abrir enlace: RPC `get_shared_palette` (anon). Botón "Compartir enlace" en el panel de cuenta; quien abre `/?share=TOKEN` ve la paleta. Ver `docs/SUPABASE_SETUP.md` §6.
 
 ## 5. Iconos PWA
 

@@ -25,6 +25,11 @@ export function MainView({ onOpenAuth }: MainViewProps) {
   const [openPaletteRequest, setOpenPaletteRequest] = useState<
     { palette: SavedPalette; openInPhase: 'refinement' | 'save' } | null
   >(null);
+  const hasShareParam =
+    typeof window !== 'undefined' && !!new URLSearchParams(window.location.search).get('share')?.trim();
+  const [shareLoadState, setShareLoadState] = useState<'idle' | 'loading' | 'done' | 'error'>(
+    hasShareParam && isSupabaseConfigured() ? 'loading' : 'idle'
+  );
   const shareTokenProcessed = useRef(false);
 
   useEffect(() => {
@@ -33,9 +38,14 @@ export function MainView({ onOpenAuth }: MainViewProps) {
     const token = params.get('share')?.trim();
     if (!token) return;
     shareTokenProcessed.current = true;
+    setShareLoadState('loading');
     getSharedPalette(token).then(({ palette, error }) => {
-      if (error || !palette) return;
+      if (error || !palette) {
+        setShareLoadState('error');
+        return;
+      }
       setOpenPaletteRequest({ palette, openInPhase: 'refinement' });
+      setShareLoadState('done');
       setView('app');
       window.history.replaceState(null, '', window.location.pathname + window.location.hash);
     });
@@ -68,6 +78,32 @@ export function MainView({ onOpenAuth }: MainViewProps) {
         onEditPalette={handleEditPalette}
         onExportPalette={handleExportPalette}
       />
+    );
+  }
+
+  if (shareLoadState === 'loading') {
+    return (
+      <div className="fixed inset-0 bg-[#0a0a0f] flex flex-col items-center justify-center gap-4 text-gray-300">
+        <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+        <p className="text-sm">Cargando paleta compartida...</p>
+      </div>
+    );
+  }
+  if (shareLoadState === 'error') {
+    return (
+      <div className="fixed inset-0 bg-[#0a0a0f] flex flex-col items-center justify-center gap-4 text-gray-300 p-4">
+        <p className="text-center">Enlace no válido o expirado.</p>
+        <button
+          type="button"
+          onClick={() => {
+            setShareLoadState('idle');
+            window.history.replaceState(null, '', window.location.pathname + window.location.hash);
+          }}
+          className="px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-sm font-medium"
+        >
+          Continuar
+        </button>
+      </div>
     );
   }
 

@@ -1,3 +1,4 @@
+import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import tailwindcss from "@tailwindcss/vite";
@@ -25,20 +26,24 @@ export default defineConfig(({ mode }) => ({
         background_color: "#0a0a0f",
         display: "standalone",
         start_url: "/",
-        icons: [
-          {
-            src: "/icon-192.png",
-            sizes: "192x192",
-            type: "image/png",
-            purpose: "any maskable",
-          },
-          {
-            src: "/icon-512.png",
-            sizes: "512x512",
-            type: "image/png",
-            purpose: "any maskable",
-          },
-        ],
+        icons:
+          fs.existsSync(path.join(__dirname, "public", "icon-192.png")) &&
+          fs.existsSync(path.join(__dirname, "public", "icon-512.png"))
+            ? [
+                {
+                  src: "/icon-192.png",
+                  sizes: "192x192",
+                  type: "image/png",
+                  purpose: "any maskable",
+                },
+                {
+                  src: "/icon-512.png",
+                  sizes: "512x512",
+                  type: "image/png",
+                  purpose: "any maskable",
+                },
+              ]
+            : [],
       },
       workbox: {
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024, // 4 MB (build singlefile genera un HTML grande)
