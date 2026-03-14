@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 
 interface ChromaticaLogoProps {
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | 'xl';
   onClick?: () => void;
   showSubtitle?: boolean;
 }
@@ -55,21 +55,25 @@ export default function ChromaticaLogo({ size = 'md', onClick, showSubtitle = fa
   const sizeClasses = {
     sm: 'text-lg',
     md: 'text-2xl',
-    lg: 'text-4xl'
+    lg: 'text-4xl',
+    xl: 'text-5xl',
   };
 
   const subtitleSizes = {
     sm: 'text-[8px] tracking-[0.15em]',
     md: 'text-[10px] tracking-[0.2em]',
-    lg: 'text-xs tracking-[0.25em]'
+    lg: 'text-xs tracking-[0.25em]',
+    xl: 'text-[10px] tracking-[0.2em]',
   };
 
+  const Comp = onClick ? motion.button : motion.div;
+
   return (
-    <motion.button
+    <Comp
       onClick={onClick}
       whileHover={onClick ? { scale: 1.02 } : undefined}
       whileTap={onClick ? { scale: 0.98 } : undefined}
-      className={`flex flex-col items-start ${onClick ? 'cursor-pointer' : 'cursor-default'}`}
+      className={`flex flex-col ${showSubtitle ? 'items-center' : 'items-start'} ${onClick ? 'cursor-pointer' : 'cursor-default'}`}
     >
       <div className={`${sizeClasses[size]} font-black flex items-baseline`}>
         <span className="text-white">chrom</span>
@@ -89,6 +93,6 @@ export default function ChromaticaLogo({ size = 'md', onClick, showSubtitle = fa
           Palette Studio
         </span>
       )}
-    </motion.button>
+    </Comp>
   );
 }

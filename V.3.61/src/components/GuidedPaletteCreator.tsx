@@ -2,13 +2,14 @@ import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import { useGuidedPalette } from './GuidedPaletteCreator/hooks/useGuidedPalette';
+import type { InspirationMode } from '../types/guidedPalette';
+import type { OpenPaletteRequest } from './GuidedPaletteCreator/hooks/useGuidedPalette';
 import { GuidedPaletteCreatorHeader } from './GuidedPaletteCreator/GuidedPaletteCreatorHeader';
 import { InspirationMenuPhase } from './GuidedPaletteCreator/InspirationMenuPhase';
 import { NotificationToast } from './GuidedPaletteCreator/NotificationToast';
 import { PaletteBar } from './inspiration/PaletteBar';
 import PosterExamples from './PosterExamples';
 import { INSPIRATION_MODE_LABELS } from './GuidedPaletteCreator/config/phasesConfig';
-import type { InspirationMode } from '../types/guidedPalette';
 import { blendColorsVibrant } from './inspiration/archetypePaletteUtils';
 import { hexToHsl, hslToHex } from '../utils/colorUtils';
 
@@ -70,8 +71,26 @@ function PhaseFallback() {
   );
 }
 
-export default function GuidedPaletteCreator() {
-  const state = useGuidedPalette();
+interface GuidedPaletteCreatorProps {
+  onOpenAuth: () => void;
+  /** Solo se pasa si el usuario está en la allowlist de investigación; muestra el enlace "Análisis investigación". */
+  onOpenResearch?: () => void;
+  /** Solo se pasa si hay usuario logueado; abre el panel de cuenta (perfil y mis paletas). */
+  onOpenAccount?: () => void;
+  /** Petición para abrir una paleta en Refinar o Guardar (desde Mis paletas). Se consume al aplicar. */
+  initialPaletteRequest?: OpenPaletteRequest | null;
+  /** Llamado cuando se ha aplicado la petición para que el padre limpie la referencia. */
+  onConsumeOpenPalette?: () => void;
+}
+
+export default function GuidedPaletteCreator({
+  onOpenAuth,
+  onOpenResearch,
+  onOpenAccount,
+  initialPaletteRequest,
+  onConsumeOpenPalette,
+}: GuidedPaletteCreatorProps) {
+  const state = useGuidedPalette({ initialPaletteRequest, onConsumeOpenPalette });
 
   const [combinedPaletteModalColors, setCombinedPaletteModalColors] = useState<string[] | null>(null);
   const [showCombinedPaletteModal, setShowCombinedPaletteModal] = useState(false);
@@ -338,6 +357,9 @@ export default function GuidedPaletteCreator() {
         flowSectionEdited={state.flowSectionEdited}
         onPhaseClick={state.goToPhase}
         onLogoClick={state.handleLogoClick}
+        onOpenAuth={onOpenAuth}
+        onOpenResearch={onOpenResearch}
+        onOpenAccount={onOpenAccount}
       />
 
       <main className="flex-1 min-h-0 overflow-hidden flex flex-col max-w-7xl mx-auto w-full px-4 py-6">
@@ -411,6 +433,7 @@ export default function GuidedPaletteCreator() {
               paletteName={state.paletteName}
               setPaletteName={state.setPaletteName}
               savePalette={state.savePalette}
+              removePalette={state.removePalette}
               savedPalettes={state.savedPalettes}
               showMyPalettes={state.showMyPalettes}
               setShowMyPalettes={state.setShowMyPalettes}

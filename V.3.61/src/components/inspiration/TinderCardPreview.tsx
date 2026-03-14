@@ -83,6 +83,8 @@ interface TinderCardPreviewProps {
   hideBackground?: boolean;
   /** Si true: usa fondo Fase 1 (Firmamento) salvo que axis-background tenga hasBeenConfigured */
   useDefaultBackgroundUnlessConfigured?: boolean;
+  /** Modo avatar: cuando 'detail', el detalle (Familiar/Herramienta/Inspiración) se muestra grande y centrado en lugar de la figura */
+  centerLayer?: 'figure' | 'detail';
 }
 
 /**
@@ -99,6 +101,7 @@ export function TinderCardPreview({
   hideLabels = false,
   hideBackground = false,
   useDefaultBackgroundUnlessConfigured = false,
+  centerLayer = 'figure',
 }: TinderCardPreviewProps) {
   const isQuien = columnKey === 'quien' && 'characterId' in card;
   const isQue = columnKey === 'que' && 'silhouetteId' in card;
@@ -255,8 +258,62 @@ export function TinderCardPreview({
             />
           ))}
 
-      {/* Esencia/Familiar (Qué) o Herramienta (Quién) o Inspiración (Cómo) — overlay superior derecha */}
-      {showFamiliar && (
+      {/* Modo avatar: detalle grande y centrado */}
+      {centerLayer === 'detail' && (showFamiliar || showHerramienta || showInspiracion) && (
+        <motion.div
+          className="absolute inset-0 flex items-center justify-center pointer-events-none"
+          animate={{ y: [0, -4, 0] }}
+          transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut' }}
+        >
+          <div className="w-[70%] h-[70%] flex items-center justify-center min-w-0 min-h-0">
+            {showFamiliar && (
+              <FamiliarComponent
+                versionId={familiarAxisState.versionId}
+                blendedColor={familiarAxisState.blendedColor}
+                colorLeft={familiarAxisState.colorLeft}
+                colorRight={familiarAxisState.colorRight}
+                sliderValue={familiarAxisState.sliderValue}
+                defaultColorLeft={familiarAxisState.defaultColorLeft}
+                className="w-full h-full"
+              />
+            )}
+            {showHerramienta && !showFamiliar && (
+              <HerramientaComponent
+                versionId={herramientaAxisState.versionId}
+                blendedColor={herramientaAxisState.blendedColor}
+                colorLeft={herramientaAxisState.colorLeft}
+                colorRight={herramientaAxisState.colorRight}
+                sliderValue={herramientaAxisState.sliderValue}
+                defaultColorLeft={herramientaAxisState.defaultColorLeft}
+                className="w-full h-full"
+              />
+            )}
+            {showInspiracion && !showFamiliar && !showHerramienta && (
+              <div
+                className="w-full h-full rounded-2xl p-2 flex items-center justify-center overflow-hidden"
+                style={{
+                  background: getContrastBackgroundColor(inspiracionAxisState.blendedColor, 0.7),
+                  border: `1px solid ${inspiracionAxisState.blendedColor}40`,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.35)',
+                }}
+              >
+                <InspiracionComponent
+                  versionId={inspiracionAxisState.versionId}
+                  blendedColor={inspiracionAxisState.blendedColor}
+                  colorLeft={inspiracionAxisState.colorLeft}
+                  colorRight={inspiracionAxisState.colorRight}
+                  sliderValue={inspiracionAxisState.sliderValue}
+                  defaultColorLeft={inspiracionAxisState.defaultColorLeft}
+                  className="w-full h-full min-w-0 min-h-0"
+                />
+              </div>
+            )}
+          </div>
+        </motion.div>
+      )}
+
+      {/* Esencia/Familiar (Qué) o Herramienta (Quién) o Inspiración (Cómo) — overlay superior derecha (solo si no centerLayer detail) */}
+      {centerLayer !== 'detail' && showFamiliar && (
         <motion.div
           className="absolute right-3 pointer-events-none"
           style={{
@@ -282,7 +339,7 @@ export function TinderCardPreview({
           />
         </motion.div>
       )}
-      {showInspiracion && (
+      {centerLayer !== 'detail' && showInspiracion && (
         <motion.div
           className="absolute right-3 pointer-events-none z-10"
           style={{
@@ -317,7 +374,7 @@ export function TinderCardPreview({
           </div>
         </motion.div>
       )}
-      {showHerramienta && (
+      {centerLayer !== 'detail' && showHerramienta && (
         <motion.div
           className="absolute right-3 pointer-events-none"
           style={{
@@ -344,7 +401,8 @@ export function TinderCardPreview({
         </motion.div>
       )}
 
-      {/* Contenido: personaje (Quién) o silueta (Qué) según columna */}
+      {/* Contenido: personaje (Quién) o silueta (Qué) según columna (oculto cuando centerLayer detail) */}
+      {centerLayer === 'figure' && (
       <div className="absolute inset-0 flex flex-col">
         {isQuien ? (
           <QuienTinderErrorBoundary fallback={<p className="text-gray-500 text-sm p-4">Error al cargar</p>}>
@@ -408,6 +466,7 @@ export function TinderCardPreview({
           </div>
         )}
       </div>
+      )}
 
       {/* Atmósfera: capa de partículas en primer plano */}
       {showAtmosphere && AtmosphereComponent && (

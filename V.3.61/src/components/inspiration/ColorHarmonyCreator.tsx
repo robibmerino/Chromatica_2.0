@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import PosterExamples from '../PosterExamples';
 import { BaseColorPicker } from '../BaseColorPicker';
@@ -401,8 +401,7 @@ export default function ColorHarmonyCreator({ colorCount, onColorCountChange, on
                 const dx = x - 100, dy = y - 100;
                 const radius = Math.sqrt(dx * dx + dy * dy);
                 if (radius < 40 || radius > 90) return;
-                const hue = xyToHue(x, y);
-                setBaseColor(hslToHex(hue, effectiveSat, effectiveLight));
+                setBaseColor(hslToHex(xyToHue(x, y), effectiveSat, effectiveLight));
               }}
               role="img"
               aria-label="Rueda de color: clic o arrastra una burbuja para cambiar el matiz"

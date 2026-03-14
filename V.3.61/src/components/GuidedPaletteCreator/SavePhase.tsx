@@ -11,6 +11,7 @@ interface SavePhaseProps {
   paletteName: string;
   setPaletteName: (name: string) => void;
   savePalette: () => void;
+  removePalette: (id: string) => void;
   savedPalettes: SavedPalette[];
   showMyPalettes: boolean;
   setShowMyPalettes: (v: boolean) => void;
@@ -27,6 +28,7 @@ function SavePhaseInner({
   paletteName,
   setPaletteName,
   savePalette,
+  removePalette,
   savedPalettes,
   showMyPalettes,
   setShowMyPalettes,
@@ -223,13 +225,7 @@ function SavePhaseInner({
                                   type="button"
                                   onClick={() => {
                                     if (confirm(`¿Eliminar "${palette.name}"?`)) {
-                                      const updated = savedPalettes.filter((p) => p.id !== palette.id);
-                                      setSavedPalettes(updated);
-                                      localStorage.setItem(
-                                        'colorPalettes',
-                                        JSON.stringify(updated)
-                                      );
-                                      showNotification(COPY.notifications.removed(palette.name));
+                                      removePalette(palette.id);
                                     }
                                   }}
                                   className="p-1.5 bg-red-600/30 hover:bg-red-600/50 text-red-300 rounded-lg text-xs transition-colors"

@@ -311,6 +311,16 @@ export const DEFAULT_AXIS_ORDER_COMO: string[] = [
 export type AxisOrderColumnKey = 'quien' | 'que' | 'como';
 
 /**
+ * Convierte la clave del botón de la UI en la clave de contenido (orden de ejes).
+ * Intercambio Quién↔Qué: botón "Quién" (key 'quien') → content 'que' (siluetas); botón "Qué" (key 'que') → content 'quien' (criaturas).
+ */
+export function getContentColumnKey(buttonKey: AxisOrderColumnKey): AxisOrderColumnKey {
+  if (buttonKey === 'quien') return 'que';
+  if (buttonKey === 'que') return 'quien';
+  return buttonKey;
+}
+
+/**
  * Devuelve el orden de ejes por defecto según la columna de contenido.
  * Intercambio Quién↔Qué: columnKey 'que' = UI Quién (Herramientas/siluetas), 'quien' = UI Qué (Esencia/criaturas).
  */
@@ -439,7 +449,10 @@ export function getComponentStateFromAxes(
       sliderValue: 50,
     };
   }
-  const option = config.archetypeOptions[state.selectedOptionIndex];
+  const option =
+    state.selectedOptionIndex >= 0 && state.selectedOptionIndex < config.archetypeOptions.length
+      ? config.archetypeOptions[state.selectedOptionIndex]
+      : undefined;
   const custom = isCustomOption(option);
   const baseOption = custom && state.customVersionId
     ? config.archetypeOptions.find((o) => o.versionId === state.customVersionId)
@@ -449,13 +462,14 @@ export function getComponentStateFromAxes(
     : (option?.versionId ?? 'default');
   const colorLeft = state.colorLeft ?? baseOption?.defaultColorLeft ?? config.colorLeft;
   const colorRight = state.colorRight ?? baseOption?.defaultColorRight ?? config.colorRight;
-  const blendedColor = blendHex(colorLeft, colorRight, state.sliderValue / 100);
+  const sliderVal = state.sliderValue ?? 50;
+  const blendedColor = blendHex(colorLeft, colorRight, sliderVal / 100);
   return {
     versionId,
     blendedColor,
     colorLeft,
     colorRight,
-    sliderValue: state.sliderValue,
+    sliderValue: sliderVal,
     defaultColorLeft: baseOption?.defaultColorLeft,
   };
 }

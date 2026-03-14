@@ -749,7 +749,7 @@ export default function ImageColorExtractor({ colorCount, onColorCountChange, on
                 <button
                   key={num}
                   type="button"
-                  onClick={() => onColorCountChange(num)}
+                    onClick={() => onColorCountChange(num)}
                   className={`w-7 h-7 rounded-lg text-sm font-medium transition-all ${
                     colorCount === num ? 'bg-indigo-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
                   }`}

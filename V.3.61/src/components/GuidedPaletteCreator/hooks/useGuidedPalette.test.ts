@@ -1,6 +1,12 @@
+import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+import { AuthProvider } from '../../../contexts/AuthContext';
+import { ResearchProvider } from '../../../contexts/ResearchContext';
 import { useGuidedPalette } from './useGuidedPalette';
+
+const wrapper = ({ children }: { children: React.ReactNode }) =>
+  React.createElement(AuthProvider, null, React.createElement(ResearchProvider, null, children));
 
 // Mock localStorage
 const localStorageMock = (() => {
@@ -27,14 +33,14 @@ describe('useGuidedPalette', () => {
   });
 
   it('inicializa con fase inspiration-menu y sin colores', () => {
-    const { result } = renderHook(() => useGuidedPalette());
+    const { result } = renderHook(() => useGuidedPalette(), { wrapper });
     expect(result.current.phase).toBe('inspiration-menu');
     expect(result.current.colors).toEqual([]);
     expect(result.current.colorCount).toBe(4);
   });
 
   it('goToPhase cambia la fase correctamente', () => {
-    const { result } = renderHook(() => useGuidedPalette());
+    const { result } = renderHook(() => useGuidedPalette(), { wrapper });
 
     act(() => {
       result.current.goToPhase('save');
@@ -48,7 +54,7 @@ describe('useGuidedPalette', () => {
   });
 
   it('handleInspirationComplete establece colores y avanza a refinement', () => {
-    const { result } = renderHook(() => useGuidedPalette());
+    const { result } = renderHook(() => useGuidedPalette(), { wrapper });
     const newColors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00'];
 
     act(() => {
@@ -62,7 +68,7 @@ describe('useGuidedPalette', () => {
   });
 
   it('updateColor actualiza el hex del color indicado', () => {
-    const { result } = renderHook(() => useGuidedPalette());
+    const { result } = renderHook(() => useGuidedPalette(), { wrapper });
 
     act(() => {
       result.current.handleInspirationComplete(['#ff0000', '#00ff00']);
@@ -79,7 +85,7 @@ describe('useGuidedPalette', () => {
   });
 
   it('undo y redo pueden invocarse sin error', () => {
-    const { result } = renderHook(() => useGuidedPalette());
+    const { result } = renderHook(() => useGuidedPalette(), { wrapper });
 
     act(() => {
       result.current.handleInspirationComplete(['#ff0000', '#00ff00']);
@@ -93,7 +99,7 @@ describe('useGuidedPalette', () => {
   });
 
   it('addColor añade un nuevo color hasta el límite', () => {
-    const { result } = renderHook(() => useGuidedPalette());
+    const { result } = renderHook(() => useGuidedPalette(), { wrapper });
 
     act(() => {
       result.current.handleInspirationComplete(['#ff0000', '#00ff00']);
@@ -112,7 +118,7 @@ describe('useGuidedPalette', () => {
   });
 
   it('removeColorAt reduce la paleta (mínimo 2)', () => {
-    const { result } = renderHook(() => useGuidedPalette());
+    const { result } = renderHook(() => useGuidedPalette(), { wrapper });
 
     act(() => {
       result.current.handleInspirationComplete(['#ff0000', '#00ff00', '#0000ff']);

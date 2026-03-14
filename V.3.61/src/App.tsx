@@ -1,23 +1,33 @@
-import { useState, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import GuidedPaletteCreator from './components/GuidedPaletteCreator';
+import { AuthProvider } from './contexts/AuthContext';
+import { ResearchProvider } from './contexts/ResearchContext';
+import { MainView } from './components/MainView';
+import { AuthPage } from './components/AuthPage';
 import { SplashScreen } from './components/SplashScreen';
+import { SetNewPasswordOverlay } from './components/SetNewPasswordOverlay';
+import { SyncDemographics } from './components/SyncDemographics';
 
 export function App() {
   const [showSplash, setShowSplash] = useState(true);
+  const [showAuthView, setShowAuthView] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Simulate loading / check if assets are ready
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsLoading(false);
+      const hasShare = new URLSearchParams(window.location.search).get('share')?.trim();
+      if (hasShare) setShowSplash(false);
     }, 500);
     return () => clearTimeout(timer);
   }, []);
 
-  const handleEnter = () => {
+  const handleEnter = useCallback(() => {
     setShowSplash(false);
-  };
+  }, []);
+
+  const openAuth = useCallback(() => setShowAuthView(true), []);
+  const closeAuth = useCallback(() => setShowAuthView(false), []);
 
   if (isLoading) {
     return (
@@ -28,12 +38,20 @@ export function App() {
   }
 
   return (
-    <AnimatePresence mode="wait">
-      {showSplash ? (
-        <SplashScreen key="splash" onEnter={handleEnter} />
-      ) : (
-        <GuidedPaletteCreator key="app" />
-      )}
-    </AnimatePresence>
+    <AuthProvider>
+      <SyncDemographics />
+      <ResearchProvider>
+        <AnimatePresence mode="wait">
+          {showSplash ? (
+            <SplashScreen key="splash" onEnter={handleEnter} />
+          ) : showAuthView ? (
+            <AuthPage key="auth" onBack={closeAuth} />
+          ) : (
+            <MainView key="app" onOpenAuth={openAuth} />
+          )}
+        </AnimatePresence>
+      </ResearchProvider>
+      <SetNewPasswordOverlay />
+    </AuthProvider>
   );
 }

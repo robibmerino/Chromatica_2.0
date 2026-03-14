@@ -1,0 +1,12 @@
+---
+description: Supabase, React Query, variables de entorno (Zod)
+globs: src/lib/**/*.ts src/contexts/**/*.tsx src/hooks/usePalettesQuery.ts
+alwaysApply: false
+---
+
+# Supabase, React Query y env en Chromatica
+
+- **Env**: Validar con Zod en `src/lib/env.ts`. Usar `getSupabaseConfig()` para URL y anon key; no leer `import.meta.env` directamente en código de negocio.
+- **Supabase**: Cliente en `src/lib/supabase.ts` (puede ser null si no hay config). Operaciones de paletas en `src/lib/supabasePalettes.ts` (fetchPalettes, insertPalette, updatePaletteName, deletePalette).
+- **React Query**: Provider en `main.tsx` con `queryClient` de `src/lib/queryClient.ts`. Listado de paletas con `usePalettesQuery(userId)` y mutaciones con `usePaletteMutations(userId)`; invalidar con `invalidatePalettes(userId)` tras guardar/eliminar desde fuera de los hooks.
+- **Query keys**: `palettesQueryKey(userId)` para consistencia al invalidar.

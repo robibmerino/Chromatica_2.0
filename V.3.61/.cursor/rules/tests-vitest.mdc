@@ -1,0 +1,13 @@
+---
+description: Convenciones de tests unitarios (Vitest, Testing Library)
+globs: src/**/*.test.{ts,tsx} src/**/*.spec.{ts,tsx}
+alwaysApply: false
+---
+
+# Tests en Chromatica
+
+- **Runner**: Vitest. Config en `vite.config.ts` (test.globals, jsdom, setupFiles en `src/test/setup.ts`).
+- **Componentes**: Usar `@testing-library/react` (render, screen, userEvent). Queries por rol y texto accesible; evitar por clase o implementación.
+- **Nombres**: Archivos `*.test.ts` o `*.test.tsx`; describe/it o test() con descripciones claras en español o inglés.
+- **Mocks**: Para Supabase o contexto de auth, mockear en el test o con vi.mock(); no llamar a APIs reales en unit tests.
+- **E2E**: Playwright en `e2e/`; script `npm run e2e`. Base URL en `playwright.config.ts` con dev server en 5173.

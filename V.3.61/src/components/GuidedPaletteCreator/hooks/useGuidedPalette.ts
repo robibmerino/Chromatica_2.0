@@ -1,5 +1,8 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import type { ColorItem, Phase, InspirationMode, SavedPalette } from '../../../types/guidedPalette';
+import { useAuth } from '../../../contexts/AuthContext';
+import { fetchPalettes, insertPalette, deletePalette } from '../../../lib/supabasePalettes';
+import { invalidatePalettes } from '../../../hooks/usePalettesQuery';
 
 /** Estado guardado por modo de inspiración para restaurar al volver desde Refinar. */
 export type InspirationDetailSavedState = Partial<Record<InspirationMode, unknown>>;
@@ -63,11 +66,28 @@ export const SUPPORT_PALETTE_ROLES: { role: SupportPaletteRole; label: string; i
   { role: 'sobrefondo2', label: 'Sobrefondo 2', initial: 'Sf2' },
 ];
 
+/** Petición para abrir una paleta guardada en el flujo Paleta combinada (Refinar o Guardar). */
+export interface OpenPaletteRequest {
+  palette: SavedPalette;
+  openInPhase: 'refinement' | 'save';
+}
+
+export interface UseGuidedPaletteOptions {
+  /** Si se proporciona, al montar se carga esta paleta en el flujo "Paleta combinada" y se va a Refinar o Guardar. */
+  initialPaletteRequest?: OpenPaletteRequest | null;
+  /** Se invoca después de aplicar la petición para que el padre limpie la referencia. */
+  onConsumeOpenPalette?: () => void;
+}
+
 /**
  * Toda la lógica de estado y acciones del flujo Guided Palette.
  * El componente principal solo orquesta la vista usando este hook.
  */
-export function useGuidedPalette() {
+export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
+  const { initialPaletteRequest, onConsumeOpenPalette } = options ?? {};
+  const { user } = useAuth();
+  const appliedOpenRequestRef = useRef<string | null>(null);
+  const inspirationModesVisitedRef = useRef<Set<string>>(new Set());
   const [phase, setPhase] = useState<Phase>('inspiration-menu');
   const [inspirationMode, setInspirationMode] = useState<InspirationMode | null>(null);
   /** Estado guardado de cada modo de inspiración para restaurar al volver desde Refinar. */
@@ -126,6 +146,13 @@ export function useGuidedPalette() {
       if (notificationTimeoutRef.current) clearTimeout(notificationTimeoutRef.current);
     };
   }, []);
+
+  /** Marcar modos de inspiración visitados (para lógica interna; sin envío a research). */
+  useEffect(() => {
+    if (phase !== 'inspiration-detail' || !inspirationMode) return;
+    const mode = inspirationMode === 'archetypes-menu' ? 'archetypes' : inspirationMode;
+    inspirationModesVisitedRef.current.add(mode);
+  }, [phase, inspirationMode]);
 
   const saveToHistory = useCallback((newColors: ColorItem[]) => {
     const idx = historyIndexRef.current;
@@ -201,10 +228,71 @@ export function useGuidedPalette() {
     [colors, saveToHistory]
   );
 
+  /** Carga paletas: desde Supabase si hay usuario, desde localStorage si no. */
   useEffect(() => {
-    const saved = localStorage.getItem('colorPalettes');
-    if (saved) setSavedPalettes(JSON.parse(saved));
-  }, []);
+    if (user?.id) {
+      fetchPalettes(user.id).then(setSavedPalettes);
+    } else {
+      const saved = localStorage.getItem('colorPalettes');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved) as SavedPalette[];
+          setSavedPalettes(
+            parsed.map((p) => ({ ...p, createdAt: p.createdAt instanceof Date ? p.createdAt : new Date(p.createdAt) }))
+          );
+        } catch {
+          setSavedPalettes([]);
+        }
+      } else setSavedPalettes([]);
+    }
+  }, [user?.id]);
+
+  /** Abrir una paleta guardada en el flujo Paleta combinada (Refinar o Guardar). */
+  useEffect(() => {
+    const req = initialPaletteRequest;
+    if (!req?.palette?.colors?.length) return;
+    const key = `${req.palette.id}:${req.openInPhase}`;
+    if (appliedOpenRequestRef.current === key) return;
+    appliedOpenRequestRef.current = key;
+    const mode: InspirationMode = 'multi-origin';
+    setInspirationMode(mode);
+    setInspirationFlowEverCompleted((prev) => ({ ...prev, [mode]: true }));
+    const colorItems = req.palette.colors.map((hex) => ({
+      id: generateId(),
+      hex,
+      locked: false,
+    }));
+    setColors(colorItems);
+    setHistory([[...colorItems]]);
+    setHistoryIndex(0);
+    setOriginalPalette([...colorItems]);
+    setSliderReference([...colorItems]);
+    setRefinementGeneralSliders(DEFAULT_REFINEMENT_SLIDERS);
+    if (req.openInPhase === 'refinement') {
+      setPhase('refinement');
+    } else {
+      const flowSnapshot: FlowPaletteState = {
+        colors: colorItems.map((c) => ({ ...c })),
+        history: [[...colorItems.map((c) => ({ ...c }))]],
+        historyIndex: 0,
+        originalPalette: colorItems.map((c) => ({ ...c })),
+        sliderReference: colorItems.map((c) => ({ ...c })),
+        supportOverridesByVariant: { claro: {}, oscuro: {} },
+        supportVariant: 'claro',
+        selectedColorIndex: 0,
+        selectedSupportRole: null,
+        refinementMode: 'color',
+        lastRemovedColor: null,
+        refinementGeneralSliders: DEFAULT_REFINEMENT_SLIDERS,
+        editedInRefinement: true,
+        editedInApplication: true,
+        editedInAnalysis: true,
+      };
+      setFlowPaletteStateByInspiration((prev) => ({ ...prev, [mode]: flowSnapshot }));
+      setPhase('save');
+    }
+    onConsumeOpenPalette?.();
+  }, [initialPaletteRequest, onConsumeOpenPalette]);
 
   useEffect(() => {
     const prevPhase = prevPhaseRef.current;
@@ -246,23 +334,26 @@ export function useGuidedPalette() {
     }, NOTIFICATION_DURATION_MS);
   }, []);
 
-  const handleInspirationComplete = useCallback((newColors: string[], savedState?: unknown) => {
-    if (inspirationMode) {
-      setInspirationFlowEverCompleted((prev) => ({ ...prev, [inspirationMode]: true }));
-    }
-    setColors(
-      newColors.map((hex) => ({
-        id: generateId(),
-        hex,
-        locked: false,
-      }))
-    );
-    if (inspirationMode && savedState != null) {
-      setInspirationDetailSavedState((prev) => ({ ...prev, [inspirationMode]: savedState }));
-    }
-    setRefinementGeneralSliders(DEFAULT_REFINEMENT_SLIDERS);
-    setPhase('refinement');
-  }, [inspirationMode]);
+  const handleInspirationComplete = useCallback(
+    (newColors: string[], savedState?: unknown) => {
+      if (inspirationMode) {
+        setInspirationFlowEverCompleted((prev) => ({ ...prev, [inspirationMode]: true }));
+      }
+      setColors(
+        newColors.map((hex) => ({
+          id: generateId(),
+          hex,
+          locked: false,
+        }))
+      );
+      if (inspirationMode && savedState != null) {
+        setInspirationDetailSavedState((prev) => ({ ...prev, [inspirationMode]: savedState }));
+      }
+      setRefinementGeneralSliders(DEFAULT_REFINEMENT_SLIDERS);
+      setPhase('refinement');
+    },
+    [inspirationMode]
+  );
 
   /** Pendiente de confirmación cuando "Usar paleta" borraría cambios en Refinar/Aplicar/etc. de este flujo */
   const [pendingInspirationComplete, setPendingInspirationComplete] = useState<{
@@ -375,7 +466,7 @@ export function useGuidedPalette() {
     showNotification(COPY.notifications.colorsShuffled);
   }, [showNotification]);
 
-  const savePalette = useCallback(() => {
+  const savePalette = useCallback(async () => {
     if (!paletteName.trim()) {
       showNotification(COPY.notifications.addPaletteName);
       return;
@@ -388,9 +479,40 @@ export function useGuidedPalette() {
     };
     const updated = [...savedPalettes, newPalette];
     setSavedPalettes(updated);
-    localStorage.setItem('colorPalettes', JSON.stringify(updated));
+    if (user?.id) {
+      const { error } = await insertPalette(user.id, newPalette);
+      if (error) {
+        setSavedPalettes(savedPalettes);
+        showNotification(`Error al guardar: ${error}`);
+        return;
+      }
+      invalidatePalettes(user.id);
+    } else {
+      localStorage.setItem('colorPalettes', JSON.stringify(updated));
+    }
     showNotification(COPY.notifications.paletteSaved);
-  }, [paletteName, colors, savedPalettes, showNotification]);
+  }, [paletteName, colors, savedPalettes, showNotification, user?.id]);
+
+  const removePalette = useCallback(
+    async (id: string) => {
+      const removed = savedPalettes.find((p) => p.id === id);
+      const updated = savedPalettes.filter((p) => p.id !== id);
+      setSavedPalettes(updated);
+      if (user?.id) {
+        const { error } = await deletePalette(user.id, id);
+        if (error) {
+          setSavedPalettes(savedPalettes);
+          showNotification(`Error al eliminar: ${error}`);
+          return;
+        }
+        invalidatePalettes(user.id);
+      } else {
+        localStorage.setItem('colorPalettes', JSON.stringify(updated));
+      }
+      if (removed) showNotification(COPY.notifications.removed(removed.name));
+    },
+    [savedPalettes, showNotification, user?.id]
+  );
 
   const selectedColor = selectedColorIndex !== null ? colors[selectedColorIndex] : null;
 
@@ -677,10 +799,13 @@ export function useGuidedPalette() {
     }
   }, [phase]);
 
-  const handleInspirationSelect = useCallback((mode: InspirationMode) => {
-    setInspirationMode(mode);
-    setPhase('inspiration-detail');
-  }, []);
+  const handleInspirationSelect = useCallback(
+    (mode: InspirationMode) => {
+      setInspirationMode(mode);
+      setPhase('inspiration-detail');
+    },
+    []
+  );
 
   const handleLogoClick = useCallback(() => {
     setPendingInspirationComplete(null);
@@ -834,6 +959,7 @@ export function useGuidedPalette() {
     confirmInspirationComplete,
     cancelInspirationComplete,
     savePalette,
+    removePalette,
     currentPhaseIndex,
     currentStepperIndex,
     totalStepperSteps: STEPPER_STEPS.length,
