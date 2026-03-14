@@ -48,6 +48,8 @@ export default defineConfig(({ mode }) => ({
       workbox: {
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024, // 4 MB (build singlefile genera un HTML grande)
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+        // No precachear HTML: así tras OAuth (redirect) siempre se pide el documento al servidor y se ve la versión con cuenta/sesión
+        globIgnores: ["**/*.html"],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,
