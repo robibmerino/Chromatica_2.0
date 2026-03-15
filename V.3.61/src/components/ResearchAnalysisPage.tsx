@@ -4,6 +4,12 @@ import * as XLSX from 'xlsx';
 import { useAuth } from '../contexts/AuthContext';
 import { getSupabaseConfig } from '../lib/env';
 
+/**
+ * Análisis de datos para investigación (admin).
+ * Estructura: menú lateral (Sociodemográficas | Paletas) → toolbar (Previsualizar, Excel, Vista con gráficos, ordenar)
+ * → contenido: sin gráficos = tabla; con gráficos = tabla superior (altura fija, scroll) + panel análisis (altura fija, pestañas Resumen/Edad/Género/Área/UPV/Cruces, scroll interno).
+ */
+
 export interface PaletteRow {
   id: string;
   user_id: string;
@@ -61,10 +67,24 @@ const DESIGN_CAREER_LABELS: Record<string, string> = {
   other: 'Otra (no diseño)',
 };
 
-/** Orden lógico de rangos de edad para análisis (no por frecuencia). */
+// --- Análisis sociodemográficas: constantes y layout ---
+/** Orden lógico de rangos de edad (no por frecuencia). */
 const AGE_RANGE_ORDER = ['18-25', '26-35', '36-45', '46-55', '55+'];
+const UPV_ORDER = ['Sí', 'No', 'Sin indicar'] as const;
+/** Altura tabla superior en vista con gráficos (~3 filas). Panel análisis fijo para scroll interno. */
+const TABLE_VIEW_HEIGHT_REM = '10rem';
+const ANALYSIS_PANEL_HEIGHT_REM = '24rem';
 
 type DemographicsAnalysisTab = 'summary' | 'age' | 'gender' | 'career' | 'upv' | 'cross';
+
+const DEMOGRAPHICS_ANALYSIS_TABS: { id: DemographicsAnalysisTab; label: string }[] = [
+  { id: 'summary', label: 'Resumen' },
+  { id: 'age', label: 'Edad' },
+  { id: 'gender', label: 'Género' },
+  { id: 'career', label: 'Área' },
+  { id: 'upv', label: 'UPV' },
+  { id: 'cross', label: 'Cruces' },
+];
 
 interface FreqRow {
   label: string;
@@ -423,7 +443,7 @@ function DemographicsCareerChart({ data }: { data: DemographicsRow[] }) {
 function DemographicsUpvChart({ data }: { data: DemographicsRow[] }) {
   const rows = useMemo(
     () =>
-      getFrequencyCounts(data, (r) => (r.is_upv_student === true ? 'Sí' : r.is_upv_student === false ? 'No' : 'Sin indicar'), ['Sí', 'No', 'Sin indicar']),
+      getFrequencyCounts(data, (r) => (r.is_upv_student === true ? 'Sí' : r.is_upv_student === false ? 'No' : 'Sin indicar'), [...UPV_ORDER]),
     [data]
   );
   return <DemographicsUnivariateCharts rows={rows} emptyMessage="Sin datos." />;
@@ -436,7 +456,7 @@ function SampleSummary({ data }: { data: DemographicsRow[] }) {
   const genderRows = useMemo(() => getFrequencyCounts(data, (r) => r.gender ?? ''), [data]);
   const careerRows = useMemo(() => getFrequencyCounts(data, (r) => r.design_career ?? ''), [data]);
   const upvRows = useMemo(
-    () => getFrequencyCounts(data, (r) => (r.is_upv_student === true ? 'Sí' : r.is_upv_student === false ? 'No' : 'Sin indicar'), ['Sí', 'No', 'Sin indicar']),
+    () => getFrequencyCounts(data, (r) => (r.is_upv_student === true ? 'Sí' : r.is_upv_student === false ? 'No' : 'Sin indicar'), [...UPV_ORDER]),
     [data]
   );
   if (n === 0) return <p className="text-gray-500 text-sm py-2">Carga sociodemográficas para ver el resumen.</p>;
@@ -485,7 +505,7 @@ function CrossTable({
   rowKey: keyof DemographicsRow;
   colKey: keyof DemographicsRow;
 }) {
-  const { rows, cols, matrix, rowLabels, colLabels } = useMemo(() => {
+  const { matrix, rowLabels, colLabels } = useMemo(() => {
     const rowVals = new Map<string, number>();
     const colVals = new Map<string, number>();
     const matrixMap = new Map<string, Map<string, number>>();
@@ -503,10 +523,10 @@ function CrossTable({
     const rowLabels = Array.from(rowVals.keys()).sort();
     const colLabels = Array.from(colVals.keys()).sort();
     const matrix = rowLabels.map((r) => colLabels.map((c) => matrixMap.get(r)?.get(c) ?? 0));
-    return { rows: rowLabels, cols: colLabels, matrix, rowLabels, colLabels };
+    return { matrix, rowLabels, colLabels };
   }, [data, rowKey, colKey]);
 
-  if (rows.length === 0 || cols.length === 0) {
+  if (rowLabels.length === 0 || colLabels.length === 0) {
     return <p className="text-gray-500 text-sm py-2">Sin datos para este cruce.</p>;
   }
 
@@ -822,7 +842,7 @@ export function ResearchAnalysisPage({ onBack }: ResearchAnalysisPageProps) {
                   <div className="shrink-0 bg-gray-800/60 px-2 py-1.5 border-b border-gray-700">
                     <span className="text-xs font-medium text-gray-400">Tabla</span>
                   </div>
-                  <div className="h-[10rem] overflow-auto bg-gray-900/20">
+                  <div className="overflow-auto bg-gray-900/20" style={{ height: TABLE_VIEW_HEIGHT_REM }}>
                     {section === 'demographics' && demographicsData != null && (
                       <PreviewTable
                         rows={sortedDemographicsRows}
@@ -847,21 +867,12 @@ export function ResearchAnalysisPage({ onBack }: ResearchAnalysisPageProps) {
                   </div>
                 </div>
                 {/* Sección inferior: Análisis estadístico, altura fija (misma para Resumen/Edad/Género/etc.), scroll interno */}
-                <div className="h-[24rem] shrink-0 flex flex-col rounded-b-lg border border-gray-700 overflow-hidden bg-gray-900/30">
+                <div className="shrink-0 flex flex-col rounded-b-lg border border-gray-700 overflow-hidden bg-gray-900/30" style={{ height: ANALYSIS_PANEL_HEIGHT_REM }}>
                   <div className="shrink-0 px-3 pt-2 pb-1.5 border-b border-gray-700 bg-gray-900/50">
                     <span className="text-xs font-medium text-gray-400 block mb-1.5">Análisis estadístico</span>
                     {section === 'demographics' && demographicsData && demographicsData.length > 0 && (
                       <div className="flex flex-wrap gap-1">
-                        {(
-                          [
-                            { id: 'summary' as const, label: 'Resumen' },
-                            { id: 'age' as const, label: 'Edad' },
-                            { id: 'gender' as const, label: 'Género' },
-                            { id: 'career' as const, label: 'Área' },
-                            { id: 'upv' as const, label: 'UPV' },
-                            { id: 'cross' as const, label: 'Cruces' },
-                          ] as { id: DemographicsAnalysisTab; label: string }[]
-                        ).map(({ id, label }) => (
+                        {DEMOGRAPHICS_ANALYSIS_TABS.map(({ id, label }) => (
                           <button
                             key={id}
                             type="button"
