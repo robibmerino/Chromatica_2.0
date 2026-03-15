@@ -20,7 +20,7 @@ interface AuthMenuProps {
 }
 
 export function AuthMenu({ onOpenAuth, onOpenAccount }: AuthMenuProps) {
-  const { user, loading } = useAuth();
+  const { user, profile, loading } = useAuth();
 
   if (!isSupabaseConfigured()) return null;
   if (loading) {
@@ -32,7 +32,7 @@ export function AuthMenu({ onOpenAuth, onOpenAccount }: AuthMenuProps) {
   }
 
   const nameToShow = user
-    ? (user.user_metadata?.full_name as string)?.trim() || user.email?.split('@')[0] || 'Usuario'
+    ? (profile?.full_name ?? (user.user_metadata?.full_name as string))?.trim() || user.email?.split('@')[0] || 'Usuario'
     : '';
   const avatarArchetype = user?.user_metadata?.avatar_archetype as
     | { column: AvatarArchetypeColumn; selections: AvatarAxisSelections }
@@ -64,7 +64,7 @@ export function AuthMenu({ onOpenAuth, onOpenAccount }: AuthMenuProps) {
                   <img src={displayAvatarUrl} alt="" className="w-full h-full object-cover" />
                 ) : (
                   <span className="text-xs font-semibold text-violet-400/90">
-                    {getInitials((user.user_metadata?.full_name as string) || undefined, user.email ?? '')}
+                    {getInitials(nameToShow || undefined, user.email ?? '')}
                   </span>
                 )}
               </div>

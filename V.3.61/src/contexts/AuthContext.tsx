@@ -10,12 +10,17 @@ import {
 import type { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 
+export interface ProfileRow {
+  full_name: string | null;
+}
+
 interface AuthState {
   user: User | null;
   session: Session | null;
+  /** Nombre guardado en tabla profiles; no lo pisa OAuth al volver a iniciar sesión. */
+  profile: ProfileRow | null;
   loading: boolean;
   error: string | null;
-  /** True cuando el usuario ha llegado desde el enlace de "restablecer contraseña" y debe establecer una nueva. */
   needsPasswordUpdate: boolean;
 }
 
@@ -50,10 +55,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({
     user: null,
     session: null,
+    profile: null,
     loading: true,
     error: null,
     needsPasswordUpdate: getInitialNeedsPasswordUpdate(),
   });
+
+  const fetchProfile = useCallback(async (userId: string) => {
+    if (!supabase) return null;
+    const { data } = await supabase.from('profiles').select('full_name').eq('id', userId).single();
+    return data as ProfileRow | null;
+  }, []);
 
   useEffect(() => {
     if (!supabase) {
@@ -70,6 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ...s,
         user: session?.user ?? null,
         session,
+        profile: null,
         loading: false,
         needsPasswordUpdate: isRecovery ? true : s.needsPasswordUpdate,
       }));
@@ -81,12 +94,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ...s,
         user: session?.user ?? null,
         session,
+        profile: null,
         loading: false,
         needsPasswordUpdate: hashHasRecovery ? true : s.needsPasswordUpdate,
       }));
     });
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    const userId = state.user?.id;
+    if (!userId || !supabase) return;
+    let cancelled = false;
+    fetchProfile(userId).then((profile) => {
+      if (!cancelled)
+        setState((s) => (s.user?.id === userId ? { ...s, profile } : s));
+    });
+    return () => { cancelled = true; };
+  }, [state.user?.id, fetchProfile]);
 
   const signUp = useCallback(async (email: string, password: string) => {
     if (!supabase) return { error: 'Cuenta no disponible' };
@@ -193,10 +218,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setState((s) => ({ ...s, error: error.message }));
         return { error: error.message };
       }
-      setState((s) => ({ ...s, error: null, user: data?.user ?? s.user }));
+      const userId = data?.user?.id;
+      if (updates.full_name !== undefined && userId) {
+        await supabase.from('profiles').upsert(
+          { id: userId, full_name: updates.full_name.trim() || null, updated_at: new Date().toISOString() },
+          { onConflict: 'id' }
+        );
+        const profile = await fetchProfile(userId);
+        setState((s) => ({ ...s, error: null, user: data?.user ?? s.user, profile }));
+      } else {
+        setState((s) => ({ ...s, error: null, user: data?.user ?? s.user }));
+      }
       return { error: null };
     },
-    []
+    [fetchProfile]
   );
 
   const clearNeedsPasswordUpdate = useCallback(() => {

@@ -57,7 +57,7 @@ function getInitials(name: string | undefined, email: string): string {
 }
 
 export function AccountPanel({ onBack, onEditPalette, onExportPalette }: AccountPanelProps) {
-  const { user, updateProfile, updatePassword, signOut } = useAuth();
+  const { user, profile, updateProfile, updatePassword, signOut } = useAuth();
   const [avatarSaving, setAvatarSaving] = useState(false);
   const [avatarMessage, setAvatarMessage] = useState<'ok' | 'error' | null>(null);
 
@@ -103,7 +103,7 @@ export function AccountPanel({ onBack, onEditPalette, onExportPalette }: Account
 
   useEffect(() => {
     if (user) {
-      setFullName((user.user_metadata?.full_name as string) || '');
+      setFullName((profile?.full_name ?? (user.user_metadata?.full_name as string)) || '');
       setEmail(user.email ?? '');
       const saved = user.user_metadata?.avatar_archetype as
         | { column: AvatarArchetypeColumn; selections: AvatarAxisSelections }
@@ -113,7 +113,7 @@ export function AccountPanel({ onBack, onEditPalette, onExportPalette }: Account
         setAvatarAxisSelections({ ...(saved.selections as AvatarAxisSelections) });
       }
     }
-  }, [user?.id, user?.email, user?.user_metadata]);
+  }, [user?.id, user?.email, user?.user_metadata, profile?.full_name]);
 
   useEffect(() => {
     if (palettes.length > 0 && !selectedPalette) setSelectedPalette(palettes[0]);

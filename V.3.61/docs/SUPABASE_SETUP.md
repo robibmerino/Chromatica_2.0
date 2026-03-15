@@ -8,7 +8,9 @@ Chromatica puede usar Supabase para guardar la sesión y las paletas en la nube.
 2. **New project**: nombre (ej. `chromatica`), contraseña de base de datos (guárdala), región.
 3. Espera a que el proyecto esté listo.
 
-## 2. Crear la tabla `palettes`
+## 2. Tablas: `palettes` y `profiles`
+
+### Tabla `palettes`
 
 **Importante:** en el SQL Editor solo se puede ejecutar código SQL. No pegues títulos ni instrucciones (eso da error).
 
@@ -18,6 +20,13 @@ Chromatica puede usar Supabase para guardar la sesión y las paletas en la nube.
 4. Pulsa **Run** (o el botón de ejecutar).
 
 Si todo va bien, verás un mensaje de éxito. La tabla `palettes` quedará creada.
+
+### Tabla `profiles` (nombre de perfil que no pisa OAuth)
+
+Para que el nombre que el usuario edita en "Mi perfil" se mantenga al cerrar sesión y volver a entrar con Google/GitHub:
+
+1. En **SQL Editor** → **New query**, abre **`docs/supabase-profiles.sql`** y ejecuta su contenido.
+2. Así se crea la tabla `profiles` (id, full_name) con RLS; la app guarda ahí el nombre al pulsar "Guardar cambios".
 
 ## 3. Variables de entorno
 
