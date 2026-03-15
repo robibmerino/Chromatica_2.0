@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useAuth } from '../contexts/AuthContext';
+import { getSupabaseConfig } from '../lib/env';
 
 export interface PaletteRow {
   id: string;
@@ -32,8 +33,6 @@ interface ResearchAnalysisPageProps {
   onBack: () => void;
 }
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-
 const DEMOGRAPHICS_COLUMNS: { key: keyof DemographicsRow; label: string }[] = [
   { key: 'user_id', label: 'User ID' },
   { key: 'age_range', label: 'Edad' },
@@ -60,15 +59,19 @@ function formatResearchError(msg: string): string {
 
 function useResearchFetch<T>(fnName: string) {
   const { session } = useAuth();
+  const config = getSupabaseConfig();
   return useCallback(
     async (): Promise<T> => {
-      if (!SUPABASE_URL || !session?.access_token) {
+      if (!config?.url || !config?.anonKey || !session?.access_token) {
         throw new Error('Sesión o URL de Supabase no disponible');
       }
-      const fnUrl = `${SUPABASE_URL.replace(/\/$/, '')}/functions/v1/${fnName}`;
+      const fnUrl = `${config.url.replace(/\/$/, '')}/functions/v1/${fnName}`;
       const res = await fetch(fnUrl, {
         method: 'GET',
-        headers: { Authorization: `Bearer ${session.access_token}` },
+        headers: {
+          Authorization: `Bearer ${config.anonKey}`,
+          'X-User-Token': session.access_token,
+        },
       });
       if (!res.ok) {
         const text = await res.text();
@@ -77,7 +80,7 @@ function useResearchFetch<T>(fnName: string) {
       const data = await res.json();
       return data as T;
     },
-    [fnName, session?.access_token]
+    [fnName, config?.url, config?.anonKey, session?.access_token]
   );
 }
 

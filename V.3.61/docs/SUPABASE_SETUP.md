@@ -75,6 +75,8 @@ Para la pestaña **Análisis de datos para investigación** (solo usuarios en al
 1. **Tabla sociodemográficas**: en SQL Editor ejecuta `docs/supabase-research-demographics.sql`.
 2. **Edge Functions**: despliega `export-research-data` y `export-research-demographics` (ver README en cada carpeta en `supabase/functions/`) y configura el secreto `RESEARCH_ADMIN_EMAILS`.
 
+**Dónde se guardan las sociodemográficas en Supabase:** en la tabla **`public.research_demographics`** (columnas: `user_id`, `age_range`, `gender`, `design_career`, `is_upv_student`, `consented_at`). La app hace **upsert** cuando el usuario da consentimiento (pantalla de investigación o registro) y está logueado; el componente `SyncDemographics` sincroniza desde localStorage a esa tabla. Para ver los datos: en Supabase → **Table Editor** → **research_demographics**.
+
 ## Resumen (actualizado)
 
 - Sin `.env` / sin variables en Vercel: Chromatica funciona igual, paletas solo en el navegador.

@@ -20,14 +20,22 @@ function allowlistIncludes(email: string | undefined): boolean {
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: { 'Access-Control-Allow-Origin': '*' } });
+    return new Response(null, {
+      status: 204,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, Apikey, X-User-Token',
+      },
+    });
   }
 
-  const authHeader = req.headers.get('Authorization');
-  if (!authHeader?.startsWith('Bearer ')) {
-    return Response.json({ error: 'Missing or invalid Authorization' }, { status: 401 });
+  const userToken = req.headers.get('X-User-Token')?.trim() ?? req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '').trim();
+  if (!userToken) {
+    return Response.json({ error: 'Missing X-User-Token or Authorization' }, { status: 401 });
   }
-  const token = authHeader.replace('Bearer ', '');
+  const authHeader = `Bearer ${userToken}`;
+  const token = userToken;
 
   const authClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     global: { headers: { Authorization: authHeader } },
