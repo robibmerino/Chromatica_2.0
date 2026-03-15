@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { useState, useCallback, useMemo } from 'react';
+import { ArrowLeft, BarChart3, Table2, LayoutGrid } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useAuth } from '../contexts/AuthContext';
 import { getSupabaseConfig } from '../lib/env';
@@ -32,6 +32,13 @@ export interface DemographicsRow {
 interface ResearchAnalysisPageProps {
   onBack: () => void;
 }
+
+type SectionId = 'demographics' | 'palettes';
+
+const SECTIONS: { id: SectionId; label: string; description: string }[] = [
+  { id: 'demographics', label: 'Sociodemográficas', description: 'Edad, género, área, estudiante UPV' },
+  { id: 'palettes', label: 'Paletas guardadas', description: 'Nombre, colores, fecha' },
+];
 
 const DEMOGRAPHICS_COLUMNS: { key: keyof DemographicsRow; label: string }[] = [
   { key: 'user_id', label: 'User ID' },
@@ -88,21 +95,22 @@ function PreviewTable<T extends Record<string, unknown>>({
   rows,
   columns,
   rowKey,
+  className,
 }: {
   rows: T[];
   columns: { key: keyof T; label: string }[];
-  /** Clave única por fila para React (ej. 'user_id', 'id'). Si no se pasa, se usa el índice. */
   rowKey?: keyof T;
+  className?: string;
 }) {
   if (rows.length === 0) {
     return (
-      <p className="text-gray-500 text-sm py-4">No hay filas para mostrar.</p>
+      <p className="text-gray-500 text-sm py-4 px-2">No hay filas para mostrar.</p>
     );
   }
   return (
-    <div className="overflow-x-auto rounded-lg border border-gray-700">
-      <table className="w-full text-sm text-left">
-        <thead className="bg-gray-800/80 text-gray-300">
+    <div className={`overflow-auto rounded-lg border border-gray-700 bg-gray-900/30 ${className ?? ''}`}>
+      <table className="w-full min-w-max text-sm text-left">
+        <thead className="bg-gray-800/80 text-gray-300 sticky top-0 z-10">
           <tr>
             {columns.map((col) => (
               <th key={String(col.key)} className="px-3 py-2 font-medium whitespace-nowrap">
@@ -115,7 +123,7 @@ function PreviewTable<T extends Record<string, unknown>>({
           {rows.map((row, i) => (
             <tr key={rowKey && row[rowKey] != null ? String(row[rowKey]) : i} className="hover:bg-gray-800/50">
               {columns.map((col) => (
-                <td key={String(col.key)} className="px-3 py-2 text-gray-300 max-w-[200px] truncate">
+                <td key={String(col.key)} className="px-3 py-2 text-gray-300 whitespace-nowrap max-w-[200px] truncate">
                   {row[col.key] != null ? String(row[col.key]) : '—'}
                 </td>
               ))}
@@ -127,8 +135,49 @@ function PreviewTable<T extends Record<string, unknown>>({
   );
 }
 
+/** Gráfico de barras simple: distribución por edad (sociodemográficas). */
+function DemographicsAgeChart({ data }: { data: DemographicsRow[] }) {
+  const counts = useMemo(() => {
+    const m: Record<string, number> = {};
+    data.forEach((r) => {
+      const k = r.age_range?.trim() || 'Sin indicar';
+      m[k] = (m[k] ?? 0) + 1;
+    });
+    return Object.entries(m).sort((a, b) => b[1] - a[1]);
+  }, [data]);
+  const max = Math.max(1, ...counts.map(([, n]) => n));
+
+  if (counts.length === 0) {
+    return (
+      <p className="text-gray-500 text-sm py-4">Carga sociodemográficas para ver la distribución.</p>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <h3 className="text-sm font-medium text-gray-300">Distribución por rango de edad</h3>
+      <div className="space-y-2">
+        {counts.map(([label, n]) => (
+          <div key={label} className="flex items-center gap-2">
+            <span className="w-20 text-xs text-gray-400 shrink-0">{label}</span>
+            <div className="flex-1 h-6 bg-gray-800 rounded overflow-hidden">
+              <div
+                className="h-full bg-indigo-500 rounded min-w-[2px] transition-all"
+                style={{ width: `${(n / max) * 100}%` }}
+              />
+            </div>
+            <span className="text-xs text-gray-400 w-6 text-right">{n}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function ResearchAnalysisPage({ onBack }: ResearchAnalysisPageProps) {
   const [error, setError] = useState<string | null>(null);
+  const [section, setSection] = useState<SectionId>('demographics');
+  const [splitView, setSplitView] = useState(false);
 
   const fetchPalettes = useResearchFetch<PaletteRow[]>('export-research-data');
   const fetchDemographics = useResearchFetch<DemographicsRow[]>('export-research-demographics');
@@ -143,8 +192,7 @@ export function ResearchAnalysisPage({ onBack }: ResearchAnalysisPageProps) {
     setDemographicsLoading(true);
     try {
       const raw = await fetchDemographics();
-      const data = Array.isArray(raw) ? raw : [];
-      setDemographicsData(data);
+      setDemographicsData(Array.isArray(raw) ? raw : []);
     } catch (e) {
       setError(formatResearchError(e instanceof Error ? e.message : String(e)));
       setDemographicsData(null);
@@ -158,8 +206,7 @@ export function ResearchAnalysisPage({ onBack }: ResearchAnalysisPageProps) {
     setPalettesLoading(true);
     try {
       const raw = await fetchPalettes();
-      const data = Array.isArray(raw) ? raw : [];
-      setPalettesData(data);
+      setPalettesData(Array.isArray(raw) ? raw : []);
     } catch (e) {
       setError(formatResearchError(e instanceof Error ? e.message : String(e)));
       setPalettesData(null);
@@ -167,6 +214,11 @@ export function ResearchAnalysisPage({ onBack }: ResearchAnalysisPageProps) {
       setPalettesLoading(false);
     }
   }, [fetchPalettes]);
+
+  const loadSection = useCallback(() => {
+    if (section === 'demographics') handlePreviewDemographics();
+    else handlePreviewPalettes();
+  }, [section, handlePreviewDemographics, handlePreviewPalettes]);
 
   const downloadDemographicsExcel = useCallback(() => {
     if (!demographicsData || demographicsData.length === 0) return;
@@ -206,10 +258,19 @@ export function ResearchAnalysisPage({ onBack }: ResearchAnalysisPageProps) {
     XLSX.writeFile(wb, `chromatica-paletas-${new Date().toISOString().slice(0, 10)}.xlsx`);
   }, [palettesData]);
 
+  const currentData = section === 'demographics' ? demographicsData : palettesData;
+  const currentLoading = section === 'demographics' ? demographicsLoading : palettesLoading;
+  const currentSection = SECTIONS.find((s) => s.id === section)!;
+  const canDownload =
+    (section === 'demographics' && demographicsData && demographicsData.length > 0) ||
+    (section === 'palettes' && palettesData && palettesData.length > 0);
+
+  const excelAreaClass = splitView ? 'flex-1 min-h-0 overflow-hidden' : 'flex-1 min-h-0 overflow-auto';
+
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-gray-100 flex flex-col">
-      <header className="border-b border-gray-700/50 bg-gray-900/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-4">
+      <header className="border-b border-gray-700/50 bg-gray-900/80 backdrop-blur-md sticky top-0 z-50 shrink-0">
+        <div className="px-4 py-4 flex items-center gap-4">
           <button
             type="button"
             onClick={onBack}
@@ -222,87 +283,139 @@ export function ResearchAnalysisPage({ onBack }: ResearchAnalysisPageProps) {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-8 flex-1 space-y-10">
-        <p className="text-gray-400">
-          Previsualiza cada informe y descarga el Excel cuando quieras.
-        </p>
-
-        {error && (
-          <div className="p-4 rounded-lg bg-red-900/20 border border-red-500/50 text-red-200 text-sm">
-            {error}
-          </div>
-        )}
-
-        {/* Informe 1: Sociodemográficas */}
-        <section className="space-y-4">
-          <h2 className="text-xl font-semibold text-white">Sociodemográficas de personas registradas</h2>
-          <p className="text-gray-400 text-sm">
-            Usuarios que dieron consentimiento y guardaron edad, género, área y si son estudiantes UPV.
-          </p>
-          <div className="flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={handlePreviewDemographics}
-              disabled={demographicsLoading}
-              className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium transition-colors"
-            >
-              {demographicsLoading ? 'Cargando…' : 'Previsualizar'}
-            </button>
-            {demographicsData != null && (
+      <div className="flex flex-1 min-h-0">
+        {/* Menú lateral */}
+        <aside className="w-52 shrink-0 border-r border-gray-700/50 bg-gray-900/40 flex flex-col py-4">
+          <nav className="px-2 space-y-0.5">
+            {SECTIONS.map((s) => (
               <button
+                key={s.id}
                 type="button"
-                onClick={downloadDemographicsExcel}
-                disabled={demographicsData.length === 0}
-                className="px-4 py-2 rounded-lg border border-gray-600 hover:bg-gray-800 disabled:opacity-50 text-gray-300 text-sm transition-colors"
+                onClick={() => setSection(s.id)}
+                className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-left text-sm transition-colors ${
+                  section === s.id
+                    ? 'bg-indigo-600/80 text-white'
+                    : 'text-gray-400 hover:bg-gray-800/60 hover:text-gray-200'
+                }`}
               >
-                Descargar Excel
+                {s.id === 'demographics' ? (
+                  <BarChart3 className="w-4 h-4 shrink-0" />
+                ) : (
+                  <Table2 className="w-4 h-4 shrink-0" />
+                )}
+                <span className="truncate">{s.label}</span>
               </button>
-            )}
-          </div>
-          {demographicsData != null && (
-            <div className="mt-4">
-              <PreviewTable rows={demographicsData} columns={DEMOGRAPHICS_COLUMNS} rowKey="user_id" />
+            ))}
+          </nav>
+        </aside>
+
+        {/* Contenido: toolbar + excel (+ gráficos si split) */}
+        <main className="flex-1 flex flex-col min-w-0 min-h-0 px-4 py-4">
+          <p className="text-gray-400 text-sm mb-3">{currentSection.description}</p>
+
+          {error && (
+            <div className="mb-3 p-3 rounded-lg bg-red-900/20 border border-red-500/50 text-red-200 text-sm">
+              {error}
             </div>
           )}
-        </section>
 
-        {/* Informe 2: Paletas */}
-        <section className="space-y-4">
-          <h2 className="text-xl font-semibold text-white">Paletas guardadas</h2>
-          <p className="text-gray-400 text-sm">
-            Todas las paletas guardadas en la base de datos (nombre, colores, fecha).
-          </p>
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap items-center gap-2 mb-3">
             <button
               type="button"
-              onClick={handlePreviewPalettes}
-              disabled={palettesLoading}
+              onClick={loadSection}
+              disabled={currentLoading}
               className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium transition-colors"
             >
-              {palettesLoading ? 'Cargando…' : 'Previsualizar'}
+              {currentLoading ? 'Cargando…' : 'Previsualizar'}
             </button>
-            {palettesData != null && (
-              <button
-                type="button"
-                onClick={downloadPalettesExcel}
-                disabled={palettesData.length === 0}
-                className="px-4 py-2 rounded-lg border border-gray-600 hover:bg-gray-800 disabled:opacity-50 text-gray-300 text-sm transition-colors"
-              >
-                Descargar Excel
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={section === 'demographics' ? downloadDemographicsExcel : downloadPalettesExcel}
+              disabled={!canDownload}
+              className="px-4 py-2 rounded-lg border border-gray-600 hover:bg-gray-800 disabled:opacity-50 text-gray-300 text-sm transition-colors"
+            >
+              Descargar Excel
+            </button>
+            <label className="flex items-center gap-2 ml-4 cursor-pointer text-sm text-gray-400 hover:text-gray-300">
+              <input
+                type="checkbox"
+                checked={splitView}
+                onChange={(e) => setSplitView(e.target.checked)}
+                className="rounded border-gray-600 bg-gray-800 text-indigo-500 focus:ring-indigo-500"
+              />
+              <LayoutGrid className="w-4 h-4" />
+              Vista con gráficos
+            </label>
           </div>
-          {palettesData != null && (
-            <div className="mt-4">
-              <PreviewTable rows={palettesData} columns={PALETTES_COLUMNS} rowKey="id" />
+
+          {!splitView ? (
+            <div className="flex-1 min-h-0 overflow-auto">
+              {section === 'demographics' && demographicsData != null && (
+                <PreviewTable
+                  rows={demographicsData}
+                  columns={DEMOGRAPHICS_COLUMNS}
+                  rowKey="user_id"
+                  className="h-full min-h-[200px]"
+                />
+              )}
+              {section === 'palettes' && palettesData != null && (
+                <PreviewTable
+                  rows={palettesData}
+                  columns={PALETTES_COLUMNS}
+                  rowKey="id"
+                  className="h-full min-h-[200px]"
+                />
+              )}
+              {currentData == null && !currentLoading && (
+                <p className="text-gray-500 text-sm py-8">Pulsa Previsualizar para cargar los datos.</p>
+              )}
+            </div>
+          ) : (
+            <div className="flex-1 flex flex-col min-h-0 gap-3">
+              <div className="flex-1 min-h-0 flex flex-col">
+                <span className="text-xs text-gray-500 mb-1">Tabla</span>
+                <div className="flex-1 min-h-0 overflow-hidden rounded-lg border border-gray-700">
+                  {section === 'demographics' && demographicsData != null && (
+                    <PreviewTable
+                      rows={demographicsData}
+                      columns={DEMOGRAPHICS_COLUMNS}
+                      rowKey="user_id"
+                      className="h-full min-h-[120px]"
+                    />
+                  )}
+                  {section === 'palettes' && palettesData != null && (
+                    <PreviewTable
+                      rows={palettesData}
+                      columns={PALETTES_COLUMNS}
+                      rowKey="id"
+                      className="h-full min-h-[120px]"
+                    />
+                  )}
+                  {currentData == null && !currentLoading && (
+                    <p className="text-gray-500 text-sm py-6 px-2">Pulsa Previsualizar para cargar los datos.</p>
+                  )}
+                </div>
+              </div>
+              <div className="flex-1 min-h-0 flex flex-col rounded-lg border border-gray-700 bg-gray-900/30 p-4 overflow-auto">
+                <span className="text-xs text-gray-500 mb-2">Análisis estadístico</span>
+                {section === 'demographics' && demographicsData && demographicsData.length > 0 && (
+                  <DemographicsAgeChart data={demographicsData} />
+                )}
+                {section === 'palettes' && (
+                  <p className="text-gray-500 text-sm">Gráficos de paletas (próximamente).</p>
+                )}
+                {currentData == null && (
+                  <p className="text-gray-500 text-sm">Carga datos para ver gráficos.</p>
+                )}
+              </div>
             </div>
           )}
-        </section>
 
-        <p className="text-gray-500 text-xs">
-          Si falta algún informe, despliega las Edge Functions <code className="bg-gray-800 px-1 rounded">export-research-data</code> y <code className="bg-gray-800 px-1 rounded">export-research-demographics</code> y crea la tabla <code className="bg-gray-800 px-1 rounded">research_demographics</code> con <code className="bg-gray-800 px-1 rounded">docs/supabase-research-demographics.sql</code>.
-        </p>
-      </main>
+          <p className="mt-4 text-gray-500 text-xs">
+            Si falta algún informe, despliega las Edge Functions <code className="bg-gray-800 px-1 rounded">export-research-data</code> y <code className="bg-gray-800 px-1 rounded">export-research-demographics</code> y crea la tabla <code className="bg-gray-800 px-1 rounded">research_demographics</code> con <code className="bg-gray-800 px-1 rounded">docs/supabase-research-demographics.sql</code>.
+          </p>
+        </main>
+      </div>
     </div>
   );
 }
