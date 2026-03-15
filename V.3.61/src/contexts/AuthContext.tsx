@@ -74,30 +74,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
+    } =     supabase.auth.onAuthStateChange((event, session) => {
       const isRecovery =
         event === 'PASSWORD_RECOVERY' ||
         (typeof window !== 'undefined' && session != null && window.location.hash.includes('type=recovery'));
-      setState((s) => ({
-        ...s,
-        user: session?.user ?? null,
-        session,
-        profile: null,
-        loading: false,
-        needsPasswordUpdate: isRecovery ? true : s.needsPasswordUpdate,
-      }));
+      setState((s) => {
+        const newUserId = session?.user?.id ?? null;
+        const sameUser = newUserId !== null && newUserId === s.user?.id;
+        return {
+          ...s,
+          user: session?.user ?? null,
+          session,
+          profile: sameUser ? s.profile : null,
+          loading: false,
+          needsPasswordUpdate: isRecovery ? true : s.needsPasswordUpdate,
+        };
+      });
     });
     supabase.auth.getSession().then(({ data: { session } }) => {
       const hashHasRecovery =
         typeof window !== 'undefined' && window.location.hash.includes('type=recovery');
-      setState((s) => ({
-        ...s,
-        user: session?.user ?? null,
-        session,
-        profile: null,
-        loading: false,
-        needsPasswordUpdate: hashHasRecovery ? true : s.needsPasswordUpdate,
-      }));
+      setState((s) => {
+        const newUserId = session?.user?.id ?? null;
+        const sameUser = newUserId !== null && newUserId === s.user?.id;
+        return {
+          ...s,
+          user: session?.user ?? null,
+          session,
+          profile: sameUser ? s.profile : null,
+          loading: false,
+          needsPasswordUpdate: hashHasRecovery ? true : s.needsPasswordUpdate,
+        };
+      });
     });
     return () => subscription.unsubscribe();
   }, []);
