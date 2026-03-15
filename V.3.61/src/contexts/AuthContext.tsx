@@ -220,10 +220,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       const userId = data?.user?.id;
       if (updates.full_name !== undefined && userId) {
-        await supabase.from('profiles').upsert(
+        const { error: profileError } = await supabase.from('profiles').upsert(
           { id: userId, full_name: updates.full_name.trim() || null, updated_at: new Date().toISOString() },
           { onConflict: 'id' }
         );
+        if (profileError) {
+          const msg =
+            profileError.code === '42P01'
+              ? 'Falta la tabla "profiles" en Supabase. Ejecuta docs/supabase-profiles.sql en el SQL Editor.'
+              : profileError.message;
+          setState((s) => ({ ...s, error: msg }));
+          return { error: msg };
+        }
         const profile = await fetchProfile(userId);
         setState((s) => ({ ...s, error: null, user: data?.user ?? s.user, profile }));
       } else {

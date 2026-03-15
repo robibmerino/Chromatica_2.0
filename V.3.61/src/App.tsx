@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { AuthProvider } from './contexts/AuthContext';
 import { ResearchProvider } from './contexts/ResearchContext';
-import { MainView } from './components/MainView';
+import { ResearchGateOrMainView } from './components/ResearchGateOrMainView';
 import { AuthPage } from './components/AuthPage';
 import { SplashScreen } from './components/SplashScreen';
 import { SetNewPasswordOverlay } from './components/SetNewPasswordOverlay';
@@ -51,7 +51,7 @@ export function App() {
           ) : showAuthView ? (
             <AuthPage key="auth" onBack={closeAuth} />
           ) : (
-            <MainView key="app" onOpenAuth={openAuth} />
+            <ResearchGateOrMainView key="app" onOpenAuth={openAuth} />
           )}
         </AnimatePresence>
       </ResearchProvider>
