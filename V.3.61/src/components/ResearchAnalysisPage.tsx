@@ -300,6 +300,57 @@ function FrequencyTable({ rows, title, dense }: { rows: FreqRow[]; title?: strin
   );
 }
 
+/** Colores para segmentos del donut (evitar solo indigo). */
+const DONUT_COLORS = [
+  '#6366f1', // indigo-500
+  '#8b5cf6', // violet-500
+  '#06b6d4', // cyan-500
+  '#10b981', // emerald-500
+  '#f59e0b', // amber-500
+  '#ec4899', // pink-500
+  '#84cc16', // lime-500
+  '#f97316', // orange-500
+];
+
+/** Gráfico donut (porcentajes) con leyenda. */
+function FreqDonutChart({ rows }: { rows: FreqRow[] }) {
+  const total = rows.reduce((s, r) => s + r.pct, 0) || 100;
+  const gradientStops = rows.reduce<{ deg: number; color: string }[]>((acc, r, i) => {
+    const prevDeg = acc.length ? acc[acc.length - 1].deg : 0;
+    acc.push({ deg: prevDeg + (r.pct / total) * 360, color: DONUT_COLORS[i % DONUT_COLORS.length] });
+    return acc;
+  }, []);
+  const conicValue =
+    gradientStops.length === 0
+      ? 'gray'
+      : gradientStops.map((s, i) => {
+          const prev = i === 0 ? 0 : gradientStops[i - 1].deg;
+          return `${s.color} ${prev}deg ${s.deg}deg`;
+        }).join(', ');
+  return (
+    <div className="flex flex-col items-center gap-3">
+      <div
+        className="w-32 h-32 rounded-full border-4 border-gray-800 shrink-0"
+        style={{ background: `conic-gradient(from 0deg, ${conicValue})` }}
+        aria-hidden
+      />
+      <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs">
+        {rows.map(({ label, n, pct }, i) => (
+          <div key={label} className="flex items-center gap-1.5">
+            <span
+              className="w-2.5 h-2.5 rounded-full shrink-0"
+              style={{ backgroundColor: DONUT_COLORS[i % DONUT_COLORS.length] }}
+            />
+            <span className="text-gray-400 truncate max-w-[100px]" title={label}>{label}</span>
+            <span className="text-gray-500">{n}</span>
+            <span className="text-gray-600">({pct.toFixed(0)}%)</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /** Barras horizontales a partir de FreqRow[] (incluye n y %, sin tabla duplicada). */
 function FreqBarChart({ rows, maxBar = 100 }: { rows: FreqRow[]; maxBar?: number }) {
   const max = Math.max(1, ...rows.map((r) => r.n));
@@ -324,47 +375,54 @@ function FreqBarChart({ rows, maxBar = 100 }: { rows: FreqRow[]; maxBar?: number
   );
 }
 
-/** Edad: solo gráfico de barras (n y % ya en barras). */
+/** Contenedor centrado: donut + barras para secciones Edad/Género/Área/UPV. */
+function DemographicsUnivariateCharts({ rows, emptyMessage }: { rows: FreqRow[]; emptyMessage: string }) {
+  if (rows.length === 0) return <p className="text-gray-500 text-sm py-2">{emptyMessage}</p>;
+  return (
+    <div className="flex flex-col items-center justify-center w-full py-4">
+      <div className="flex flex-wrap items-center justify-center gap-10">
+        <FreqDonutChart rows={rows} />
+        <FreqBarChart rows={rows} />
+      </div>
+    </div>
+  );
+}
+
+/** Edad: donut + barras, centrado. */
 function DemographicsAgeChart({ data }: { data: DemographicsRow[] }) {
   const rows = useMemo(
     () => getFrequencyCounts(data, (r) => r.age_range?.trim() ?? '', AGE_RANGE_ORDER),
     [data]
   );
-  if (rows.length === 0) {
-    return <p className="text-gray-500 text-sm py-2">Carga sociodemográficas para ver la distribución.</p>;
-  }
-  return <FreqBarChart rows={rows} />;
+  return <DemographicsUnivariateCharts rows={rows} emptyMessage="Carga sociodemográficas para ver la distribución." />;
 }
 
-/** Género: solo gráfico de barras. */
+/** Género: donut + barras, centrado. */
 function DemographicsGenderChart({ data }: { data: DemographicsRow[] }) {
   const rows = useMemo(() => {
     const raw = getFrequencyCounts(data, (r) => r.gender ?? '');
     return raw.map((r) => ({ ...r, label: labelGender(r.label) }));
   }, [data]);
-  if (rows.length === 0) return <p className="text-gray-500 text-sm py-2">Sin datos de género.</p>;
-  return <FreqBarChart rows={rows} />;
+  return <DemographicsUnivariateCharts rows={rows} emptyMessage="Sin datos de género." />;
 }
 
-/** Área diseño: solo gráfico de barras. */
+/** Área diseño: donut + barras, centrado. */
 function DemographicsCareerChart({ data }: { data: DemographicsRow[] }) {
   const rows = useMemo(() => {
     const raw = getFrequencyCounts(data, (r) => r.design_career ?? '');
     return raw.map((r) => ({ ...r, label: labelCareer(r.label) }));
   }, [data]);
-  if (rows.length === 0) return <p className="text-gray-500 text-sm py-2">Sin datos de área.</p>;
-  return <FreqBarChart rows={rows} />;
+  return <DemographicsUnivariateCharts rows={rows} emptyMessage="Sin datos de área." />;
 }
 
-/** Estudiante UPV: solo gráfico de barras. */
+/** Estudiante UPV: donut + barras, centrado. */
 function DemographicsUpvChart({ data }: { data: DemographicsRow[] }) {
   const rows = useMemo(
     () =>
       getFrequencyCounts(data, (r) => (r.is_upv_student === true ? 'Sí' : r.is_upv_student === false ? 'No' : 'Sin indicar'), ['Sí', 'No', 'Sin indicar']),
     [data]
   );
-  if (rows.length === 0) return <p className="text-gray-500 text-sm py-2">Sin datos.</p>;
-  return <FreqBarChart rows={rows} />;
+  return <DemographicsUnivariateCharts rows={rows} emptyMessage="Sin datos." />;
 }
 
 /** Resumen de la muestra: N total + tablas en grid 2 columnas (más corto y fácil de leer). */
