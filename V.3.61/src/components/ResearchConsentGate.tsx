@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import { useResearch } from '../contexts/ResearchContext';
 import ChromaticaLogo from './ChromaticaLogo';
 import { ParticleBackground } from './ParticleBackground';
@@ -40,6 +41,7 @@ const DESIGN_CAREERS = [
  * SyncDemographics enviará los datos a research_demographics cuando haya sesión.
  */
 export function ResearchConsentGate() {
+  const { signOut } = useAuth();
   const { acceptConsent, declineConsent } = useResearch();
   const [researchParticipate, setResearchParticipate] = useState(false);
   const [researchAge, setResearchAge] = useState('');
@@ -51,7 +53,8 @@ export function ResearchConsentGate() {
 
   const handleDecline = useCallback(() => {
     declineConsent();
-  }, [declineConsent]);
+    signOut();
+  }, [declineConsent, signOut]);
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -180,7 +183,7 @@ export function ResearchConsentGate() {
                 disabled={submitting}
                 className="w-full py-2.5 rounded-lg border border-gray-600 text-gray-400 hover:text-white hover:border-gray-500 transition-colors text-sm"
               >
-                No, gracias
+                No iniciar sesión
               </button>
             </div>
           </form>
