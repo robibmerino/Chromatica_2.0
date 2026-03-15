@@ -224,41 +224,48 @@ function PreviewTable<T extends Record<string, unknown>>({
   columns,
   rowKey,
   className,
+  embedded,
 }: {
   rows: T[];
   columns: { key: keyof T; label: string }[];
   rowKey?: keyof T;
   className?: string;
+  /** Si true, no envuelve en div con overflow (para usar dentro de un contenedor con scroll y cabecera fija). */
+  embedded?: boolean;
 }) {
   if (rows.length === 0) {
     return (
       <p className="text-gray-500 text-sm py-4 px-2">No hay filas para mostrar.</p>
     );
   }
-  return (
-    <div className={`overflow-auto rounded-lg border border-gray-700 bg-gray-900/30 ${className ?? ''}`}>
-      <table className="w-full min-w-max text-sm text-left">
-        <thead className="bg-gray-800/80 text-gray-300 sticky top-0 z-10">
-          <tr>
+  const table = (
+    <table className="w-full min-w-max text-sm text-left">
+      <thead className="bg-gray-800/80 text-gray-300 sticky top-0 z-10">
+        <tr>
+          {columns.map((col) => (
+            <th key={String(col.key)} className="px-3 py-2 font-medium whitespace-nowrap">
+              {col.label}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-gray-700">
+        {rows.map((row, i) => (
+          <tr key={rowKey && row[rowKey] != null ? String(row[rowKey]) : i} className="hover:bg-gray-800/50">
             {columns.map((col) => (
-              <th key={String(col.key)} className="px-3 py-2 font-medium whitespace-nowrap">
-                {col.label}
-              </th>
+              <td key={String(col.key)} className="px-3 py-2 text-gray-300 whitespace-nowrap max-w-[200px] truncate">
+                {row[col.key] != null ? String(row[col.key]) : '—'}
+              </td>
             ))}
           </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-700">
-          {rows.map((row, i) => (
-            <tr key={rowKey && row[rowKey] != null ? String(row[rowKey]) : i} className="hover:bg-gray-800/50">
-              {columns.map((col) => (
-                <td key={String(col.key)} className="px-3 py-2 text-gray-300 whitespace-nowrap max-w-[200px] truncate">
-                  {row[col.key] != null ? String(row[col.key]) : '—'}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+        ))}
+      </tbody>
+    </table>
+  );
+  if (embedded) return <div className={className ?? ''}>{table}</div>;
+  return (
+    <div className={`overflow-auto rounded-lg border border-gray-700 bg-gray-900/30 ${className ?? ''}`}>
+      {table}
     </div>
   );
 }
@@ -717,7 +724,11 @@ export function ResearchAnalysisPage({ onBack }: ResearchAnalysisPageProps) {
             )}
           </div>
 
-          <div className="flex-1 min-h-0 overflow-auto">
+          <div
+            className={
+              splitView ? 'flex-1 min-h-0 overflow-hidden flex flex-col' : 'flex-1 min-h-0 overflow-auto'
+            }
+          >
             {!splitView ? (
               <>
                 {section === 'demographics' && demographicsData != null && (
@@ -741,16 +752,20 @@ export function ResearchAnalysisPage({ onBack }: ResearchAnalysisPageProps) {
                 )}
               </>
             ) : (
-              <div className="flex flex-col gap-3 pb-2">
-                <div>
-                  <span className="text-xs text-gray-500 mb-1 block">Tabla</span>
-                  <div className="rounded-lg border border-gray-700 overflow-hidden max-h-[35vh] overflow-auto">
+              <div className="flex flex-col flex-1 min-h-0 gap-0">
+                {/* Sección superior: tabla fija a ~3 filas visibles, scroll interno */}
+                <div className="shrink-0 flex flex-col rounded-t-lg border border-gray-700 border-b-0 overflow-hidden">
+                  <div className="shrink-0 bg-gray-800/60 px-2 py-1.5 border-b border-gray-700">
+                    <span className="text-xs font-medium text-gray-400">Tabla</span>
+                  </div>
+                  <div className="h-[10rem] overflow-auto bg-gray-900/20">
                     {section === 'demographics' && demographicsData != null && (
                       <PreviewTable
                         rows={sortedDemographicsRows}
                         columns={DEMOGRAPHICS_COLUMNS}
                         rowKey="user_id"
-                        className="min-h-[120px]"
+                        className="min-h-0"
+                        embedded
                       />
                     )}
                     {section === 'palettes' && palettesData != null && (
@@ -758,19 +773,21 @@ export function ResearchAnalysisPage({ onBack }: ResearchAnalysisPageProps) {
                         rows={sortedPalettesRows}
                         columns={PALETTES_COLUMNS}
                         rowKey="id"
-                        className="min-h-[120px]"
+                        className="min-h-0"
+                        embedded
                       />
                     )}
                     {currentData == null && !currentLoading && (
-                      <p className="text-gray-500 text-sm py-6 px-2">Pulsa Previsualizar para cargar los datos.</p>
+                      <p className="text-gray-500 text-sm py-4 px-2">Pulsa Previsualizar para cargar los datos.</p>
                     )}
                   </div>
                 </div>
-                <div className="rounded-lg border border-gray-700 bg-gray-900/30 p-3 shrink-0">
-                  <span className="text-xs text-gray-500 mb-1.5 block">Análisis estadístico</span>
-                  {section === 'demographics' && demographicsData && demographicsData.length > 0 && (
-                    <>
-                      <div className="flex flex-wrap gap-1 mb-2 border-b border-gray-700 pb-1.5">
+                {/* Sección inferior: Análisis estadístico, ocupa el resto, scroll interno */}
+                <div className="flex-1 min-h-0 flex flex-col rounded-b-lg border border-gray-700 overflow-hidden bg-gray-900/30">
+                  <div className="shrink-0 px-3 pt-2 pb-1.5 border-b border-gray-700 bg-gray-900/50">
+                    <span className="text-xs font-medium text-gray-400 block mb-1.5">Análisis estadístico</span>
+                    {section === 'demographics' && demographicsData && demographicsData.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
                         {(
                           [
                             { id: 'summary' as const, label: 'Resumen' },
@@ -795,7 +812,11 @@ export function ResearchAnalysisPage({ onBack }: ResearchAnalysisPageProps) {
                           </button>
                         ))}
                       </div>
-                      <div className="min-h-0">
+                    )}
+                  </div>
+                  <div className="flex-1 min-h-0 overflow-auto p-3">
+                    {section === 'demographics' && demographicsData && demographicsData.length > 0 && (
+                      <>
                         {demographicsAnalysisTab === 'summary' && <SampleSummary data={demographicsData} />}
                         {demographicsAnalysisTab === 'age' && <DemographicsAgeChart data={demographicsData} />}
                         {demographicsAnalysisTab === 'gender' && <DemographicsGenderChart data={demographicsData} />}
@@ -824,26 +845,17 @@ export function ResearchAnalysisPage({ onBack }: ResearchAnalysisPageProps) {
                             />
                           </div>
                         )}
-                      </div>
-                    </>
-                  )}
-                  {section === 'palettes' && (
-                    <p className="text-gray-500 text-sm">Gráficos de paletas (próximamente).</p>
-                  )}
-                  {currentData == null && (
-                    <p className="text-gray-500 text-sm">Carga datos para ver gráficos.</p>
-                  )}
+                      </>
+                    )}
+                    {section === 'palettes' && (
+                      <p className="text-gray-500 text-sm">Gráficos de paletas (próximamente).</p>
+                    )}
+                    {currentData == null && (
+                      <p className="text-gray-500 text-sm">Carga datos para ver gráficos.</p>
+                    )}
+                  </div>
                 </div>
-                <p className="text-gray-500 text-xs mt-1 shrink-0">
-                  Si falta algún informe, despliega las Edge Functions <code className="bg-gray-800 px-1 rounded">export-research-data</code> y <code className="bg-gray-800 px-1 rounded">export-research-demographics</code> y crea la tabla <code className="bg-gray-800 px-1 rounded">research_demographics</code> con <code className="bg-gray-800 px-1 rounded">docs/supabase-research-demographics.sql</code>.
-                </p>
               </div>
-            )}
-
-            {!splitView && (
-              <p className="mt-4 text-gray-500 text-xs shrink-0">
-                Si falta algún informe, despliega las Edge Functions <code className="bg-gray-800 px-1 rounded">export-research-data</code> y <code className="bg-gray-800 px-1 rounded">export-research-demographics</code> y crea la tabla <code className="bg-gray-800 px-1 rounded">research_demographics</code> con <code className="bg-gray-800 px-1 rounded">docs/supabase-research-demographics.sql</code>.
-              </p>
             )}
           </div>
         </main>
