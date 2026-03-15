@@ -1,6 +1,8 @@
 import { useState, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useResearch } from '../contexts/ResearchContext';
+import { getSupabaseConfig } from '../lib/env';
+import { deleteUserAfterDecline } from '../lib/deleteUserAfterDecline';
 import ChromaticaLogo from './ChromaticaLogo';
 import { ParticleBackground } from './ParticleBackground';
 
@@ -41,7 +43,7 @@ const DESIGN_CAREERS = [
  * SyncDemographics enviará los datos a research_demographics cuando haya sesión.
  */
 export function ResearchConsentGate() {
-  const { signOut } = useAuth();
+  const { session, signOut } = useAuth();
   const { acceptConsent, declineConsent } = useResearch();
   const [researchParticipate, setResearchParticipate] = useState(false);
   const [researchAge, setResearchAge] = useState('');
@@ -51,10 +53,22 @@ export function ResearchConsentGate() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleDecline = useCallback(() => {
+  const handleDecline = useCallback(async () => {
+    setSubmitting(true);
+    setError(null);
+    const config = getSupabaseConfig();
+    if (config?.url && session?.access_token) {
+      const { error: err } = await deleteUserAfterDecline(config.url, session.access_token);
+      if (err) {
+        setError(err);
+        setSubmitting(false);
+        return;
+      }
+    }
     declineConsent();
-    signOut();
-  }, [declineConsent, signOut]);
+    await signOut();
+    setSubmitting(false);
+  }, [session?.access_token, declineConsent, signOut]);
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
