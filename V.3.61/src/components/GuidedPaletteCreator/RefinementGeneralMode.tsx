@@ -8,7 +8,7 @@ interface RefinementGeneralModeProps {
   sliderReference: ColorItem[];
   setColors: (colors: ColorItem[] | ((prev: ColorItem[]) => ColorItem[])) => void;
   setSliderReference: (colors: ColorItem[]) => void;
-  saveToHistory: (colors: ColorItem[]) => void;
+  saveToHistory: (colors: ColorItem[], changeDescription?: string) => void;
   adjustPaletteSaturation: (amount: number) => void;
   adjustPaletteLightness: (amount: number) => void;
   adjustPaletteHue: (amount: number) => void;
@@ -83,7 +83,7 @@ export function RefinementGeneralMode({
                 return { ...c, hex: hslToHex((hsl.h + rotation + 360) % 360, hsl.s, hsl.l) };
               });
               setColors(finalColors);
-              saveToHistory(finalColors);
+              saveToHistory(finalColors, 'Tono');
               setSliderReference(finalColors);
             }}
             onTouchStart={() => {
@@ -99,7 +99,7 @@ export function RefinementGeneralMode({
                 return { ...c, hex: hslToHex((hsl.h + rotation + 360) % 360, hsl.s, hsl.l) };
               });
               setColors(finalColors);
-              saveToHistory(finalColors);
+              saveToHistory(finalColors, 'Tono');
               setSliderReference(finalColors);
             }}
             className="w-full h-2 rounded-full appearance-none cursor-pointer"
@@ -144,7 +144,7 @@ export function RefinementGeneralMode({
                 return { ...c, hex: hslToHex(hsl.h, newS, hsl.l) };
               });
               setColors(finalColors);
-              saveToHistory(finalColors);
+              saveToHistory(finalColors, 'Saturación');
               setSliderReference(finalColors);
             }}
             onTouchStart={() => {
@@ -161,7 +161,7 @@ export function RefinementGeneralMode({
                 return { ...c, hex: hslToHex(hsl.h, newS, hsl.l) };
               });
               setColors(finalColors);
-              saveToHistory(finalColors);
+              saveToHistory(finalColors, 'Saturación');
               setSliderReference(finalColors);
             }}
             className="w-full h-2 rounded-full appearance-none cursor-pointer"
@@ -206,7 +206,7 @@ export function RefinementGeneralMode({
                 return { ...c, hex: hslToHex(hsl.h, hsl.s, newL) };
               });
               setColors(finalColors);
-              saveToHistory(finalColors);
+              saveToHistory(finalColors, 'Luminosidad');
               setSliderReference(finalColors);
             }}
             onTouchStart={() => {
@@ -223,7 +223,7 @@ export function RefinementGeneralMode({
                 return { ...c, hex: hslToHex(hsl.h, hsl.s, newL) };
               });
               setColors(finalColors);
-              saveToHistory(finalColors);
+              saveToHistory(finalColors, 'Luminosidad');
               setSliderReference(finalColors);
             }}
             className="w-full h-2 rounded-full appearance-none cursor-pointer"

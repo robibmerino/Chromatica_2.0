@@ -42,16 +42,18 @@ interface RefinementPhaseProps {
   originalPalette: ColorItem[];
   historyIndex: number;
   historyLength: number;
+  canUndo: boolean;
+  canRedo: boolean;
   sliderReference: ColorItem[];
   selectedColor: ColorItem | null;
   setColors: (colors: ColorItem[] | ((prev: ColorItem[]) => ColorItem[])) => void;
   setSelectedColorIndex: (index: number | null) => void;
   setSliderReference: (colors: ColorItem[]) => void;
-  saveToHistory: (colors: ColorItem[]) => void;
+  saveToHistory: (colors: ColorItem[], changeDescription?: string) => void;
   showNotification: (msg: string) => void;
   undo: () => void;
   redo: () => void;
-  updateColor: (id: string, hex: string) => void;
+  updateColor: (id: string, hex: string, options?: { saveToHistory?: boolean; description?: string }) => void;
   addColor: () => void;
   removeColorAt: (index: number) => void;
   adjustPaletteSaturation: (amount: number) => void;
@@ -78,6 +80,8 @@ interface RefinementPhaseProps {
   /** Sección anclada: las acciones no se deshacen desde otras secciones. */
   lockPinned?: boolean;
   onLockToggle?: () => void;
+  /** Abrir modal de historial de cambios. */
+  onOpenHistory?: () => void;
 }
 
 function RefinementPhaseInner({
@@ -87,6 +91,8 @@ function RefinementPhaseInner({
   originalPalette,
   historyIndex,
   historyLength,
+  canUndo,
+  canRedo,
   sliderReference,
   selectedColor,
   setColors,
@@ -118,12 +124,13 @@ function RefinementPhaseInner({
   onSavePalette,
   lockPinned = false,
   onLockToggle,
+  onOpenHistory,
 }: RefinementPhaseProps) {
   const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
   const iconAccent = getRefinementIconAccent(inspirationMode);
   const handleRestore = () => {
     setColors([...originalPalette]);
-    saveToHistory([...originalPalette]);
+    saveToHistory([...originalPalette], 'Restablecer');
     resetAllSupportOverrides();
     setRefinementGeneralSliders({ tone: 0, sat: 0, light: 0 });
     showNotification(COPY.notifications.paletteRestored);
@@ -145,12 +152,14 @@ function RefinementPhaseInner({
           onPrimaryClick={goNext}
           onUndo={undo}
           onRedo={redo}
-          undoDisabled={historyIndex <= 0}
-          redoDisabled={historyIndex >= historyLength - 1}
+          undoDisabled={!canUndo}
+          redoDisabled={!canRedo}
           savePaletteLabel={COPY.nav.savePalette}
           onSavePalette={onSavePalette}
           lockPinned={lockPinned}
           onLockToggle={onLockToggle}
+          lockTooltipSectionName="Refinar"
+          onOpenHistory={onOpenHistory}
         />
       }
       footer={null}
@@ -223,7 +232,7 @@ function RefinementPhaseInner({
               values={colors}
               onReorder={(newOrder) => {
                 setColors(newOrder);
-                setTimeout(() => saveToHistory(newOrder), 100);
+                setTimeout(() => saveToHistory(newOrder, 'Orden'), 100);
               }}
               className="h-12 rounded-xl overflow-hidden flex shadow-lg"
             >

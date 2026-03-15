@@ -13,11 +13,13 @@ export interface SupportColorItem {
 export interface ApplicationShowcaseProps {
   colors: string[];
   paletteName?: string;
-  onUpdateColors?: (newColors: string[]) => void;
+  onUpdateColors?: (newColors: string[], changeDescription?: string) => void;
   supportColorsList?: SupportColorItem[];
   supportVariant?: SupportPaletteVariant;
   setSupportVariant?: (v: SupportPaletteVariant) => void;
   updateSupportColor?: (role: string, hex: string) => void;
+  /** Restaurar paleta de apoyo al valor predeterminado (como en Refinar). */
+  resetSupportPalette?: () => void;
 }
 
 export type EditingInRightColumn =

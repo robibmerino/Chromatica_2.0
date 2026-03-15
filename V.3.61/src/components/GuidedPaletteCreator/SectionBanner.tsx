@@ -1,6 +1,7 @@
 import type React from 'react';
 import { useState } from 'react';
-import { Palette } from 'lucide-react';
+import { Save, History } from 'lucide-react';
+import { COPY } from './config/copy';
 
 /** Acentos reutilizables para el icono del banner según la sección u opción de inspiración. */
 export const SECTION_ICON_ACCENTS = {
@@ -33,10 +34,19 @@ export interface SectionBannerProps {
   /** Guardar paleta: se muestra si se pasa onSavePalette (solo si hay sesión; si no, el handler puede abrir auth). */
   savePaletteLabel?: string;
   onSavePalette?: () => void;
-  /** Candado: anclar/desanclar sección (las acciones de esta sección no se deshacen desde otras). */
+  /** Candado: fijar suelo de deshacer en esta sección (se desbloquea al salir). */
   lockPinned?: boolean;
   onLockToggle?: () => void;
+  /** Nombre de la sección actual para el tooltip del candado (ej. "Refinar", "Aplicar", "Análisis"). */
+  lockTooltipSectionName?: string;
+  /** Abrir modal de historial de cambios. Si se pasa, se muestra el botón en las opciones expandidas. */
+  onOpenHistory?: () => void;
 }
+
+const TOOLTIP_CLASS =
+  'absolute top-full left-1/2 -translate-x-1/2 mt-2 px-3 py-2 text-sm text-gray-100 bg-gray-900 border border-gray-600 rounded-lg shadow-xl whitespace-normal max-w-[220px] text-center pointer-events-none z-[100] opacity-0 group-hover:opacity-100 transition-opacity duration-150';
+const TOOLTIP_LOCK_CLASS =
+  'absolute top-full left-1/2 -translate-x-1/2 mt-2 px-3 py-2 text-sm text-gray-100 bg-gray-900 border border-gray-600 rounded-lg shadow-xl whitespace-normal min-w-[300px] max-w-[360px] w-max text-center pointer-events-none z-[100] opacity-0 group-hover:opacity-100 transition-opacity duration-150';
 
 const RESTORE_ICON = (
   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden>
@@ -82,16 +92,19 @@ export function SectionBanner({
   onSavePalette,
   lockPinned = false,
   onLockToggle,
+  lockTooltipSectionName = 'esta sección',
+  onOpenHistory,
 }: SectionBannerProps) {
   const [expanded, setExpanded] = useState(false);
 
   const hasExtraActions =
     onSavePalette != null ||
     (onUndo != null && onRedo != null) ||
-    onLockToggle != null;
+    onLockToggle != null ||
+    onOpenHistory != null;
 
   return (
-    <div className="bg-gray-700/60 rounded-2xl border border-gray-600/50 px-6 py-4 grid grid-cols-[1fr_auto_1fr] items-center gap-4">
+    <div className="relative z-20 bg-gray-700/60 rounded-2xl border border-gray-600/50 px-6 py-4 grid grid-cols-[1fr_auto_1fr] items-center gap-4 overflow-visible">
       <button
         type="button"
         onClick={onBack}
@@ -114,95 +127,122 @@ export function SectionBanner({
         </div>
       </div>
 
-      <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+      <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end overflow-visible">
         {restoreLabel && onRestore && (
-          <button
-            type="button"
-            onClick={onRestore}
-            className="px-3 py-2 rounded-lg text-sm transition-colors flex items-center gap-1.5 bg-amber-600/30 hover:bg-amber-600/50 text-amber-300"
-            title="Restaurar la paleta al estado al entrar en Refinar"
-            aria-label={restoreLabel}
-          >
-            {RESTORE_ICON}
-            <span>{restoreLabel}</span>
-          </button>
+          <div className="relative group">
+            <span className={TOOLTIP_CLASS} role="tooltip">{COPY.banner.restoreInSection}</span>
+            <button
+              type="button"
+              onClick={onRestore}
+              className="px-3 py-2 rounded-lg text-sm transition-colors flex items-center gap-1.5 bg-amber-600/30 hover:bg-amber-600/50 text-amber-300"
+              aria-label={restoreLabel}
+            >
+              {RESTORE_ICON}
+              <span>{restoreLabel}</span>
+            </button>
+          </div>
         )}
 
         {hasExtraActions && !expanded && (
-          <button
-            type="button"
-            onClick={() => setExpanded(true)}
-            className="p-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-white transition-colors"
-            title="Más opciones"
-            aria-label="Más opciones (Guardar, Deshacer, Rehacer, Anclar)"
-          >
-            {MORE_ICON}
-          </button>
+          <div className="relative group">
+            <span className={TOOLTIP_CLASS} role="tooltip">{COPY.banner.moreOptions}</span>
+            <button
+              type="button"
+              onClick={() => setExpanded(true)}
+              className="p-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-white transition-colors"
+              aria-label={COPY.banner.moreOptionsAria}
+            >
+              {MORE_ICON}
+            </button>
+          </div>
         )}
 
         {hasExtraActions && expanded && (
           <>
             {savePaletteLabel != null && onSavePalette != null && (
-              <button
-                type="button"
-                onClick={onSavePalette}
-                title={savePaletteLabel}
-                aria-label={savePaletteLabel}
-                className="relative p-2.5 rounded-xl border border-orange-500/35 bg-orange-950/50 text-orange-400 hover:border-orange-400/50 hover:bg-orange-950/70 transition-all duration-200 hover:shadow-[0_0_20px_rgba(251,146,60,0.15)]"
-              >
-                <Palette className="w-5 h-5" strokeWidth={1.5} aria-hidden />
-              </button>
-            )}
-            {onUndo != null && onRedo != null && (
-              <div className="flex gap-1" role="group" aria-label="Deshacer / Rehacer">
+              <div className="relative group">
+                <span className={TOOLTIP_CLASS} role="tooltip">{COPY.banner.savePalette}</span>
                 <button
                   type="button"
-                  onClick={onUndo}
-                  disabled={undoDisabled}
-                  className={`p-2 rounded-lg text-sm transition-colors ${
-                    !undoDisabled ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-800 text-gray-600 cursor-not-allowed'
-                  }`}
-                  title="Deshacer"
-                  aria-label="Deshacer"
+                  onClick={onSavePalette}
+                  aria-label={savePaletteLabel}
+                  className="relative p-2.5 rounded-xl border border-orange-500/35 bg-orange-950/50 text-orange-400 hover:border-orange-400/50 hover:bg-orange-950/70 transition-all duration-200 hover:shadow-[0_0_20px_rgba(251,146,60,0.15)]"
                 >
-                  <span aria-hidden>↶</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={onRedo}
-                  disabled={redoDisabled}
-                  className={`p-2 rounded-lg text-sm transition-colors ${
-                    !redoDisabled ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-800 text-gray-600 cursor-not-allowed'
-                  }`}
-                  title="Rehacer"
-                  aria-label="Rehacer"
-                >
-                  <span aria-hidden>↷</span>
+                  <Save className="w-5 h-5" strokeWidth={1.5} aria-hidden />
                 </button>
               </div>
             )}
+            {onUndo != null && onRedo != null && (
+              <div className="flex gap-1" role="group" aria-label="Deshacer / Rehacer">
+                <div className="relative group">
+                  <span className={TOOLTIP_CLASS} role="tooltip">{COPY.banner.undo}</span>
+                  <button
+                    type="button"
+                    onClick={onUndo}
+                    disabled={undoDisabled}
+                    className={`p-2 rounded-lg text-sm transition-colors ${
+                      !undoDisabled ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-800 text-gray-600 cursor-not-allowed'
+                    }`}
+                    aria-label="Deshacer"
+                  >
+                    <span aria-hidden>↶</span>
+                  </button>
+                </div>
+                <div className="relative group">
+                  <span className={TOOLTIP_CLASS} role="tooltip">{COPY.banner.redo}</span>
+                  <button
+                    type="button"
+                    onClick={onRedo}
+                    disabled={redoDisabled}
+                    className={`p-2 rounded-lg text-sm transition-colors ${
+                      !redoDisabled ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-800 text-gray-600 cursor-not-allowed'
+                    }`}
+                    aria-label="Rehacer"
+                  >
+                    <span aria-hidden>↷</span>
+                  </button>
+                </div>
+              </div>
+            )}
             {onLockToggle != null && (
+              <div className="relative group">
+                <span className={TOOLTIP_LOCK_CLASS} role="tooltip">{lockPinned ? COPY.banner.lockOn : COPY.banner.lockOff(lockTooltipSectionName)}</span>
+                <button
+                  type="button"
+                  onClick={onLockToggle}
+                  className={`p-2 rounded-lg text-sm transition-colors ${
+                    lockPinned ? 'bg-amber-600/50 hover:bg-amber-600/70 text-amber-200' : 'bg-gray-700 hover:bg-gray-600 text-white'
+                  }`}
+                  aria-label={lockPinned ? COPY.banner.lockAriaOn : COPY.banner.lockAriaOff}
+                >
+                  {lockPinned ? LOCK_CLOSED_ICON : LOCK_OPEN_ICON}
+                </button>
+              </div>
+            )}
+            {onOpenHistory != null && (
+              <div className="relative group">
+                <span className={TOOLTIP_CLASS} role="tooltip">{COPY.banner.history}</span>
+                <button
+                  type="button"
+                  onClick={onOpenHistory}
+                  className="p-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-white transition-colors"
+                  aria-label={COPY.banner.historyAria}
+                >
+                  <History className="w-4 h-4" strokeWidth={1.5} aria-hidden />
+                </button>
+              </div>
+            )}
+            <div className="relative group">
+              <span className={TOOLTIP_CLASS} role="tooltip">{COPY.banner.closeOptions}</span>
               <button
                 type="button"
-                onClick={onLockToggle}
-                className={`p-2 rounded-lg text-sm transition-colors ${
-                  lockPinned ? 'bg-amber-600/50 hover:bg-amber-600/70 text-amber-200' : 'bg-gray-700 hover:bg-gray-600 text-white'
-                }`}
-                title={lockPinned ? 'Desanclar sección (las acciones podrán deshacerse desde otras secciones)' : 'Anclar sección (las acciones no se desharán desde otras secciones)'}
-                aria-label={lockPinned ? 'Desanclar sección' : 'Anclar sección'}
+                onClick={() => setExpanded(false)}
+                className="p-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white transition-colors"
+                aria-label={COPY.banner.closeOptions}
               >
-                {lockPinned ? LOCK_CLOSED_ICON : LOCK_OPEN_ICON}
+                <span aria-hidden>−</span>
               </button>
-            )}
-            <button
-              type="button"
-              onClick={() => setExpanded(false)}
-              className="p-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white transition-colors"
-              title="Cerrar opciones"
-              aria-label="Cerrar opciones"
-            >
-              <span aria-hidden>−</span>
-            </button>
+            </div>
           </>
         )}
 

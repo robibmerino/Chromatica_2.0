@@ -4,6 +4,7 @@ import { X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useGuidedPalette } from './GuidedPaletteCreator/hooks/useGuidedPalette';
 import { SavePaletteModal } from './GuidedPaletteCreator/SavePaletteModal';
+import { PaletteHistoryModal } from './GuidedPaletteCreator/PaletteHistoryModal';
 import type { SavedFromSection } from '../types/guidedPalette';
 import type { InspirationMode } from '../types/guidedPalette';
 import type { OpenPaletteRequest } from './GuidedPaletteCreator/hooks/useGuidedPalette';
@@ -97,6 +98,7 @@ export default function GuidedPaletteCreator({
   const state = useGuidedPalette({ initialPaletteRequest, onConsumeOpenPalette });
 
   const [showSavePaletteModal, setShowSavePaletteModal] = useState(false);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [combinedPaletteModalColors, setCombinedPaletteModalColors] = useState<string[] | null>(null);
   const [showCombinedPaletteModal, setShowCombinedPaletteModal] = useState(false);
   const [combinedPaletteModalIndividuals, setCombinedPaletteModalIndividuals] = useState<
@@ -106,16 +108,6 @@ export default function GuidedPaletteCreator({
     'balanced' | 'flow-first' | 'palette-first' | 'soft-gradient' | 'custom'
   >('balanced');
   const [combinedColorCount, setCombinedColorCount] = useState<number>(4);
-  /** Candado por sección (Grupo 1: solo UI; Grupo 5: afectará al historial). */
-  const [sectionLocked, setSectionLocked] = useState<{
-    refinement: boolean;
-    application: boolean;
-    analysis: boolean;
-  }>({ refinement: false, application: false, analysis: false });
-
-  const toggleSectionLock = useCallback((section: 'refinement' | 'application' | 'analysis') => {
-    setSectionLocked((prev) => ({ ...prev, [section]: !prev[section] }));
-  }, []);
 
   const handleSavePaletteClick = useCallback(() => {
     if (!user) {
@@ -124,6 +116,10 @@ export default function GuidedPaletteCreator({
     }
     setShowSavePaletteModal(true);
   }, [user, onOpenAuth]);
+
+  useEffect(() => {
+    setShowHistoryModal(false);
+  }, [state.phase]);
 
   const saveModalSection: SavedFromSection | null =
     state.phase === 'refinement'
@@ -274,6 +270,8 @@ export default function GuidedPaletteCreator({
       originalPalette: state.originalPalette,
       historyIndex: state.historyIndex,
       historyLength: state.historyLength,
+      canUndo: state.canUndo,
+      canRedo: state.canRedo,
       sliderReference: state.sliderReference,
       selectedColor: state.selectedColor,
       setColors: state.setColors,
@@ -303,8 +301,9 @@ export default function GuidedPaletteCreator({
       goBack: state.goBack,
       goNext: state.goNext,
       onSavePalette: handleSavePaletteClick,
-      lockPinned: sectionLocked.refinement,
-      onLockToggle: () => toggleSectionLock('refinement'),
+      lockPinned: state.sectionLocked.refinement,
+      onLockToggle: () => state.toggleSectionLock('refinement'),
+      onOpenHistory: () => setShowHistoryModal(true),
     }),
     [
       state.inspirationMode,
@@ -313,6 +312,8 @@ export default function GuidedPaletteCreator({
       state.originalPalette,
       state.historyIndex,
       state.historyLength,
+      state.canUndo,
+      state.canRedo,
       state.sliderReference,
       state.selectedColor,
       state.supportColorsList,
@@ -342,8 +343,9 @@ export default function GuidedPaletteCreator({
       state.goBack,
       state.goNext,
       handleSavePaletteClick,
-      sectionLocked.refinement,
-      toggleSectionLock,
+      state.sectionLocked.refinement,
+      state.toggleSectionLock,
+      setShowHistoryModal,
     ]
   );
 
@@ -358,15 +360,17 @@ export default function GuidedPaletteCreator({
       supportVariant: state.supportVariant,
       setSupportVariant: state.setSupportVariant,
       updateSupportColor: state.updateSupportColor,
+      resetSupportPalette: state.resetSupportPalette,
       undo: state.undo,
       redo: state.redo,
-      undoDisabled: state.historyIndex <= 0,
-      redoDisabled: state.historyIndex >= state.historyLength - 1,
+      undoDisabled: !state.canUndo,
+      redoDisabled: !state.canRedo,
       hasApplicationSnapshot: state.hasApplicationSnapshot,
       onConfirmRestore: state.resetApplicationToSnapshot,
       onSavePalette: handleSavePaletteClick,
-      lockPinned: sectionLocked.application,
-      onLockToggle: () => toggleSectionLock('application'),
+      lockPinned: state.sectionLocked.application,
+      onLockToggle: () => state.toggleSectionLock('application'),
+      onOpenHistory: () => setShowHistoryModal(true),
     }),
     [
       state.colors,
@@ -381,12 +385,13 @@ export default function GuidedPaletteCreator({
       state.goNext,
       state.setSupportVariant,
       state.updateSupportColor,
+      state.resetSupportPalette,
       state.undo,
       state.redo,
       state.resetApplicationToSnapshot,
       handleSavePaletteClick,
-      sectionLocked.application,
-      toggleSectionLock,
+      state.sectionLocked.application,
+      state.toggleSectionLock,
     ]
   );
 
@@ -468,11 +473,12 @@ export default function GuidedPaletteCreator({
                   goNext={state.goNext}
                   undo={state.undo}
                   redo={state.redo}
-                  undoDisabled={state.historyIndex <= 0}
-                  redoDisabled={state.historyIndex >= state.historyLength - 1}
+                  undoDisabled={!state.canUndo}
+                  redoDisabled={!state.canRedo}
                   onSavePalette={handleSavePaletteClick}
-                  lockPinned={sectionLocked.analysis}
-                  onLockToggle={() => toggleSectionLock('analysis')}
+                  lockPinned={state.sectionLocked.analysis}
+                  onLockToggle={() => state.toggleSectionLock('analysis')}
+                  onOpenHistory={() => setShowHistoryModal(true)}
                 />
               </div>
             </Suspense>
@@ -520,6 +526,16 @@ export default function GuidedPaletteCreator({
           nextVersion={saveModalSuggestions.nextVersion}
         />
       )}
+
+      <PaletteHistoryModal
+        open={showHistoryModal}
+        onClose={() => setShowHistoryModal(false)}
+        entries={state.stateHistory ?? []}
+        currentIndex={state.historyIndex}
+        onSelectIndex={(i) => state.goToHistoryIndex(i)}
+        minSelectableIndex={state.historyMinIndex}
+        onRemoveEntry={state.removeHistoryEntry}
+      />
 
       {showCombinedPaletteModal && combinedPaletteModalColors && (
         <div

@@ -33,6 +33,7 @@ interface ApplicationPhaseProps {
   supportVariant: SupportPaletteVariant;
   setSupportVariant: (v: SupportPaletteVariant) => void;
   updateSupportColor: (role: SupportPaletteRole, hex: string) => void;
+  resetSupportPalette: () => void;
   undo: () => void;
   redo: () => void;
   undoDisabled: boolean;
@@ -42,6 +43,7 @@ interface ApplicationPhaseProps {
   onSavePalette?: () => void;
   lockPinned?: boolean;
   onLockToggle?: () => void;
+  onOpenHistory?: () => void;
 }
 
 function ApplicationPhaseInner({
@@ -54,6 +56,7 @@ function ApplicationPhaseInner({
   supportVariant,
   setSupportVariant,
   updateSupportColor,
+  resetSupportPalette,
   undo,
   redo,
   undoDisabled,
@@ -63,6 +66,7 @@ function ApplicationPhaseInner({
   onSavePalette,
   lockPinned = false,
   onLockToggle,
+  onOpenHistory,
 }: ApplicationPhaseProps) {
   const [showRestoreConfirm, setShowRestoreConfirm] = React.useState(false);
   const iconAccent = getApplicationIconAccent(inspirationMode);
@@ -93,6 +97,8 @@ function ApplicationPhaseInner({
           onSavePalette={onSavePalette}
           lockPinned={lockPinned}
           onLockToggle={onLockToggle}
+          lockTooltipSectionName="Aplicar"
+          onOpenHistory={onOpenHistory}
         />
       }
       footer={null}
@@ -127,18 +133,19 @@ function ApplicationPhaseInner({
       )}
       <ApplicationShowcase
         colors={colors.map((c) => c.hex)}
-        onUpdateColors={(newColors) => {
+        onUpdateColors={(newColors, changeDescription) => {
           const updatedColors = newColors.map((hex, i) => ({
             id: colors[i]?.id || `color-${i}`,
             hex,
             locked: colors[i]?.locked ?? false,
           }));
-          updateColorsWithHistory(updatedColors);
+          updateColorsWithHistory(updatedColors, changeDescription);
         }}
         supportColorsList={supportColorsList}
         supportVariant={supportVariant}
         setSupportVariant={setSupportVariant}
         updateSupportColor={updateSupportColor as (role: string, hex: string) => void}
+        resetSupportPalette={resetSupportPalette}
       />
     </PhaseLayout>
   );

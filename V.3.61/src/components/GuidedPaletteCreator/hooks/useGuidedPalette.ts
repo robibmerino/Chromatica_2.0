@@ -19,8 +19,16 @@ const DEFAULT_REFINEMENT_SLIDERS: RefinementGeneralSliders = { tone: 0, sat: 0, 
 /** Estado de Refinar guardado por flujo (origen de inspiración) para restaurar al volver desde Inspiración en la cadena. */
 export interface RefinementSavedState {
   colors: ColorItem[];
+  /** @deprecated Usar stateHistory/historyPointer. */
   history: ColorItem[][];
+  /** @deprecated Usar historyPointer. */
   historyIndex: number;
+  /** Historial por estados: [0] = Estado inicial. Si existe, tiene prioridad. */
+  stateHistory?: StateHistoryEntry[];
+  historyPointer?: number;
+  /** @deprecated Migración desde flujos antiguos. */
+  actionHistory?: PaletteHistoryAction[];
+  actionHistoryIndex?: number;
   originalPalette: ColorItem[];
   sliderReference: ColorItem[];
   supportOverridesByVariant: Record<SupportPaletteVariant, Partial<Record<SupportPaletteRole, string>>>;
@@ -40,17 +48,54 @@ export interface FlowSectionEdited {
   analysis: boolean;
 }
 
+/** Candado por sección: UI (si está activo el candado en esa sección). */
+export interface FlowSectionLocked {
+  refinement: boolean;
+  application: boolean;
+  analysis: boolean;
+}
+
+/** Suelo de deshacer por sección: índice del historial por debajo del cual no se puede retroceder cuando el candado está activo. null = sin candado. */
+export interface FlowSectionLockFloor {
+  refinement: number | null;
+  application: number | null;
+  analysis: number | null;
+}
+
+const DEFAULT_SECTION_LOCKED: FlowSectionLocked = {
+  refinement: false,
+  application: false,
+  analysis: false,
+};
+
+const DEFAULT_SECTION_LOCK_FLOOR: FlowSectionLockFloor = {
+  refinement: null,
+  application: null,
+  analysis: null,
+};
+
 /** Paleta común única por flujo para Refinar, Aplicar, Análisis y Guardar. Una vez activada no se borra salvo que se confirme "Usar paleta" en Inspiración. */
 export interface FlowPaletteState extends RefinementSavedState {
   editedInRefinement?: boolean;
   editedInApplication?: boolean;
   editedInAnalysis?: boolean;
+  /** Secciones con candado (UI). */
+  sectionLocked?: FlowSectionLocked;
+  /** Suelo de deshacer por sección: al activar candado se fija el índice actual; al salir de la sección se desbloquea. */
+  sectionLockFloor?: FlowSectionLockFloor;
 }
 import { buildColorPaletteFromHarmony } from '../../../types/palette';
 import { COPY } from '../config/copy';
 import { PHASES, STEPPER_STEPS } from '../config/phasesConfig';
 import { HISTORY_MAX_SIZE, NOTIFICATION_DURATION_MS, COLOR_COUNT_MAX } from '../config/refinementConstants';
 import { generateId, generateHarmoniousNewColor, hexToHsl, hslToHex } from '../../../utils/colorUtils';
+import {
+  getStateAtPosition,
+  migrateActionHistoryToStateHistory,
+  type PaletteHistoryAction,
+  type PaletteHistorySectionId,
+  type StateHistoryEntry,
+} from './paletteHistoryActions';
 
 export type SupportPaletteRole = 'fondo' | 'sobrefondo' | 'texto' | 'texto fino' | 'fondo2' | 'sobrefondo2';
 
@@ -101,6 +146,10 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
   const [showMyPalettes, setShowMyPalettes] = useState(false);
   const [analysisType, setAnalysisType] = useState<'basic' | 'scientific'>('basic');
   const [refinementMode, setRefinementMode] = useState<'color' | 'general'>('color');
+  /** Historial por estados: [0] = Estado inicial, luego cada cambio. Siempre se puede retroceder al 0. */
+  const [stateHistory, setStateHistory] = useState<StateHistoryEntry[]>([]);
+  const [historyPointer, setHistoryPointer] = useState(0);
+  /** Legacy: se rellenan al persistir/restaurar flujo para compatibilidad. */
   const [history, setHistory] = useState<ColorItem[][]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [originalPalette, setOriginalPalette] = useState<ColorItem[]>([]);
@@ -135,10 +184,12 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
     Partial<Record<InspirationMode, true>>
   >({});
   const prevPhaseRef = useRef<Phase>('inspiration-menu');
+  const historyPointerRef = useRef(historyPointer);
   const historyIndexRef = useRef(historyIndex);
   const notificationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isRestoringRefinementRef = useRef(false);
   const isRestoringApplicationRef = useRef(false);
+  historyPointerRef.current = historyPointer;
   historyIndexRef.current = historyIndex;
 
   useEffect(() => {
@@ -154,37 +205,160 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
     inspirationModesVisitedRef.current.add(mode);
   }, [phase, inspirationMode]);
 
-  const saveToHistory = useCallback((newColors: ColorItem[]) => {
-    const idx = historyIndexRef.current;
-    setHistory((prev) => {
-      const newHistory = prev.slice(0, idx + 1);
-      newHistory.push([...newColors]);
-      return newHistory.slice(-HISTORY_MAX_SIZE);
-    });
-    setHistoryIndex((prev) => Math.min(prev + 1, HISTORY_MAX_SIZE - 1));
-  }, []);
+  const getCurrentSectionId = useCallback((): PaletteHistorySectionId => {
+    if (phase === 'refinement') return 'refinement';
+    if (phase === 'application') return 'application';
+    if (phase === 'analysis') return 'analysis';
+    return 'refinement';
+  }, [phase]);
+
+  const saveToHistory = useCallback(
+    (newColors: ColorItem[], description?: string) => {
+      const idx = historyPointerRef.current;
+      const sectionId = getCurrentSectionId();
+      const entry: StateHistoryEntry = {
+        colors: newColors.map((c) => ({ ...c })),
+        sectionId,
+        ...(description != null && description !== '' ? { description } : {}),
+      };
+      setStateHistory((prev) => {
+        const next = prev.slice(0, idx + 1);
+        next.push(entry);
+        if (next.length > HISTORY_MAX_SIZE) {
+          return [next[0], ...next.slice(1).slice(-(HISTORY_MAX_SIZE - 1))];
+        }
+        return next;
+      });
+      setHistoryPointer((prev) => {
+        const next = Math.min(prev + 1, HISTORY_MAX_SIZE - 1);
+        historyPointerRef.current = next;
+        historyIndexRef.current = next;
+        return next;
+      });
+      setHistory((prev) => {
+        const next = prev.slice(0, idx + 1);
+        next.push(newColors.map((c) => ({ ...c })));
+        return next.slice(-HISTORY_MAX_SIZE);
+      });
+      setHistoryIndex((prev) => Math.min(prev + 1, HISTORY_MAX_SIZE - 1));
+    },
+    [getCurrentSectionId]
+  );
 
   const updateColorsWithHistory = useCallback(
-    (newColors: ColorItem[]) => {
+    (newColors: ColorItem[], changeDescription?: string) => {
       setColors(newColors);
-      saveToHistory(newColors);
+      saveToHistory(newColors, changeDescription);
     },
     [saveToHistory]
   );
 
+  const isInFlowSection = phase === 'refinement' || phase === 'application' || phase === 'analysis';
+
+  /**
+   * Suelo de deshacer por sección: cuando el candado está activo, no se puede retroceder a ningún
+   * estado anterior al momento en que se pulsó. Solo se puede deshacer/rehacer entre ese punto y ahora.
+   * Al desactivar (salir de la sección o pulsar candado de nuevo) el suelo se borra.
+   * Si se vuelve a activar más adelante, el suelo se fija de nuevo al índice actual (nuevo momento de bloqueo).
+   */
+  const sectionLockFloor: FlowSectionLockFloor =
+    (isInFlowSection && inspirationMode && flowPaletteStateByInspiration[inspirationMode]?.sectionLockFloor) ?? DEFAULT_SECTION_LOCK_FLOOR;
+
+  const currentSectionId = getCurrentSectionId();
+  const undoFloor = sectionLockFloor[currentSectionId] ?? 0;
+
+  const canUndo = stateHistory.length > 0 && historyPointer > undoFloor;
+  const canRedo = stateHistory.length > 0 && historyPointer < stateHistory.length - 1;
+
   const undo = useCallback(() => {
-    if (historyIndex > 0) {
-      setHistoryIndex((prev) => prev - 1);
-      setColors(history[historyIndex - 1]);
-    }
-  }, [historyIndex, history]);
+    if (!canUndo || stateHistory.length === 0) return;
+    const prevPointer = historyPointer - 1;
+    if (prevPointer < undoFloor) return;
+    const entry = stateHistory[prevPointer];
+    if (!entry?.colors.length) return;
+    setColors(entry.colors.map((c) => ({ ...c })));
+    setHistoryPointer(prevPointer);
+    setHistoryIndex(prevPointer);
+    historyPointerRef.current = prevPointer;
+    historyIndexRef.current = prevPointer;
+  }, [stateHistory, historyPointer, undoFloor, canUndo]);
 
   const redo = useCallback(() => {
-    if (historyIndex < history.length - 1) {
-      setHistoryIndex((prev) => prev + 1);
-      setColors(history[historyIndex + 1]);
-    }
-  }, [historyIndex, history]);
+    if (!canRedo || stateHistory.length === 0) return;
+    const nextPointer = historyPointer + 1;
+    const entry = stateHistory[nextPointer];
+    if (!entry?.colors.length) return;
+    setColors(entry.colors.map((c) => ({ ...c })));
+    setHistoryPointer(nextPointer);
+    setHistoryIndex(nextPointer);
+    historyPointerRef.current = nextPointer;
+    historyIndexRef.current = nextPointer;
+  }, [stateHistory, historyPointer, canRedo]);
+
+  /** Ir a un punto concreto del historial (desde el modal de historial). Respeta el suelo del candado. */
+  const goToHistoryIndex = useCallback(
+    (index: number) => {
+      if (index < 0 || index >= stateHistory.length) return;
+      if (index < undoFloor) return;
+      const entry = stateHistory[index];
+      if (!entry?.colors.length) return;
+      setColors(entry.colors.map((c) => ({ ...c })));
+      setHistoryPointer(index);
+      setHistoryIndex(index);
+      historyPointerRef.current = index;
+      historyIndexRef.current = index;
+    },
+    [stateHistory, undoFloor]
+  );
+
+  /** Elimina una entrada del historial (no se puede eliminar índice 0 = Estado inicial). Actualiza deshacer/rehacer y el suelo del candado. */
+  const removeHistoryEntry = useCallback(
+    (index: number) => {
+      if (index <= 0 || index >= stateHistory.length) return;
+      const newHistory = stateHistory.filter((_, i) => i !== index);
+      const newPointer =
+        historyPointer > index
+          ? historyPointer - 1
+          : historyPointer === index
+            ? Math.max(0, index - 1)
+            : historyPointer;
+      const clampedPointer = Math.min(newPointer, newHistory.length - 1);
+      const entry = newHistory[clampedPointer];
+      if (!entry?.colors.length) return;
+      setStateHistory(newHistory);
+      setHistoryPointer(clampedPointer);
+      setHistoryIndex(clampedPointer);
+      historyPointerRef.current = clampedPointer;
+      historyIndexRef.current = clampedPointer;
+      setColors(entry.colors.map((c) => ({ ...c })));
+      if (inspirationMode && isInFlowSection) {
+        const floor = flowPaletteStateByInspiration[inspirationMode]?.sectionLockFloor ?? DEFAULT_SECTION_LOCK_FLOOR;
+        const adjustFloor = (f: number | null): number | null => {
+          if (f === null) return null;
+          if (f > index) return f - 1;
+          if (f === index) return Math.max(0, index - 1);
+          return f;
+        };
+        const nextFloor: FlowSectionLockFloor = {
+          refinement: adjustFloor(floor.refinement),
+          application: adjustFloor(floor.application),
+          analysis: adjustFloor(floor.analysis),
+        };
+        setFlowPaletteStateByInspiration((prev) => {
+          const current = prev[inspirationMode];
+          if (!current) return prev;
+          return { ...prev, [inspirationMode]: { ...current, sectionLockFloor: nextFloor } };
+        });
+      }
+    },
+    [
+      stateHistory,
+      historyPointer,
+      inspirationMode,
+      isInFlowSection,
+      flowPaletteStateByInspiration,
+    ]
+  );
 
   const adjustPaletteSaturation = useCallback(
     (amount: number) => {
@@ -195,7 +369,7 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
         return { ...c, hex: hslToHex(hsl.h, newS, hsl.l) };
       });
       setColors(newColors);
-      saveToHistory(newColors);
+      saveToHistory(newColors, 'Saturación');
     },
     [colors, saveToHistory]
   );
@@ -209,7 +383,7 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
         return { ...c, hex: hslToHex(hsl.h, hsl.s, newL) };
       });
       setColors(newColors);
-      saveToHistory(newColors);
+      saveToHistory(newColors, 'Luminosidad');
     },
     [colors, saveToHistory]
   );
@@ -223,7 +397,7 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
         return { ...c, hex: hslToHex(newH, hsl.s, hsl.l) };
       });
       setColors(newColors);
-      saveToHistory(newColors);
+      saveToHistory(newColors, 'Armonía');
     },
     [colors, saveToHistory]
   );
@@ -265,17 +439,25 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
     setColors(colorItems);
     setHistory([[...colorItems]]);
     setHistoryIndex(0);
+    setStateHistory([
+      { colors: colorItems.map((c) => ({ ...c })), sectionId: null, description: 'Estado inicial' },
+    ]);
+    setHistoryPointer(0);
+    historyPointerRef.current = 0;
     setOriginalPalette([...colorItems]);
     setSliderReference([...colorItems]);
     setRefinementGeneralSliders(DEFAULT_REFINEMENT_SLIDERS);
     if (req.openInPhase === 'refinement') {
       setPhase('refinement');
     } else {
+      const initialColors = colorItems.map((c) => ({ ...c }));
       const flowSnapshot: FlowPaletteState = {
-        colors: colorItems.map((c) => ({ ...c })),
-        history: [[...colorItems.map((c) => ({ ...c }))]],
+        colors: initialColors,
+        history: [initialColors.map((c) => ({ ...c }))],
         historyIndex: 0,
-        originalPalette: colorItems.map((c) => ({ ...c })),
+        stateHistory: [{ colors: initialColors.map((c) => ({ ...c })), sectionId: null, description: 'Estado inicial' }],
+        historyPointer: 0,
+        originalPalette: initialColors.map((c) => ({ ...c })),
         sliderReference: colorItems.map((c) => ({ ...c })),
         supportOverridesByVariant: { claro: {}, oscuro: {} },
         supportVariant: 'claro',
@@ -304,6 +486,11 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
         setSliderReference([...colors]);
         setHistory([[...colors]]);
         setHistoryIndex(0);
+        setStateHistory([
+          { colors: colors.map((c) => ({ ...c })), sectionId: null, description: 'Estado inicial' },
+        ]);
+        setHistoryPointer(0);
+        historyPointerRef.current = 0;
         setLastRemovedColor(null);
         setSelectedColorIndex(0);
         setSelectedSupportRole(null);
@@ -407,9 +594,16 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
     setPendingInspirationComplete(null);
   }, []);
 
-  const updateColor = useCallback((id: string, hex: string) => {
-    setColors((prev) => prev.map((c) => (c.id === id ? { ...c, hex } : c)));
-  }, []);
+  const updateColor = useCallback(
+    (id: string, hex: string, options?: { saveToHistory?: boolean; description?: string }) => {
+      const next = colors.map((c) => (c.id === id ? { ...c, hex } : c));
+      setColors(next);
+      if (options?.saveToHistory) {
+        saveToHistory(next, options.description ?? 'Editar color');
+      }
+    },
+    [colors, saveToHistory]
+  );
 
   const addColor = useCallback(() => {
     if (colors.length >= COLOR_COUNT_MAX) return;
@@ -422,7 +616,7 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
         };
     const newColors = [...colors, newColor];
     setColors(newColors);
-    saveToHistory(newColors);
+    saveToHistory(newColors, 'Añadir color');
     setSelectedColorIndex(colors.length);
     setLastRemovedColor(null);
     showNotification(COPY.notifications.colorAdded);
@@ -434,7 +628,7 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
       const removed = colors[index];
       const newColors = colors.filter((_, i) => i !== index);
       setColors(newColors);
-      saveToHistory(newColors);
+      saveToHistory(newColors, 'Quitar color');
       setLastRemovedColor(removed);
       setSelectedColorIndex(
         selectedColorIndex === index
@@ -599,13 +793,17 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
   /** Restaura paleta y paletas de apoyo al estado al entrar en Aplicar. Usado al confirmar "Reiniciar" en Aplicar. */
   const resetApplicationToSnapshot = useCallback(() => {
     if (!applicationSnapshot) return;
-    setColors([...applicationSnapshot.colors]);
+    const colorsCopy = applicationSnapshot.colors.map((c) => ({ ...c }));
+    setColors(colorsCopy);
     setSupportOverridesByVariant({
       claro: { ...applicationSnapshot.supportOverridesByVariant.claro },
       oscuro: { ...applicationSnapshot.supportOverridesByVariant.oscuro },
     });
-    setHistory([[...applicationSnapshot.colors]]);
+    setHistory([colorsCopy]);
     setHistoryIndex(0);
+    setStateHistory([{ colors: colorsCopy, sectionId: null, description: 'Estado inicial' }]);
+    setHistoryPointer(0);
+    historyPointerRef.current = 0;
     setSelectedSupportRole(null);
     showNotification(COPY.application.restoreNotification);
   }, [applicationSnapshot, showNotification]);
@@ -627,7 +825,7 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
       if (!inspirationMode || colors.length === 0) return;
       const hadRefinementEdits =
         leavingPhase === 'refinement' &&
-        (historyIndex > 0 ||
+        (historyPointer > 0 ||
           Object.keys(supportOverridesByVariant.claro).length > 0 ||
           Object.keys(supportOverridesByVariant.oscuro).length > 0);
       const hadApplicationEdits =
@@ -640,7 +838,13 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
         const snapshot: FlowPaletteState = {
           colors: colors.map((c) => ({ ...c })),
           history: history.map((row) => row.map((c) => ({ ...c }))),
-          historyIndex,
+          historyIndex: historyPointer,
+          stateHistory: stateHistory.map((e) => ({
+            colors: e.colors.map((c) => ({ ...c })),
+            sectionId: e.sectionId,
+            description: e.description,
+          })),
+          historyPointer,
           originalPalette: originalPalette.map((c) => ({ ...c })),
           sliderReference: sliderReference.map((c) => ({ ...c })),
           supportOverridesByVariant: {
@@ -656,6 +860,14 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
           editedInRefinement: prev?.editedInRefinement || hadRefinementEdits || false,
           editedInApplication: prev?.editedInApplication || hadApplicationEdits || false,
           editedInAnalysis: prev?.editedInAnalysis ?? false,
+          sectionLocked: prev?.sectionLocked ?? DEFAULT_SECTION_LOCKED,
+          sectionLockFloor: (() => {
+            const floor = prev?.sectionLockFloor ?? DEFAULT_SECTION_LOCK_FLOOR;
+            if (leavingPhase === 'refinement' || leavingPhase === 'application' || leavingPhase === 'analysis') {
+              return { ...floor, [leavingPhase]: null };
+            }
+            return floor;
+          })(),
         };
         return { ...p, [inspirationMode]: snapshot };
       });
@@ -664,7 +876,8 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
       inspirationMode,
       colors,
       history,
-      historyIndex,
+      historyPointer,
+      stateHistory,
       originalPalette,
       sliderReference,
       supportOverridesByVariant,
@@ -680,15 +893,24 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
 
   const goToPhase = useCallback(
     (targetPhase: Phase) => {
+      // Al abandonar una sección del flujo (Refinar/Aplicar/Análisis), guardar estado y desbloquear el candado de esa sección
+      if (
+        inspirationMode &&
+        colors.length > 0 &&
+        (phase === 'refinement' || phase === 'application' || phase === 'analysis') &&
+        phase !== targetPhase
+      ) {
+        saveFlowPaletteState(phase);
+      }
       if (targetPhase === 'inspiration-menu') {
         setPendingInspirationComplete(null);
-        if (inspirationMode && colors.length > 0 && (phase === 'refinement' || phase === 'application' || phase === 'analysis' || phase === 'save')) {
+        if (inspirationMode && colors.length > 0 && phase === 'save') {
           saveFlowPaletteState(phase);
         }
         setInspirationMode(null);
         // No borrar inspirationDetailSavedState: así al reentrar en Armonía (u otra opción) se restaura el estado
       }
-      if (targetPhase === 'inspiration-detail' && inspirationMode && colors.length > 0 && (phase === 'refinement' || phase === 'application' || phase === 'analysis' || phase === 'save')) {
+      if (targetPhase === 'inspiration-detail' && inspirationMode && colors.length > 0 && phase === 'save') {
         saveFlowPaletteState(phase);
       }
       if (targetPhase === 'refinement' && phase === 'inspiration-detail' && inspirationMode) {
@@ -697,7 +919,25 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
           isRestoringRefinementRef.current = true;
           setColors(flowState.colors.map((c) => ({ ...c })));
           setHistory(flowState.history.map((row) => row.map((c) => ({ ...c }))));
-          setHistoryIndex(flowState.historyIndex);
+          setHistoryIndex(flowState.historyPointer ?? flowState.historyIndex ?? 0);
+          if (flowState.stateHistory != null && flowState.stateHistory.length > 0 && flowState.historyPointer != null) {
+            setStateHistory(flowState.stateHistory.map((e) => ({ colors: e.colors.map((c) => ({ ...c })), sectionId: e.sectionId, description: e.description })));
+            setHistoryPointer(Math.min(flowState.historyPointer ?? 0, flowState.stateHistory.length - 1));
+            historyPointerRef.current = Math.min(flowState.historyPointer ?? 0, flowState.stateHistory.length - 1);
+          } else if (flowState.actionHistory != null && flowState.actionHistory.length > 0) {
+            const { stateHistory: migrated, historyPointer: ptr } = migrateActionHistoryToStateHistory(
+              flowState.actionHistory,
+              flowState.actionHistoryIndex ?? -1
+            );
+            setStateHistory(migrated);
+            setHistoryPointer(ptr);
+            historyPointerRef.current = ptr;
+          } else {
+            const initial = flowState.colors.map((c) => ({ ...c }));
+            setStateHistory([{ colors: initial, sectionId: null, description: 'Estado inicial' }]);
+            setHistoryPointer(0);
+            historyPointerRef.current = 0;
+          }
           setOriginalPalette(flowState.originalPalette.map((c) => ({ ...c })));
           setSliderReference(flowState.sliderReference.map((c) => ({ ...c })));
           setSupportOverridesByVariant({
@@ -743,7 +983,25 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
         if (flowState) {
           setColors(flowState.colors.map((c) => ({ ...c })));
           setHistory(flowState.history.map((row) => row.map((c) => ({ ...c }))));
-          setHistoryIndex(flowState.historyIndex);
+          setHistoryIndex(flowState.historyPointer ?? flowState.historyIndex ?? 0);
+          if (flowState.stateHistory != null && flowState.stateHistory.length > 0 && flowState.historyPointer != null) {
+            setStateHistory(flowState.stateHistory.map((e) => ({ colors: e.colors.map((c) => ({ ...c })), sectionId: e.sectionId, description: e.description })));
+            setHistoryPointer(Math.min(flowState.historyPointer ?? 0, flowState.stateHistory.length - 1));
+            historyPointerRef.current = Math.min(flowState.historyPointer ?? 0, flowState.stateHistory.length - 1);
+          } else if (flowState.actionHistory != null && flowState.actionHistory.length > 0) {
+            const { stateHistory: migrated, historyPointer: ptr } = migrateActionHistoryToStateHistory(
+              flowState.actionHistory,
+              flowState.actionHistoryIndex ?? -1
+            );
+            setStateHistory(migrated);
+            setHistoryPointer(ptr);
+            historyPointerRef.current = ptr;
+          } else {
+            const initial = flowState.colors.map((c) => ({ ...c }));
+            setStateHistory([{ colors: initial, sectionId: null, description: 'Estado inicial' }]);
+            setHistoryPointer(0);
+            historyPointerRef.current = 0;
+          }
           setOriginalPalette(flowState.originalPalette.map((c) => ({ ...c })));
           setSliderReference(flowState.sliderReference.map((c) => ({ ...c })));
           setSupportOverridesByVariant({
@@ -944,6 +1202,79 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
         }
       : { refinement: false, application: false, analysis: false };
 
+  /** Candado por sección en el flujo actual: activo si hay suelo fijado (no se puede deshacer por debajo). */
+  const sectionLocked: FlowSectionLocked =
+    (phase === 'refinement' || phase === 'application' || phase === 'analysis') && inspirationMode
+      ? (() => {
+          const floor = flowPaletteStateByInspiration[inspirationMode]?.sectionLockFloor ?? DEFAULT_SECTION_LOCK_FLOOR;
+          return {
+            refinement: floor.refinement !== null,
+            application: floor.application !== null,
+            analysis: floor.analysis !== null,
+          };
+        })()
+      : DEFAULT_SECTION_LOCKED;
+
+  const toggleSectionLock = useCallback(
+    (section: 'refinement' | 'application' | 'analysis') => {
+      if (!inspirationMode) return;
+      const floor = flowPaletteStateByInspiration[inspirationMode]?.sectionLockFloor ?? DEFAULT_SECTION_LOCK_FLOOR;
+      const isCurrentlyLocked = floor[section] !== null;
+      // Activar: fijar suelo al índice actual (desde este momento no se puede retroceder más atrás).
+      // Desactivar: quitar suelo (null). Si se activa de nuevo más adelante, el suelo será el nuevo índice actual.
+      const nextFloor: FlowSectionLockFloor = { ...floor, [section]: isCurrentlyLocked ? null : historyPointer };
+      const nextLocked: FlowSectionLocked = { ...DEFAULT_SECTION_LOCKED, [section]: !isCurrentlyLocked };
+      setFlowPaletteStateByInspiration((prev) => {
+        const current = prev[inspirationMode];
+        if (current) {
+          return { ...prev, [inspirationMode]: { ...current, sectionLockFloor: nextFloor, sectionLocked: nextLocked } };
+        }
+        const snapshot: FlowPaletteState = {
+          colors: colors.map((c) => ({ ...c })),
+          history: history.map((row) => row.map((c) => ({ ...c }))),
+          historyIndex: historyPointer,
+          stateHistory: stateHistory.map((e) => ({ colors: e.colors.map((c) => ({ ...c })), sectionId: e.sectionId, description: e.description })),
+          historyPointer,
+          originalPalette: originalPalette.map((c) => ({ ...c })),
+          sliderReference: sliderReference.map((c) => ({ ...c })),
+          supportOverridesByVariant: {
+            claro: { ...supportOverridesByVariant.claro },
+            oscuro: { ...supportOverridesByVariant.oscuro },
+          },
+          supportVariant,
+          selectedColorIndex,
+          selectedSupportRole,
+          refinementMode,
+          lastRemovedColor: lastRemovedColor ? { ...lastRemovedColor } : null,
+          refinementGeneralSliders: { ...refinementGeneralSliders },
+          editedInRefinement: false,
+          editedInApplication: false,
+          editedInAnalysis: false,
+          sectionLockFloor: nextFloor,
+          sectionLocked: nextLocked,
+        };
+        return { ...prev, [inspirationMode]: snapshot };
+      });
+    },
+    [
+      inspirationMode,
+      flowPaletteStateByInspiration,
+      historyPointer,
+      colors,
+      history,
+      stateHistory,
+      originalPalette,
+      sliderReference,
+      supportOverridesByVariant,
+      supportVariant,
+      selectedColorIndex,
+      selectedSupportRole,
+      refinementMode,
+      lastRemovedColor,
+      refinementGeneralSliders,
+    ]
+  );
+
   return {
     phase,
     inspirationMode,
@@ -967,8 +1298,14 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
     setAnalysisType,
     refinementMode,
     setRefinementMode,
-    historyIndex,
-    historyLength: history.length,
+    historyIndex: historyPointer,
+    historyLength: stateHistory.length,
+    stateHistory,
+    historyMinIndex: undoFloor,
+    canUndo,
+    canRedo,
+    goToHistoryIndex,
+    removeHistoryEntry,
     originalPalette,
     sliderReference,
     setColors,
@@ -1022,6 +1359,8 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
     handleStartNewPalette,
     resetApplicationToSnapshot,
     hasApplicationSnapshot: applicationSnapshot !== null,
+    sectionLocked,
+    toggleSectionLock,
     inspirationDetailSavedState,
     flowActivePaletteByMode,
     handleUseCombinedPalette,

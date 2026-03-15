@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import PosterExamples from '../PosterExamples';
 import { hexToHsl, hslToHex, getContrastColor } from '../../utils/colorUtils';
 import { REFINEMENT_QUICK_ADJUSTMENTS } from './config/refinementQuickAdjustmentsConfig';
@@ -20,9 +21,9 @@ interface RefinementColorModeProps {
   selectedColor: ColorItem | null;
   setColors: (colors: ColorItem[] | ((prev: ColorItem[]) => ColorItem[])) => void;
   setSelectedColorIndex: (index: number | null) => void;
-  saveToHistory: (colors: ColorItem[]) => void;
+  saveToHistory: (colors: ColorItem[], changeDescription?: string) => void;
   showNotification: (msg: string) => void;
-  updateColor: (id: string, hex: string) => void;
+  updateColor: (id: string, hex: string, options?: { saveToHistory?: boolean; description?: string }) => void;
   addColor?: () => void;
   removeColorAt?: (index: number) => void;
   supportColorsList: SupportColorItem[];
@@ -39,19 +40,20 @@ interface RefinementColorModeProps {
 function getQuickAdjustmentAction(
   item: QuickAdjustmentItem,
   selectedColor: ColorItem,
-  updateColor: (id: string, hex: string) => void
+  updateColor: (id: string, hex: string, options?: { saveToHistory?: boolean; description?: string }) => void,
+  saveOptions?: { saveToHistory: boolean; description: string }
 ): () => void {
   const hsl = hexToHsl(selectedColor.hex);
   switch (item.type) {
     case 'complement':
       return () =>
-        updateColor(selectedColor.id, hslToHex((hsl.h + 180) % 360, hsl.s, hsl.l));
+        updateColor(selectedColor.id, hslToHex((hsl.h + 180) % 360, hsl.s, hsl.l), saveOptions);
     case 'triadic':
       return () =>
-        updateColor(selectedColor.id, hslToHex((hsl.h + 120) % 360, hsl.s, hsl.l));
+        updateColor(selectedColor.id, hslToHex((hsl.h + 120) % 360, hsl.s, hsl.l), saveOptions);
     case 'square':
       return () =>
-        updateColor(selectedColor.id, hslToHex((hsl.h + 90) % 360, hsl.s, hsl.l));
+        updateColor(selectedColor.id, hslToHex((hsl.h + 90) % 360, hsl.s, hsl.l), saveOptions);
     default:
       return () => {};
   }
@@ -79,7 +81,7 @@ export function RefinementColorMode({
   selectedColor,
   setColors: _setColors,
   setSelectedColorIndex,
-  saveToHistory: _saveToHistory,
+  saveToHistory,
   showNotification: _showNotification,
   updateColor,
   addColor: addColorProp,
@@ -96,6 +98,8 @@ export function RefinementColorMode({
   const [hoveredColorIndex, setHoveredColorIndex] = useState<number | null>(null);
   const [hoveredSupportIndex, setHoveredSupportIndex] = useState<number | null>(null);
   const [hoveredQuickItem, setHoveredQuickItem] = useState<QuickAdjustmentItem['type'] | null>(null);
+  const [supportResetTooltipRect, setSupportResetTooltipRect] = useState<DOMRect | null>(null);
+  const supportResetButtonRef = useRef<HTMLButtonElement>(null);
   const lastKnownHueRef = useRef(0);
   const lastKnownSatRef = useRef(50);
   const canAdd = colors.length < COLOR_COUNT_MAX && addColorProp;
@@ -224,17 +228,44 @@ export function RefinementColorMode({
                   Oscuro
                 </button>
               </div>
-              <button
-                type="button"
-                onClick={resetSupportPalette}
-                className="p-2 rounded-lg bg-gray-700/80 hover:bg-gray-600 text-gray-400 hover:text-gray-300 border border-gray-600 transition-colors"
-                title="Restaurar paleta de apoyo al ajuste predeterminado (Automático)"
-                aria-label="Restaurar paleta de apoyo"
+              <div
+                className="relative"
+                onMouseEnter={() => {
+                  const rect = supportResetButtonRef.current?.getBoundingClientRect();
+                  if (rect) setSupportResetTooltipRect(rect);
+                }}
+                onMouseLeave={() => setSupportResetTooltipRect(null)}
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
-                </svg>
-              </button>
+                {typeof document !== 'undefined' &&
+                  supportResetTooltipRect &&
+                  createPortal(
+                    <span
+                      role="tooltip"
+                      className="fixed px-3 py-2 text-sm text-gray-100 bg-gray-900 border border-gray-600 rounded-lg shadow-xl whitespace-normal text-center pointer-events-none z-[200]"
+                      style={{
+                        left: supportResetTooltipRect.left + supportResetTooltipRect.width / 2,
+                        top: supportResetTooltipRect.top,
+                        transform: 'translate(-50%, calc(-100% - 8px))',
+                        maxWidth: 'min(360px, 90vw)',
+                        width: 'max-content',
+                      }}
+                    >
+                      Restaurar paleta de apoyo al ajuste predeterminado
+                    </span>,
+                    document.body
+                  )}
+                <button
+                  ref={supportResetButtonRef}
+                  type="button"
+                  onClick={resetSupportPalette}
+                  className="p-2 rounded-lg bg-gray-700/80 hover:bg-gray-600 text-gray-400 hover:text-gray-300 border border-gray-600 transition-colors"
+                  aria-label="Restaurar paleta de apoyo"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                  </svg>
+                </button>
+              </div>
             </div>
             <div className="flex flex-wrap items-center gap-2 mb-2">
               {supportColorsList.map((item, index) => (
@@ -286,7 +317,7 @@ export function RefinementColorMode({
                   onChange={(e) => {
                     const hex = e.target.value;
                     if (selectedSupportItem) updateSupportColor(selectedSupportItem.role, hex);
-                    else updateColor(selectedColor!.id, hex);
+                    else updateColor(selectedColor!.id, hex, { saveToHistory: true });
                   }}
                   className="w-full h-full opacity-0 cursor-pointer"
                 />
@@ -313,6 +344,11 @@ export function RefinementColorMode({
                     const hex = e.target.value;
                     if (selectedSupportItem) updateSupportColor(selectedSupportItem.role, hex);
                     else updateColor(selectedColor!.id, hex);
+                  }}
+                  onBlur={() => {
+                    if (!selectedSupportItem && selectedColor && saveToHistory) {
+                      saveToHistory(colors, 'Editar color');
+                    }
                   }}
                   className="bg-gray-700 text-white font-mono text-xs px-2 py-0.5 rounded mt-0.5 w-full max-w-[7rem]"
                 />
@@ -345,6 +381,16 @@ export function RefinementColorMode({
                         if (selectedSupportItem) updateSupportColor(selectedSupportItem.role, newHex);
                         else updateColor(selectedColor!.id, newHex);
                       }}
+                      onMouseUp={() => {
+                        if (!selectedSupportItem && selectedColor && saveToHistory) {
+                          saveToHistory(colors, 'Tono');
+                        }
+                      }}
+                      onTouchEnd={() => {
+                        if (!selectedSupportItem && selectedColor && saveToHistory) {
+                          saveToHistory(colors, 'Tono');
+                        }
+                      }}
                       className="w-full h-2 rounded-full appearance-none cursor-pointer"
                       style={{
                         background: `linear-gradient(to right, hsl(0, ${effectiveSat}%, ${hsl.l}%), hsl(60, ${effectiveSat}%, ${hsl.l}%), hsl(120, ${effectiveSat}%, ${hsl.l}%), hsl(180, ${effectiveSat}%, ${hsl.l}%), hsl(240, ${effectiveSat}%, ${hsl.l}%), hsl(300, ${effectiveSat}%, ${hsl.l}%), hsl(360, ${effectiveSat}%, ${hsl.l}%))`,
@@ -368,6 +414,16 @@ export function RefinementColorMode({
                         if (selectedSupportItem) updateSupportColor(selectedSupportItem.role, newHex);
                         else updateColor(selectedColor!.id, newHex);
                       }}
+                      onMouseUp={() => {
+                        if (!selectedSupportItem && selectedColor && saveToHistory) {
+                          saveToHistory(colors, 'Saturación');
+                        }
+                      }}
+                      onTouchEnd={() => {
+                        if (!selectedSupportItem && selectedColor && saveToHistory) {
+                          saveToHistory(colors, 'Saturación');
+                        }
+                      }}
                       className="w-full h-2 rounded-full appearance-none cursor-pointer"
                       style={{
                         background: `linear-gradient(to right, hsl(${effectiveHue}, 0%, ${hsl.l}%), hsl(${effectiveHue}, 100%, ${hsl.l}%))`,
@@ -389,6 +445,16 @@ export function RefinementColorMode({
                         const newHex = hslToHex(effectiveHue, effectiveSat, newL);
                         if (selectedSupportItem) updateSupportColor(selectedSupportItem.role, newHex);
                         else updateColor(selectedColor!.id, newHex);
+                      }}
+                      onMouseUp={() => {
+                        if (!selectedSupportItem && selectedColor && saveToHistory) {
+                          saveToHistory(colors, 'Luminosidad');
+                        }
+                      }}
+                      onTouchEnd={() => {
+                        if (!selectedSupportItem && selectedColor && saveToHistory) {
+                          saveToHistory(colors, 'Luminosidad');
+                        }
                       }}
                       className="w-full h-2 rounded-full appearance-none cursor-pointer"
                       style={{
@@ -420,7 +486,10 @@ export function RefinementColorMode({
                         const deg = item.type === 'complement' ? 180 : item.type === 'triadic' ? 120 : 90;
                         updateSupportColor(selectedSupportItem.role, hslToHex((h + deg) % 360, s, l));
                       } else {
-                        getQuickAdjustmentAction(item, selectedColor!, updateColor)();
+                        getQuickAdjustmentAction(item, selectedColor!, updateColor, {
+                          saveToHistory: true,
+                          description: 'Armonía',
+                        })();
                       }
                     }}
                     className="w-full py-1.5 px-2 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded-lg transition-colors"

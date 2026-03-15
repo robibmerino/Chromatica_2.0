@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import html2canvas from 'html2canvas';
 import JSZip from 'jszip';
@@ -27,12 +28,14 @@ export default function ApplicationShowcase({
   supportVariant = 'claro',
   setSupportVariant,
   updateSupportColor,
+  resetSupportPalette,
 }: ApplicationShowcaseProps) {
   const [activeCategory, setActiveCategory] = useState<CategoryType>('architecture');
-  /** Cuando no es null, la columna derecha muestra solo la interfaz de edición de color (en lugar de Estilo/Fondo/Exportar/paletas). */
-  const [editingInRightColumn, setEditingInRightColumn] = useState<EditingInRightColumn>(null);
+  /** Cuando no es null, se abre un modal para editar este color (main, support o background). Ya no se usa la columna derecha para el editor. */
+  const [editingColorModal, setEditingColorModal] = useState<EditingInRightColumn>(null);
+  const [draftHex, setDraftHex] = useState('#000000');
   const editingRef = useRef<EditingInRightColumn>(null);
-  editingRef.current = editingInRightColumn;
+  editingRef.current = editingColorModal;
   const [hoveredMainIndex, setHoveredMainIndex] = useState<number | null>(null);
   const [hoveredSupportRole, setHoveredSupportRole] = useState<string | null>(null);
   const [activeVariants, setActiveVariants] = useState<Record<CategoryType, string>>({
@@ -46,23 +49,37 @@ export default function ApplicationShowcase({
   const [isExportingAll, setIsExportingAll] = useState(false);
   const [exportProgress, setExportProgress] = useState({ current: 0, total: 0 });
   const previewRef = useRef<HTMLDivElement>(null);
+  const [supportResetTooltipRect, setSupportResetTooltipRect] = useState<DOMRect | null>(null);
+  const supportResetButtonRef = useRef<HTMLButtonElement>(null);
   const [localColors, setLocalColors] = useState<string[]>(colors);
 
   /** Clase del tooltip al pasar el ratón sobre un color en las paletas (igual que en Refinar). */
   const paletteSwatchTooltipClass = 'absolute -top-6 left-1/2 -translate-x-1/2 z-10 px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap bg-gray-700 text-gray-200 shadow-lg';
 
-  // Sync local colors with props (evitar setState durante render; no sincronizar mientras se edita un color principal)
-  const isEditingMain = editingInRightColumn?.type === 'main';
+  // Sync local colors with props (evitar setState durante render; no sincronizar mientras se edita un color principal en el modal)
+  const isEditingMain = editingColorModal?.type === 'main';
   useEffect(() => {
     if (isEditingMain) return;
     setLocalColors((prev) => (JSON.stringify(colors) === JSON.stringify(prev) ? prev : colors));
   }, [colors, isEditingMain]);
 
-  const handleColorChange = (index: number, newColor: string) => {
+  // Al abrir el modal de edición, inicializar draftHex con el color actual
+  useEffect(() => {
+    if (!editingColorModal) return;
+    const hex =
+      editingColorModal.type === 'main'
+        ? localColors[editingColorModal.index] ?? '#000000'
+        : editingColorModal.type === 'support'
+          ? (supportColorsList.find((s) => s.role === editingColorModal.role)?.hex ?? '#000000')
+          : customBgColor;
+    setDraftHex(hex);
+  }, [editingColorModal]);
+
+  const handleColorChange = (index: number, newColor: string, changeDescription?: string) => {
     const newColors = [...localColors];
     newColors[index] = newColor;
     setLocalColors(newColors);
-    onUpdateColors?.(newColors);
+    onUpdateColors?.(newColors, changeDescription);
   };
   
   // Reorder handled via drag and drop
@@ -361,172 +378,8 @@ export default function ApplicationShowcase({
         </AnimatePresence>
       </div>
 
-      {/* Columna derecha: dos estados — edición de color o vista normal (Estilo, Fondo, Exportar, paletas) */}
+      {/* Columna derecha: Estilo, Fondo, Exportar, Tu paleta, Tu paleta de apoyo. La edición de color se hace en un modal. */}
       <div className="flex flex-col gap-4 min-h-0 overflow-y-auto">
-        {editingInRightColumn ? (() => {
-          const isMain = editingInRightColumn.type === 'main';
-          const isSupport = editingInRightColumn.type === 'support';
-          const currentHex = isMain
-            ? localColors[editingInRightColumn.index] ?? '#000000'
-            : isSupport
-              ? (supportColorsList.find((s) => s.role === editingInRightColumn.role)?.hex ?? '#000000')
-              : customBgColor;
-          const setHex = (hex: string) => {
-            if (isMain) handleColorChange(editingInRightColumn.index, hex);
-            else if (isSupport) updateSupportColor?.(editingInRightColumn.role, hex);
-            else setCustomBgColor(hex);
-          };
-          const title = isMain
-            ? `Editar ${getMainPaletteRole(editingInRightColumn.index).label}`
-            : isSupport
-              ? `Editar ${supportColorsList.find((s) => s.role === editingInRightColumn.role)?.label ?? 'color de apoyo'}`
-              : 'Editar fondo personalizado';
-          return (
-            <>
-            <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-5 border border-gray-700/50 flex flex-col gap-4 min-h-0 shrink-0">
-              <div className="flex items-center justify-between shrink-0">
-                <h3 className="text-sm font-semibold text-white">{title}</h3>
-              </div>
-              <div className="w-full h-24 rounded-xl shadow-inner shrink-0" style={{ backgroundColor: currentHex }} />
-              <div className="flex items-center gap-3">
-                <div className="relative w-14 h-14 shrink-0 rounded-lg border-2 border-gray-600 overflow-hidden">
-                  <input
-                    type="color"
-                    value={currentHex}
-                    onChange={(e) => setHex(e.target.value)}
-                    className="absolute inset-0 w-full h-full cursor-pointer bg-transparent opacity-0"
-                    style={{ padding: 0 }}
-                    aria-label="Elegir color"
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ backgroundColor: currentHex }} aria-hidden>
-                    <span className="w-7 h-7 rounded-full bg-black/40 flex items-center justify-center">
-                      <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                      </svg>
-                    </span>
-                  </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <label className="text-[10px] text-gray-500 uppercase tracking-wider block mb-1">HEX</label>
-                  <input
-                    type="text"
-                    value={currentHex.toUpperCase()}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      if (/^#[0-9A-Fa-f]{6}$/.test(v)) setHex(v);
-                      const noHash = v.replace(/^#/, '');
-                      if (/^[0-9A-Fa-f]{6}$/.test(noHash)) setHex('#' + noHash);
-                    }}
-                    className="w-full bg-gray-700 text-white text-sm font-mono px-3 py-2 rounded-lg border border-gray-600 focus:border-indigo-500 focus:outline-none"
-                    aria-label="Código HEX"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const hsl = hexToHsl(currentHex);
-                    setHex(hslToHex(hsl.h, hsl.s, Math.min(95, hsl.l + 15)));
-                  }}
-                  className="py-2.5 bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm rounded-lg transition-colors font-medium"
-                >
-                  +Claro
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const hsl = hexToHsl(currentHex);
-                    setHex(hslToHex(hsl.h, hsl.s, Math.max(5, hsl.l - 15)));
-                  }}
-                  className="py-2.5 bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm rounded-lg transition-colors font-medium"
-                >
-                  +Oscuro
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setEditingInRightColumn(null)}
-                  className="py-2.5 bg-green-600 hover:bg-green-500 text-white text-sm rounded-lg transition-colors font-medium col-span-1"
-                >
-                  ✓ Aceptar cambio
-                </button>
-              </div>
-            </div>
-
-            {/* Tu paleta (referencia mientras editas) */}
-            <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 border border-gray-700/50 min-h-0 shrink-0">
-              <div className="flex items-center justify-between mb-3">
-                <div className="text-sm font-medium text-gray-300">Tu paleta</div>
-                <div className="text-[10px] text-gray-500">Clic para editar otro</div>
-              </div>
-              <div className="flex gap-2">
-                {localColors.map((color, i) => (
-                  <div
-                    key={i}
-                    className="flex-1 relative group min-w-0"
-                    onMouseEnter={() => setHoveredMainIndex(i)}
-                    onMouseLeave={() => setHoveredMainIndex(null)}
-                    title={getMainPaletteRole(i).label}
-                  >
-                    {hoveredMainIndex === i && (
-                      <span className={paletteSwatchTooltipClass}>{getMainPaletteRole(i).label}</span>
-                    )}
-                    <div
-                      className={cn(
-                        'h-12 rounded-lg shadow-lg ring-1 ring-white/10 transition-all hover:scale-105 cursor-pointer w-full',
-                        editingInRightColumn?.type === 'main' && editingInRightColumn?.index === i && 'ring-2 ring-purple-500'
-                      )}
-                      style={{ backgroundColor: color }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEditingInRightColumn(editingInRightColumn?.type === 'main' && editingInRightColumn?.index === i ? null : { type: 'main', index: i });
-                      }}
-                    />
-                    <div className="text-xs text-center text-gray-400 mt-1.5 font-medium truncate">{getMainPaletteRole(i).initial}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Tu paleta de apoyo (referencia mientras editas) */}
-            {supportColorsList.length > 0 && (
-              <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 border border-gray-700/50 min-h-0 shrink-0">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="text-sm font-medium text-gray-300">Tu paleta de apoyo</div>
-                  <div className="text-[10px] text-gray-500">{supportVariant === 'claro' ? 'Claro' : 'Oscuro'}</div>
-                </div>
-                <div className="flex gap-2">
-                  {supportColorsList.map((item) => (
-                    <div
-                      key={item.role}
-                      className="flex-1 relative group min-w-0"
-                      onMouseEnter={() => setHoveredSupportRole(item.role)}
-                      onMouseLeave={() => setHoveredSupportRole(null)}
-                      title={item.label}
-                    >
-                      {hoveredSupportRole === item.role && (
-                        <span className={paletteSwatchTooltipClass}>{item.label}</span>
-                      )}
-                      <div
-                        className={cn(
-                          'h-12 rounded-lg shadow-lg ring-1 ring-white/10 transition-all hover:scale-105 cursor-pointer w-full',
-                          editingInRightColumn?.type === 'support' && editingInRightColumn?.role === item.role && 'ring-2 ring-indigo-500'
-                        )}
-                        style={{ backgroundColor: item.hex }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (updateSupportColor) setEditingInRightColumn(editingInRightColumn?.type === 'support' && editingInRightColumn?.role === item.role ? null : { type: 'support', role: item.role });
-                        }}
-                      />
-                      <div className="text-xs text-center text-gray-400 mt-1.5 font-medium truncate">{item.initial}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </>
-          );
-        })() : (
         <>
         {/* Recuadro Estilo (claro / oscuro) */}
         <div className="shrink-0 bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 border border-gray-700/50">
@@ -596,7 +449,7 @@ export default function ApplicationShowcase({
               type="button"
               onClick={() => {
                 setBgMode('custom');
-                setEditingInRightColumn({ type: 'background' });
+                setEditingColorModal({ type: 'background' });
               }}
               className={cn(
                 'w-8 h-8 rounded-full border-2 transition-all shrink-0 flex items-center justify-center bg-gray-700 hover:bg-gray-600 text-gray-300',
@@ -696,17 +549,17 @@ export default function ApplicationShowcase({
                   const [moved] = newColors.splice(fromIndex, 1);
                   newColors.splice(toIndex, 0, moved);
                   setLocalColors(newColors);
-                  onUpdateColors?.(newColors);
-                  // Keep editing index in sync when reordering main palette
+                  onUpdateColors?.(newColors, 'Orden');
+                  // Keep modal editing index in sync when reordering main palette
                   const ed = editingRef.current;
                   if (ed && ed.type === 'main') {
                     const idx = ed.index;
                     if (fromIndex === idx) {
-                      setEditingInRightColumn({ type: 'main', index: toIndex });
+                      setEditingColorModal({ type: 'main', index: toIndex });
                     } else if (fromIndex < idx && toIndex >= idx) {
-                      setEditingInRightColumn({ type: 'main', index: idx - 1 });
+                      setEditingColorModal({ type: 'main', index: idx - 1 });
                     } else if (fromIndex > idx && toIndex <= idx) {
-                      setEditingInRightColumn({ type: 'main', index: idx + 1 });
+                      setEditingColorModal({ type: 'main', index: idx + 1 });
                     }
                   }
                 }
@@ -725,7 +578,7 @@ export default function ApplicationShowcase({
                   onClick={(e) => {
                     e.stopPropagation();
                     const ed = editingRef.current;
-                    setEditingInRightColumn(ed?.type === 'main' && ed.index === i ? null : { type: 'main', index: i });
+                    setEditingColorModal(ed?.type === 'main' && ed.index === i ? null : { type: 'main', index: i });
                   }}
                 >
                   {/* Drag indicator */}
@@ -753,9 +606,48 @@ export default function ApplicationShowcase({
         {/* Recuadro Tu paleta de apoyo */}
         {supportColorsList.length > 0 && (
           <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 border border-gray-700/50 min-h-0">
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between gap-2 mb-3">
               <div className="text-sm font-medium text-gray-300">Tu paleta de apoyo</div>
-              <div className="text-[10px] text-gray-500">{supportVariant === 'claro' ? 'Claro' : 'Oscuro'}</div>
+              {resetSupportPalette && (
+                <div
+                  className="relative shrink-0"
+                  onMouseEnter={() => {
+                    const rect = supportResetButtonRef.current?.getBoundingClientRect();
+                    if (rect) setSupportResetTooltipRect(rect);
+                  }}
+                  onMouseLeave={() => setSupportResetTooltipRect(null)}
+                >
+                  {typeof document !== 'undefined' &&
+                    supportResetTooltipRect &&
+                    createPortal(
+                      <span
+                        role="tooltip"
+                        className="fixed px-3 py-2 text-sm text-gray-100 bg-gray-900 border border-gray-600 rounded-lg shadow-xl whitespace-normal text-center pointer-events-none z-[200]"
+                        style={{
+                          left: supportResetTooltipRect.left + supportResetTooltipRect.width / 2,
+                          top: supportResetTooltipRect.top,
+                          transform: 'translate(-50%, calc(-100% - 8px))',
+                          maxWidth: 'min(360px, 90vw)',
+                          width: 'max-content',
+                        }}
+                      >
+                        Restaurar paleta de apoyo al valor predeterminado
+                      </span>,
+                      document.body
+                    )}
+                  <button
+                    ref={supportResetButtonRef}
+                    type="button"
+                    onClick={resetSupportPalette}
+                    className="p-1.5 rounded-lg bg-gray-700/80 hover:bg-gray-600 text-gray-400 hover:text-gray-300 border border-gray-600 transition-colors"
+                    aria-label="Restaurar paleta de apoyo"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                    </svg>
+                  </button>
+                </div>
+              )}
             </div>
             <div className="flex gap-2">
               {supportColorsList.map((item) => (
@@ -779,7 +671,7 @@ export default function ApplicationShowcase({
                       e.stopPropagation();
                       if (updateSupportColor) {
                         const ed = editingRef.current;
-                        setEditingInRightColumn(ed?.type === 'support' && ed.role === item.role ? null : { type: 'support', role: item.role });
+                        setEditingColorModal(ed?.type === 'support' && ed.role === item.role ? null : { type: 'support', role: item.role });
                       }
                     }}
                   >
@@ -799,8 +691,113 @@ export default function ApplicationShowcase({
             </div>
           </div>
         )}
-        </>
+
+        {/* Modal de edición de color (al hacer clic en Tu paleta, paleta de apoyo o fondo personalizado) */}
+        {editingColorModal && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="application-edit-color-title"
+            onClick={() => setEditingColorModal(null)}
+          >
+            <div
+              className="bg-gray-800 rounded-2xl border border-gray-600 shadow-xl p-5 w-full max-w-sm flex flex-col gap-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 id="application-edit-color-title" className="text-sm font-semibold text-white shrink-0">
+                {editingColorModal.type === 'main'
+                  ? `Editar ${getMainPaletteRole(editingColorModal.index).label}`
+                  : editingColorModal.type === 'support'
+                    ? `Editar ${supportColorsList.find((s) => s.role === editingColorModal.role)?.label ?? 'color de apoyo'}`
+                    : 'Editar fondo personalizado'}
+              </h3>
+              <div className="w-full h-24 rounded-xl shadow-inner shrink-0" style={{ backgroundColor: draftHex }} />
+              <div className="flex items-center gap-3">
+                <div className="relative w-14 h-14 shrink-0 rounded-lg border-2 border-gray-600 overflow-hidden">
+                  <input
+                    type="color"
+                    value={draftHex}
+                    onChange={(e) => setDraftHex(e.target.value)}
+                    className="absolute inset-0 w-full h-full cursor-pointer bg-transparent opacity-0"
+                    style={{ padding: 0 }}
+                    aria-label="Elegir color"
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ backgroundColor: draftHex }} aria-hidden>
+                    <span className="w-7 h-7 rounded-full bg-black/40 flex items-center justify-center">
+                      <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                      </svg>
+                    </span>
+                  </div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <label className="text-[10px] text-gray-500 uppercase tracking-wider block mb-1">HEX</label>
+                  <input
+                    type="text"
+                    value={draftHex.toUpperCase()}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (/^#[0-9A-Fa-f]{6}$/.test(v)) setDraftHex(v);
+                      const noHash = v.replace(/^#/, '');
+                      if (/^[0-9A-Fa-f]{6}$/.test(noHash)) setDraftHex('#' + noHash);
+                    }}
+                    className="w-full bg-gray-700 text-white text-sm font-mono px-3 py-2 rounded-lg border border-gray-600 focus:border-indigo-500 focus:outline-none"
+                    aria-label="Código HEX"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const hsl = hexToHsl(draftHex);
+                    setDraftHex(hslToHex(hsl.h, hsl.s, Math.min(95, hsl.l + 15)));
+                  }}
+                  className="py-2.5 bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm rounded-lg transition-colors font-medium"
+                >
+                  +Claro
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const hsl = hexToHsl(draftHex);
+                    setDraftHex(hslToHex(hsl.h, hsl.s, Math.max(5, hsl.l - 15)));
+                  }}
+                  className="py-2.5 bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm rounded-lg transition-colors font-medium"
+                >
+                  +Oscuro
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (editingColorModal.type === 'main') {
+                      handleColorChange(editingColorModal.index, draftHex, 'Tono');
+                    } else if (editingColorModal.type === 'support') {
+                      updateSupportColor?.(editingColorModal.role, draftHex);
+                    } else {
+                      setCustomBgColor(draftHex);
+                    }
+                    setEditingColorModal(null);
+                  }}
+                  className="py-2.5 bg-green-600 hover:bg-green-500 text-white text-sm rounded-lg transition-colors font-medium col-span-1"
+                >
+                  ✓ Aceptar cambio
+                </button>
+              </div>
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setEditingColorModal(null)}
+                  className="flex-1 py-2 rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-700/50 text-sm font-medium"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
         )}
+        </>
       </div>
     </div>
   );

@@ -28,6 +28,7 @@ interface AnalysisPhaseProps {
   onSavePalette?: () => void;
   lockPinned?: boolean;
   onLockToggle?: () => void;
+  onOpenHistory?: () => void;
 }
 
 const ANALYSIS_ICON = (
@@ -62,6 +63,7 @@ function AnalysisPhaseInner({
   onSavePalette,
   lockPinned = false,
   onLockToggle,
+  onOpenHistory,
 }: AnalysisPhaseProps) {
   return (
     <PhaseLayout
@@ -84,6 +86,8 @@ function AnalysisPhaseInner({
           onSavePalette={onSavePalette}
           lockPinned={lockPinned}
           onLockToggle={onLockToggle}
+          lockTooltipSectionName="Análisis"
+          onOpenHistory={onOpenHistory}
         />
       }
       footer={null}
