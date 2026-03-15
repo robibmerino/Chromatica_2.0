@@ -61,6 +61,49 @@ const DESIGN_CAREER_LABELS: Record<string, string> = {
   other: 'Otra (no diseño)',
 };
 
+/** Orden lógico de rangos de edad para análisis (no por frecuencia). */
+const AGE_RANGE_ORDER = ['18-25', '26-35', '36-45', '46-55', '55+'];
+
+type DemographicsAnalysisTab = 'summary' | 'age' | 'gender' | 'career' | 'upv' | 'cross';
+
+interface FreqRow {
+  label: string;
+  n: number;
+  pct: number;
+}
+
+function getFrequencyCounts(
+  data: DemographicsRow[],
+  getKey: (r: DemographicsRow) => string,
+  order?: string[]
+): FreqRow[] {
+  const m: Record<string, number> = {};
+  data.forEach((r) => {
+    const k = getKey(r) || 'Sin indicar';
+    m[k] = (m[k] ?? 0) + 1;
+  });
+  const total = data.length;
+  const pct = (n: number) => (total ? (n / total) * 100 : 0);
+  if (order && order.length) {
+    const ordered = order.filter((o) => m[o] != null).map((label) => ({ label, n: m[label], pct: pct(m[label]) }));
+    const rest = Object.entries(m)
+      .filter(([label]) => !order.includes(label))
+      .map(([label, n]) => ({ label, n, pct: pct(n) }));
+    return [...ordered, ...rest];
+  }
+  return Object.entries(m)
+    .map(([label, n]) => ({ label, n, pct: pct(n) }))
+    .sort((a, b) => b.n - a.n);
+}
+
+function labelGender(raw: string): string {
+  return (raw && GENDER_LABELS[raw]) || raw || 'Sin indicar';
+}
+
+function labelCareer(raw: string): string {
+  return (raw && DESIGN_CAREER_LABELS[raw]) || raw || 'Sin indicar';
+}
+
 export type DemographicsDisplayRow = {
   user_id: string;
   age_range: string;
@@ -220,41 +263,246 @@ function PreviewTable<T extends Record<string, unknown>>({
   );
 }
 
-/** Gráfico de barras simple: distribución por edad (sociodemográficas). */
-function DemographicsAgeChart({ data }: { data: DemographicsRow[] }) {
-  const counts = useMemo(() => {
-    const m: Record<string, number> = {};
-    data.forEach((r) => {
-      const k = r.age_range?.trim() || 'Sin indicar';
-      m[k] = (m[k] ?? 0) + 1;
-    });
-    return Object.entries(m).sort((a, b) => b[1] - a[1]);
-  }, [data]);
-  const max = Math.max(1, ...counts.map(([, n]) => n));
+/** Tabla de frecuencias: categoría, n, %. */
+function FrequencyTable({ rows, title }: { rows: FreqRow[]; title?: string }) {
+  if (rows.length === 0) return null;
+  return (
+    <div className="space-y-1">
+      {title && <h4 className="text-xs font-medium text-gray-400">{title}</h4>}
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-left text-gray-500 border-b border-gray-700">
+            <th className="py-1 pr-2">Categoría</th>
+            <th className="py-1 w-12 text-right">n</th>
+            <th className="py-1 w-14 text-right">%</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(({ label, n, pct }) => (
+            <tr key={label} className="border-b border-gray-800/50">
+              <td className="py-1 pr-2 text-gray-300">{label}</td>
+              <td className="text-right text-gray-400">{n}</td>
+              <td className="text-right text-gray-400">{pct.toFixed(1)}%</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
-  if (counts.length === 0) {
-    return (
-      <p className="text-gray-500 text-sm py-4">Carga sociodemográficas para ver la distribución.</p>
-    );
+/** Barras horizontales a partir de FreqRow[]. */
+function FreqBarChart({ rows, maxBar = 100 }: { rows: FreqRow[]; maxBar?: number }) {
+  const max = Math.max(1, ...rows.map((r) => r.n));
+  return (
+    <div className="space-y-2">
+      {rows.map(({ label, n, pct }) => (
+        <div key={label} className="flex items-center gap-2">
+          <span className="w-28 text-xs text-gray-400 shrink-0 truncate" title={label}>
+            {label}
+          </span>
+          <div className="flex-1 h-5 bg-gray-800 rounded overflow-hidden min-w-0">
+            <div
+              className="h-full bg-indigo-500 rounded min-w-[2px] transition-all"
+              style={{ width: `${maxBar ? (n / max) * maxBar : pct}%` }}
+            />
+          </div>
+          <span className="text-xs text-gray-400 w-8 text-right shrink-0">{n}</span>
+          <span className="text-xs text-gray-500 w-10 text-right shrink-0">{pct.toFixed(1)}%</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Edad: orden fijo + tabla n (%) + gráfico. */
+function DemographicsAgeChart({ data }: { data: DemographicsRow[] }) {
+  const rows = useMemo(
+    () => getFrequencyCounts(data, (r) => r.age_range?.trim() ?? '', AGE_RANGE_ORDER),
+    [data]
+  );
+  if (rows.length === 0) {
+    return <p className="text-gray-500 text-sm py-4">Carga sociodemográficas para ver la distribución.</p>;
+  }
+  return (
+    <div className="space-y-4">
+      <FrequencyTable rows={rows} title="Rango de edad" />
+      <FreqBarChart rows={rows} />
+    </div>
+  );
+}
+
+/** Género: frecuencias + gráfico. */
+function DemographicsGenderChart({ data }: { data: DemographicsRow[] }) {
+  const rows = useMemo(() => {
+    const raw = getFrequencyCounts(data, (r) => r.gender ?? '');
+    return raw.map((r) => ({ ...r, label: labelGender(r.label) }));
+  }, [data]);
+  if (rows.length === 0) return <p className="text-gray-500 text-sm py-4">Sin datos de género.</p>;
+  return (
+    <div className="space-y-4">
+      <FrequencyTable rows={rows} title="Género" />
+      <FreqBarChart rows={rows} />
+    </div>
+  );
+}
+
+/** Área diseño: frecuencias (orden por n) + gráfico. */
+function DemographicsCareerChart({ data }: { data: DemographicsRow[] }) {
+  const rows = useMemo(() => {
+    const raw = getFrequencyCounts(data, (r) => r.design_career ?? '');
+    return raw.map((r) => ({ ...r, label: labelCareer(r.label) }));
+  }, [data]);
+  if (rows.length === 0) return <p className="text-gray-500 text-sm py-4">Sin datos de área.</p>;
+  return (
+    <div className="space-y-4">
+      <FrequencyTable rows={rows} title="Área diseño" />
+      <FreqBarChart rows={rows} />
+    </div>
+  );
+}
+
+/** Estudiante UPV: Sí/No. */
+function DemographicsUpvChart({ data }: { data: DemographicsRow[] }) {
+  const rows = useMemo(
+    () =>
+      getFrequencyCounts(data, (r) => (r.is_upv_student === true ? 'Sí' : r.is_upv_student === false ? 'No' : 'Sin indicar'), ['Sí', 'No', 'Sin indicar']),
+    [data]
+  );
+  if (rows.length === 0) return <p className="text-gray-500 text-sm py-4">Sin datos.</p>;
+  return (
+    <div className="space-y-4">
+      <FrequencyTable rows={rows} title="Estudiante UPV" />
+      <FreqBarChart rows={rows} />
+    </div>
+  );
+}
+
+/** Resumen de la muestra: N total + tabla características. */
+function SampleSummary({ data }: { data: DemographicsRow[] }) {
+  const n = data.length;
+  const ageRows = useMemo(() => getFrequencyCounts(data, (r) => r.age_range?.trim() ?? '', AGE_RANGE_ORDER), [data]);
+  const genderRows = useMemo(() => getFrequencyCounts(data, (r) => r.gender ?? ''), [data]);
+  const careerRows = useMemo(() => getFrequencyCounts(data, (r) => r.design_career ?? ''), [data]);
+  const upvRows = useMemo(
+    () => getFrequencyCounts(data, (r) => (r.is_upv_student === true ? 'Sí' : r.is_upv_student === false ? 'No' : 'Sin indicar'), ['Sí', 'No', 'Sin indicar']),
+    [data]
+  );
+  if (n === 0) return <p className="text-gray-500 text-sm py-4">Carga sociodemográficas para ver el resumen.</p>;
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-gray-300">
+        <strong>N = {n}</strong> participantes (con consentimiento y datos en sociodemográficas).
+      </p>
+      <div className="grid grid-cols-1 gap-4">
+        <FrequencyTable rows={ageRows.map((r) => ({ ...r, label: r.label }))} title="Edad (rango)" />
+        <FrequencyTable rows={genderRows.map((r) => ({ ...r, label: labelGender(r.label) }))} title="Género" />
+        <FrequencyTable rows={careerRows.map((r) => ({ ...r, label: labelCareer(r.label) }))} title="Área diseño" />
+        <FrequencyTable rows={upvRows} title="Estudiante UPV" />
+      </div>
+    </div>
+  );
+}
+
+/** Opciones de cruce bivariado. */
+const CROSS_OPTIONS: { id: string; label: string; rowKey: keyof DemographicsRow; colKey: keyof DemographicsRow }[] = [
+  { id: 'gender-career', label: 'Género × Área diseño', rowKey: 'gender', colKey: 'design_career' },
+  { id: 'age-career', label: 'Edad × Área diseño', rowKey: 'age_range', colKey: 'design_career' },
+  { id: 'upv-career', label: 'Estudiante UPV × Área diseño', rowKey: 'is_upv_student', colKey: 'design_career' },
+  { id: 'gender-age', label: 'Género × Edad', rowKey: 'gender', colKey: 'age_range' },
+];
+
+function crossLabel(key: keyof DemographicsRow, value: string | boolean | null): string {
+  if (key === 'is_upv_student') {
+    const v = value === true || value === 'true';
+    const f = value === false || value === 'false';
+    return v ? 'Sí' : f ? 'No' : 'Sin indicar';
+  }
+  if (key === 'gender') return labelGender(String(value ?? ''));
+  if (key === 'design_career') return labelCareer(String(value ?? ''));
+  if (key === 'age_range') return String(value ?? '').trim() || 'Sin indicar';
+  return String(value ?? '—');
+}
+
+/** Tabla cruzada: conteos por (fila, columna). */
+function CrossTable({
+  data,
+  rowKey,
+  colKey,
+}: {
+  data: DemographicsRow[];
+  rowKey: keyof DemographicsRow;
+  colKey: keyof DemographicsRow;
+}) {
+  const { rows, cols, matrix, rowLabels, colLabels } = useMemo(() => {
+    const rowVals = new Map<string, number>();
+    const colVals = new Map<string, number>();
+    const matrixMap = new Map<string, Map<string, number>>();
+    data.forEach((r) => {
+      const rv = r[rowKey] != null ? String(r[rowKey]) : '';
+      const cv = r[colKey] != null ? String(r[colKey]) : '';
+      const rk = rv.trim() || 'Sin indicar';
+      const ck = cv.trim() || 'Sin indicar';
+      rowVals.set(rk, (rowVals.get(rk) ?? 0) + 1);
+      colVals.set(ck, (colVals.get(ck) ?? 0) + 1);
+      if (!matrixMap.has(rk)) matrixMap.set(rk, new Map());
+      const rowMap = matrixMap.get(rk)!;
+      rowMap.set(ck, (rowMap.get(ck) ?? 0) + 1);
+    });
+    const rowLabels = Array.from(rowVals.keys()).sort();
+    const colLabels = Array.from(colVals.keys()).sort();
+    const matrix = rowLabels.map((r) => colLabels.map((c) => matrixMap.get(r)?.get(c) ?? 0));
+    return { rows: rowLabels, cols: colLabels, matrix, rowLabels, colLabels };
+  }, [data, rowKey, colKey]);
+
+  if (rows.length === 0 || cols.length === 0) {
+    return <p className="text-gray-500 text-sm py-4">Sin datos para este cruce.</p>;
   }
 
   return (
-    <div className="space-y-3">
-      <h3 className="text-sm font-medium text-gray-300">Distribución por rango de edad</h3>
-      <div className="space-y-2">
-        {counts.map(([label, n]) => (
-          <div key={label} className="flex items-center gap-2">
-            <span className="w-20 text-xs text-gray-400 shrink-0">{label}</span>
-            <div className="flex-1 h-6 bg-gray-800 rounded overflow-hidden">
-              <div
-                className="h-full bg-indigo-500 rounded min-w-[2px] transition-all"
-                style={{ width: `${(n / max) * 100}%` }}
-              />
-            </div>
-            <span className="text-xs text-gray-400 w-6 text-right">{n}</span>
-          </div>
-        ))}
-      </div>
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm border border-gray-700 rounded-lg overflow-hidden">
+        <thead>
+          <tr className="bg-gray-800">
+            <th className="px-2 py-2 text-left text-gray-400 font-medium">↓ Fila / Columna →</th>
+            {colLabels.map((c) => (
+              <th key={c} className="px-2 py-2 text-right text-gray-400 font-medium whitespace-nowrap">
+                {crossLabel(colKey, c)}
+              </th>
+            ))}
+            <th className="px-2 py-2 text-right text-gray-500 font-medium">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rowLabels.map((r, i) => {
+            const rowSum = matrix[i].reduce((a, b) => a + b, 0);
+            return (
+              <tr key={r} className="border-t border-gray-700">
+                <td className="px-2 py-1.5 text-gray-300 whitespace-nowrap">{crossLabel(rowKey, r)}</td>
+                {matrix[i].map((n, j) => (
+                  <td key={j} className="px-2 py-1.5 text-right text-gray-400">
+                    {n}
+                  </td>
+                ))}
+                <td className="px-2 py-1.5 text-right text-gray-500 font-medium">{rowSum}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+        <tfoot>
+          <tr className="border-t border-gray-700 bg-gray-800/50">
+            <td className="px-2 py-1.5 text-gray-500 font-medium">Total</td>
+            {colLabels.map((_, j) => {
+              const colSum = rowLabels.reduce((acc, _, i) => acc + matrix[i][j], 0);
+              return (
+                <td key={j} className="px-2 py-1.5 text-right text-gray-500 font-medium">
+                  {colSum}
+                </td>
+              })}
+            <td className="px-2 py-1.5 text-right text-gray-400 font-medium">{data.length}</td>
+          </tr>
+        </tfoot>
+      </table>
     </div>
   );
 }
@@ -265,6 +513,8 @@ export function ResearchAnalysisPage({ onBack }: ResearchAnalysisPageProps) {
   const [splitView, setSplitView] = useState(false);
   const [sortBy, setSortBy] = useState<string>('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [demographicsAnalysisTab, setDemographicsAnalysisTab] = useState<DemographicsAnalysisTab>('summary');
+  const [crossOptionId, setCrossOptionId] = useState<string>(CROSS_OPTIONS[0].id);
 
   useEffect(() => {
     setSortBy('');
@@ -537,7 +787,61 @@ export function ResearchAnalysisPage({ onBack }: ResearchAnalysisPageProps) {
               <div className="flex-1 min-h-0 flex flex-col rounded-lg border border-gray-700 bg-gray-900/30 p-4 overflow-auto">
                 <span className="text-xs text-gray-500 mb-2">Análisis estadístico</span>
                 {section === 'demographics' && demographicsData && demographicsData.length > 0 && (
-                  <DemographicsAgeChart data={demographicsData} />
+                  <>
+                    <div className="flex flex-wrap gap-1 mb-3 border-b border-gray-700 pb-2">
+                      {(
+                        [
+                          { id: 'summary' as const, label: 'Resumen' },
+                          { id: 'age' as const, label: 'Edad' },
+                          { id: 'gender' as const, label: 'Género' },
+                          { id: 'career' as const, label: 'Área' },
+                          { id: 'upv' as const, label: 'UPV' },
+                          { id: 'cross' as const, label: 'Cruces' },
+                        ] as { id: DemographicsAnalysisTab; label: string }[]
+                      ).map(({ id, label }) => (
+                        <button
+                          key={id}
+                          type="button"
+                          onClick={() => setDemographicsAnalysisTab(id)}
+                          className={`px-2 py-1 rounded text-sm transition-colors ${
+                            demographicsAnalysisTab === id
+                              ? 'bg-indigo-600 text-white'
+                              : 'bg-gray-700/50 text-gray-400 hover:bg-gray-700 hover:text-gray-200'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    {demographicsAnalysisTab === 'summary' && <SampleSummary data={demographicsData} />}
+                    {demographicsAnalysisTab === 'age' && <DemographicsAgeChart data={demographicsData} />}
+                    {demographicsAnalysisTab === 'gender' && <DemographicsGenderChart data={demographicsData} />}
+                    {demographicsAnalysisTab === 'career' && <DemographicsCareerChart data={demographicsData} />}
+                    {demographicsAnalysisTab === 'upv' && <DemographicsUpvChart data={demographicsData} />}
+                    {demographicsAnalysisTab === 'cross' && (
+                      <div className="space-y-3">
+                        <label className="block text-xs text-gray-500">
+                          Cruce bivariado
+                          <select
+                            value={crossOptionId}
+                            onChange={(e) => setCrossOptionId(e.target.value)}
+                            className="ml-2 mt-1 bg-gray-800 border border-gray-600 rounded px-2 py-1 text-gray-200 text-sm"
+                          >
+                            {CROSS_OPTIONS.map((opt) => (
+                              <option key={opt.id} value={opt.id}>
+                                {opt.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <CrossTable
+                          data={demographicsData}
+                          rowKey={CROSS_OPTIONS.find((o) => o.id === crossOptionId)!.rowKey}
+                          colKey={CROSS_OPTIONS.find((o) => o.id === crossOptionId)!.colKey}
+                        />
+                      </div>
+                    )}
+                  </>
                 )}
                 {section === 'palettes' && (
                   <p className="text-gray-500 text-sm">Gráficos de paletas (próximamente).</p>
