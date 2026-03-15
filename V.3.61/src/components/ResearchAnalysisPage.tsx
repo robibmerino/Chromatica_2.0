@@ -40,13 +40,83 @@ const SECTIONS: { id: SectionId; label: string; description: string }[] = [
   { id: 'palettes', label: 'Paletas guardadas', description: 'Nombre, colores, fecha' },
 ];
 
-const DEMOGRAPHICS_COLUMNS: { key: keyof DemographicsRow; label: string }[] = [
+const GENDER_LABELS: Record<string, string> = {
+  female: 'Mujer',
+  male: 'Hombre',
+  non_binary: 'No binario',
+  other: 'Otro',
+};
+
+const DESIGN_CAREER_LABELS: Record<string, string> = {
+  graphic_design: 'Diseño gráfico',
+  product_design: 'Diseño de producto',
+  interior_design: 'Diseño de interiores',
+  fashion_design: 'Diseño de moda',
+  ux_ui: 'Diseño UX/UI',
+  architecture: 'Arquitectura',
+  fine_arts: 'Bellas artes',
+  communication: 'Comunicación / Audiovisual',
+  marketing: 'Marketing',
+  other_design: 'Otra (diseño)',
+  other: 'Otra (no diseño)',
+};
+
+export type DemographicsDisplayRow = {
+  user_id: string;
+  age_range: string;
+  gender: string;
+  design_career: string;
+  is_upv_student: string;
+  consented_date: string;
+  consented_time: string;
+};
+
+function formatBoolean(b: boolean | null): string {
+  if (b === true) return 'Sí';
+  if (b === false) return 'No';
+  return '—';
+}
+
+function formatConsentDate(iso: string | null): string {
+  if (!iso) return '—';
+  try {
+    const d = new Date(iso);
+    return d.toISOString().slice(0, 10);
+  } catch {
+    return '—';
+  }
+}
+
+function formatConsentTime(iso: string | null): string {
+  if (!iso) return '—';
+  try {
+    const d = new Date(iso);
+    return d.toTimeString().slice(0, 8);
+  } catch {
+    return '—';
+  }
+}
+
+function formatDemographicsForDisplay(rows: DemographicsRow[]): DemographicsDisplayRow[] {
+  return rows.map((r) => ({
+    user_id: r.user_id,
+    age_range: r.age_range?.trim() || '—',
+    gender: (r.gender && GENDER_LABELS[r.gender]) || r.gender || '—',
+    design_career: (r.design_career && DESIGN_CAREER_LABELS[r.design_career]) || r.design_career || '—',
+    is_upv_student: formatBoolean(r.is_upv_student),
+    consented_date: formatConsentDate(r.consented_at),
+    consented_time: formatConsentTime(r.consented_at),
+  }));
+}
+
+const DEMOGRAPHICS_COLUMNS: { key: keyof DemographicsDisplayRow; label: string }[] = [
   { key: 'user_id', label: 'User ID' },
   { key: 'age_range', label: 'Edad' },
   { key: 'gender', label: 'Género' },
   { key: 'design_career', label: 'Área diseño' },
   { key: 'is_upv_student', label: 'Estudiante UPV' },
-  { key: 'consented_at', label: 'Fecha consentimiento' },
+  { key: 'consented_date', label: 'Fecha' },
+  { key: 'consented_time', label: 'Hora' },
 ];
 
 const PALETTES_COLUMNS: { key: keyof PaletteRow; label: string }[] = [
@@ -258,14 +328,17 @@ export function ResearchAnalysisPage({ onBack }: ResearchAnalysisPageProps) {
     XLSX.writeFile(wb, `chromatica-paletas-${new Date().toISOString().slice(0, 10)}.xlsx`);
   }, [palettesData]);
 
+  const demographicsDisplayRows = useMemo(
+    () => formatDemographicsForDisplay(demographicsData ?? []),
+    [demographicsData]
+  );
+
   const currentData = section === 'demographics' ? demographicsData : palettesData;
   const currentLoading = section === 'demographics' ? demographicsLoading : palettesLoading;
   const currentSection = SECTIONS.find((s) => s.id === section)!;
   const canDownload =
     (section === 'demographics' && demographicsData && demographicsData.length > 0) ||
     (section === 'palettes' && palettesData && palettesData.length > 0);
-
-  const excelAreaClass = splitView ? 'flex-1 min-h-0 overflow-hidden' : 'flex-1 min-h-0 overflow-auto';
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-gray-100 flex flex-col">
@@ -352,7 +425,7 @@ export function ResearchAnalysisPage({ onBack }: ResearchAnalysisPageProps) {
             <div className="flex-1 min-h-0 overflow-auto">
               {section === 'demographics' && demographicsData != null && (
                 <PreviewTable
-                  rows={demographicsData}
+                  rows={demographicsDisplayRows}
                   columns={DEMOGRAPHICS_COLUMNS}
                   rowKey="user_id"
                   className="h-full min-h-[200px]"
@@ -377,7 +450,7 @@ export function ResearchAnalysisPage({ onBack }: ResearchAnalysisPageProps) {
                 <div className="flex-1 min-h-0 overflow-hidden rounded-lg border border-gray-700">
                   {section === 'demographics' && demographicsData != null && (
                     <PreviewTable
-                      rows={demographicsData}
+                      rows={demographicsDisplayRows}
                       columns={DEMOGRAPHICS_COLUMNS}
                       rowKey="user_id"
                       className="h-full min-h-[120px]"
