@@ -4,8 +4,14 @@ import { MainView } from './MainView';
 import { ResearchConsentGate } from './ResearchConsentGate';
 
 /**
- * Si el usuario está logueado (p. ej. por OAuth) y aún no ha aceptado ni rechazado la investigación,
- * muestra la pantalla de consentimiento. En caso contrario muestra MainView.
+ * Gate de investigación: solo se muestra si el usuario está logueado y aún no tiene
+ * consentimiento ni rechazo registrado para su user id.
+ *
+ * - Cuentas existentes en Supabase que ya aceptaron o rechazaron (por userId o legacy '1')
+ *   nunca ven la confirmación: consentGiven o consentDeclined es true.
+ * - Si la cuenta se eliminó y el usuario se vuelve a registrar (nuevo user id), sí verá
+ *   el gate de nuevo porque no hay consent/decline para ese id.
+ *
  * No se muestra MainView hasta que auth haya terminado de cargar, para no saltarse el gate.
  */
 export function ResearchGateOrMainView({ onOpenAuth }: { onOpenAuth: () => void }) {

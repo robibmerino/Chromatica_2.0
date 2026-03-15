@@ -32,8 +32,11 @@ export function getAnonymousId(): string {
 
 /**
  * Indica si el usuario ha dado consentimiento.
+ * Cuentas existentes con consentimiento (por userId o legacy '1') no ven el gate.
+ *
  * @param userId - Si se pasa, se comprueba consentimiento de ese usuario (permite varios accounts en el mismo navegador).
- *                 Sin userId (legacy) se comprueba el valor antiguo '1'.
+ *                 stored === '1' (legacy) cuenta como consentido para cualquier usuario.
+ *                 Sin userId se comprueba solo el valor antiguo '1'.
  */
 export function hasConsent(userId?: string): boolean {
   if (typeof window === 'undefined') return false;
@@ -68,7 +71,11 @@ export async function giveConsent(
   return { error: null };
 }
 
-/** Indica si este usuario ha rechazado participar (por userId para multi-cuenta). */
+/**
+ * Indica si este usuario ha rechazado participar (por userId para multi-cuenta).
+ * Solo se considera rechazo para ese user id (stored === userId), as? las cuentas
+ * existentes que ya rechazaron no vuelven a ver el gate.
+ */
 export function hasDeclined(userId?: string): boolean {
   if (typeof window === 'undefined') return false;
   const stored = localStorage.getItem(STORAGE_CONSENT_DECLINED);
