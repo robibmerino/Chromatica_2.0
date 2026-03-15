@@ -1,5 +1,5 @@
-import { useState, useCallback, useMemo } from 'react';
-import { ArrowLeft, BarChart3, Table2, LayoutGrid } from 'lucide-react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
+import { ArrowLeft, BarChart3, Table2, LayoutGrid, ArrowUpDown } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useAuth } from '../contexts/AuthContext';
 import { getSupabaseConfig } from '../lib/env';
@@ -128,6 +128,21 @@ const PALETTES_COLUMNS: { key: keyof PaletteRow; label: string }[] = [
   { key: 'created_at', label: 'Creado' },
 ];
 
+function sortRows<T extends Record<string, unknown>>(
+  rows: T[],
+  columnKey: keyof T | string,
+  order: 'asc' | 'desc'
+): T[] {
+  if (rows.length === 0) return rows;
+  const key = columnKey as keyof T;
+  return [...rows].sort((a, b) => {
+    const va = a[key] != null ? String(a[key]) : '';
+    const vb = b[key] != null ? String(b[key]) : '';
+    const cmp = va.localeCompare(vb, undefined, { numeric: true });
+    return order === 'asc' ? cmp : -cmp;
+  });
+}
+
 function formatResearchError(msg: string): string {
   return msg.includes('403') || msg.includes('Forbidden')
     ? 'No tienes permiso. Configura la allowlist en la Edge Function.'
@@ -248,6 +263,12 @@ export function ResearchAnalysisPage({ onBack }: ResearchAnalysisPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [section, setSection] = useState<SectionId>('demographics');
   const [splitView, setSplitView] = useState(false);
+  const [sortBy, setSortBy] = useState<string>('');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
+  useEffect(() => {
+    setSortBy('');
+  }, [section]);
 
   const fetchPalettes = useResearchFetch<PaletteRow[]>('export-research-data');
   const fetchDemographics = useResearchFetch<DemographicsRow[]>('export-research-demographics');
@@ -332,6 +353,19 @@ export function ResearchAnalysisPage({ onBack }: ResearchAnalysisPageProps) {
     () => formatDemographicsForDisplay(demographicsData ?? []),
     [demographicsData]
   );
+
+  const currentColumns = section === 'demographics' ? DEMOGRAPHICS_COLUMNS : PALETTES_COLUMNS;
+  const validSortBy = sortBy && currentColumns.some((c) => c.key === sortBy) ? sortBy : null;
+
+  const sortedDemographicsRows = useMemo(() => {
+    if (!validSortBy || section !== 'demographics') return demographicsDisplayRows;
+    return sortRows(demographicsDisplayRows, validSortBy as keyof DemographicsDisplayRow, sortOrder);
+  }, [demographicsDisplayRows, validSortBy, section, sortOrder]);
+
+  const sortedPalettesRows = useMemo(() => {
+    if (!validSortBy || section !== 'palettes' || !palettesData) return palettesData ?? [];
+    return sortRows(palettesData, validSortBy as keyof PaletteRow, sortOrder);
+  }, [palettesData, validSortBy, section, sortOrder]);
 
   const currentData = section === 'demographics' ? demographicsData : palettesData;
   const currentLoading = section === 'demographics' ? demographicsLoading : palettesLoading;
@@ -419,13 +453,43 @@ export function ResearchAnalysisPage({ onBack }: ResearchAnalysisPageProps) {
               <LayoutGrid className="w-4 h-4" />
               Vista con gráficos
             </label>
+
+            {currentData != null && currentData.length > 0 && (
+              <div className="flex items-center gap-2 ml-4 pl-4 border-l border-gray-600">
+                <ArrowUpDown className="w-4 h-4 text-gray-500 shrink-0" />
+                <span className="text-sm text-gray-500 shrink-0">Ordenar por:</span>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="rounded-lg bg-gray-800 border border-gray-600 text-gray-200 text-sm px-2 py-1.5 min-w-[140px]"
+                  aria-label="Columna para ordenar"
+                >
+                  <option value="">Sin orden</option>
+                  {currentColumns.map((col) => (
+                    <option key={String(col.key)} value={String(col.key)}>
+                      {col.label}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={sortOrder}
+                  onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
+                  disabled={!validSortBy}
+                  className="rounded-lg bg-gray-800 border border-gray-600 text-gray-200 text-sm px-2 py-1.5 disabled:opacity-50"
+                  aria-label="Orden"
+                >
+                  <option value="asc">Ascendente</option>
+                  <option value="desc">Descendente</option>
+                </select>
+              </div>
+            )}
           </div>
 
           {!splitView ? (
             <div className="flex-1 min-h-0 overflow-auto">
               {section === 'demographics' && demographicsData != null && (
                 <PreviewTable
-                  rows={demographicsDisplayRows}
+                  rows={sortedDemographicsRows}
                   columns={DEMOGRAPHICS_COLUMNS}
                   rowKey="user_id"
                   className="h-full min-h-[200px]"
@@ -433,7 +497,7 @@ export function ResearchAnalysisPage({ onBack }: ResearchAnalysisPageProps) {
               )}
               {section === 'palettes' && palettesData != null && (
                 <PreviewTable
-                  rows={palettesData}
+                  rows={sortedPalettesRows}
                   columns={PALETTES_COLUMNS}
                   rowKey="id"
                   className="h-full min-h-[200px]"
@@ -450,7 +514,7 @@ export function ResearchAnalysisPage({ onBack }: ResearchAnalysisPageProps) {
                 <div className="flex-1 min-h-0 overflow-hidden rounded-lg border border-gray-700">
                   {section === 'demographics' && demographicsData != null && (
                     <PreviewTable
-                      rows={demographicsDisplayRows}
+                      rows={sortedDemographicsRows}
                       columns={DEMOGRAPHICS_COLUMNS}
                       rowKey="user_id"
                       className="h-full min-h-[120px]"
@@ -458,7 +522,7 @@ export function ResearchAnalysisPage({ onBack }: ResearchAnalysisPageProps) {
                   )}
                   {section === 'palettes' && palettesData != null && (
                     <PreviewTable
-                      rows={palettesData}
+                      rows={sortedPalettesRows}
                       columns={PALETTES_COLUMNS}
                       rowKey="id"
                       className="h-full min-h-[120px]"
