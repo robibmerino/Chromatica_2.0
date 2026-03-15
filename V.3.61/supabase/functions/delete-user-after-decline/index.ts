@@ -5,7 +5,7 @@
  * así la cuenta no se crea en Supabase y la próxima vez que entre con OAuth
  * volverá a ver el gate.
  *
- * Requiere: Authorization: Bearer <access_token> del usuario a eliminar.
+ * El cliente envía: Authorization: Bearer <anon_key> y body: { access_token: <user_jwt> }.
  */
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
@@ -30,10 +30,15 @@ Deno.serve(async (req) => {
     return Response.json({ error: 'Method not allowed' }, { status: 405, headers: corsHeaders });
   }
 
-  const authHeader = req.headers.get('Authorization');
-  const jwt = authHeader?.replace(/^Bearer\s+/i, '').trim();
+  let body: { access_token?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return Response.json({ error: 'Body JSON inválido' }, { status: 400, headers: corsHeaders });
+  }
+  const jwt = (body?.access_token ?? '').trim();
   if (!jwt) {
-    return Response.json({ error: 'Falta Authorization Bearer' }, { status: 401, headers: corsHeaders });
+    return Response.json({ error: 'Falta access_token en el body' }, { status: 401, headers: corsHeaders });
   }
 
   const authClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {

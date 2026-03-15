@@ -57,8 +57,8 @@ export function ResearchConsentGate() {
     setSubmitting(true);
     setError(null);
     const config = getSupabaseConfig();
-    if (config?.url && session?.access_token) {
-      const { error: err } = await deleteUserAfterDecline(config.url, session.access_token);
+    if (config?.url && config?.anonKey && session?.access_token) {
+      const { error: err } = await deleteUserAfterDecline(config.url, config.anonKey, session.access_token);
       if (err) {
         setError(err);
         setSubmitting(false);

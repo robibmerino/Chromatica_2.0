@@ -3,10 +3,14 @@
  * del usuario actual en Supabase. Así, al pulsar "No iniciar sesión" en el gate
  * de investigación, la cuenta no se mantiene y la próxima vez que entre con OAuth
  * volverá a ver el gate.
+ *
+ * Envía la anon key en Authorization (para que la puerta de Supabase acepte la petición)
+ * y el JWT del usuario en el body, para evitar 401 Invalid JWT del gateway.
  */
 
 export async function deleteUserAfterDecline(
   supabaseUrl: string,
+  anonKey: string,
   accessToken: string
 ): Promise<{ error: string | null }> {
   const base = supabaseUrl.replace(/\/$/, '');
@@ -14,9 +18,10 @@ export async function deleteUserAfterDecline(
   const res = await fetch(url, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${accessToken}`,
+      Authorization: `Bearer ${anonKey}`,
       'Content-Type': 'application/json',
     },
+    body: JSON.stringify({ access_token: accessToken }),
   });
   if (!res.ok) {
     const text = await res.text();

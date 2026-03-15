@@ -19,7 +19,8 @@
     "e2e:headed": "playwright test --headed",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "supabase:deploy-share": "npx supabase functions deploy create-share-link && npx supabase functions deploy get-shared-palette"
+    "supabase:deploy-share": "npx supabase functions deploy create-share-link && npx supabase functions deploy get-shared-palette",
+    "supabase:deploy-delete-user": "npx supabase functions deploy delete-user-after-decline"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.99.1",
