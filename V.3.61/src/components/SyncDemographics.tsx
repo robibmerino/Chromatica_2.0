@@ -16,7 +16,7 @@ export function SyncDemographics() {
       return;
     }
     if (syncedRef.current) return;
-    if (!hasConsent()) return;
+    if (!hasConsent(user.id)) return;
     const demographics = getStoredDemographics();
     if (!demographics) return;
     syncedRef.current = true;
