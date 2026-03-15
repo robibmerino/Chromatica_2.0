@@ -311,6 +311,24 @@ export function ResearchAnalysisPage({ onBack }: ResearchAnalysisPageProps) {
     else handlePreviewPalettes();
   }, [section, handlePreviewDemographics, handlePreviewPalettes]);
 
+  const demographicsDisplayRows = useMemo(
+    () => formatDemographicsForDisplay(demographicsData ?? []),
+    [demographicsData]
+  );
+
+  const currentColumns = section === 'demographics' ? DEMOGRAPHICS_COLUMNS : PALETTES_COLUMNS;
+  const validSortBy = sortBy && currentColumns.some((c) => c.key === sortBy) ? sortBy : null;
+
+  const sortedDemographicsRows = useMemo(() => {
+    if (!validSortBy || section !== 'demographics') return demographicsDisplayRows;
+    return sortRows(demographicsDisplayRows, validSortBy as keyof DemographicsDisplayRow, sortOrder);
+  }, [demographicsDisplayRows, validSortBy, section, sortOrder]);
+
+  const sortedPalettesRows = useMemo(() => {
+    if (!validSortBy || section !== 'palettes' || !palettesData) return palettesData ?? [];
+    return sortRows(palettesData, validSortBy as keyof PaletteRow, sortOrder);
+  }, [palettesData, validSortBy, section, sortOrder]);
+
   const downloadDemographicsExcel = useCallback(() => {
     if (!sortedDemographicsRows.length) return;
     const sheetData = sortedDemographicsRows.map((r) => ({
@@ -349,24 +367,6 @@ export function ResearchAnalysisPage({ onBack }: ResearchAnalysisPageProps) {
     XLSX.utils.book_append_sheet(wb, ws, 'Paletas');
     XLSX.writeFile(wb, `chromatica-paletas-${new Date().toISOString().slice(0, 10)}.xlsx`);
   }, [sortedPalettesRows]);
-
-  const demographicsDisplayRows = useMemo(
-    () => formatDemographicsForDisplay(demographicsData ?? []),
-    [demographicsData]
-  );
-
-  const currentColumns = section === 'demographics' ? DEMOGRAPHICS_COLUMNS : PALETTES_COLUMNS;
-  const validSortBy = sortBy && currentColumns.some((c) => c.key === sortBy) ? sortBy : null;
-
-  const sortedDemographicsRows = useMemo(() => {
-    if (!validSortBy || section !== 'demographics') return demographicsDisplayRows;
-    return sortRows(demographicsDisplayRows, validSortBy as keyof DemographicsDisplayRow, sortOrder);
-  }, [demographicsDisplayRows, validSortBy, section, sortOrder]);
-
-  const sortedPalettesRows = useMemo(() => {
-    if (!validSortBy || section !== 'palettes' || !palettesData) return palettesData ?? [];
-    return sortRows(palettesData, validSortBy as keyof PaletteRow, sortOrder);
-  }, [palettesData, validSortBy, section, sortOrder]);
 
   const currentData = section === 'demographics' ? demographicsData : palettesData;
   const currentLoading = section === 'demographics' ? demographicsLoading : palettesLoading;
