@@ -726,7 +726,7 @@ export function ResearchAnalysisPage({ onBack }: ResearchAnalysisPageProps) {
 
           <div
             className={
-              splitView ? 'flex-1 min-h-0 overflow-hidden flex flex-col' : 'flex-1 min-h-0 overflow-auto'
+              splitView ? 'flex-1 min-h-0 overflow-auto flex flex-col' : 'flex-1 min-h-0 overflow-auto'
             }
           >
             {!splitView ? (
@@ -752,7 +752,7 @@ export function ResearchAnalysisPage({ onBack }: ResearchAnalysisPageProps) {
                 )}
               </>
             ) : (
-              <div className="flex flex-col flex-1 min-h-0 gap-0">
+              <div className="flex flex-col gap-0 min-h-0 shrink-0">
                 {/* Sección superior: tabla fija a ~3 filas visibles, scroll interno */}
                 <div className="shrink-0 flex flex-col rounded-t-lg border border-gray-700 border-b-0 overflow-hidden">
                   <div className="shrink-0 bg-gray-800/60 px-2 py-1.5 border-b border-gray-700">
@@ -782,8 +782,8 @@ export function ResearchAnalysisPage({ onBack }: ResearchAnalysisPageProps) {
                     )}
                   </div>
                 </div>
-                {/* Sección inferior: Análisis estadístico, ocupa el resto, scroll interno */}
-                <div className="flex-1 min-h-0 flex flex-col rounded-b-lg border border-gray-700 overflow-hidden bg-gray-900/30">
+                {/* Sección inferior: Análisis estadístico, altura fija (misma para Resumen/Edad/Género/etc.), scroll interno */}
+                <div className="h-[24rem] shrink-0 flex flex-col rounded-b-lg border border-gray-700 overflow-hidden bg-gray-900/30">
                   <div className="shrink-0 px-3 pt-2 pb-1.5 border-b border-gray-700 bg-gray-900/50">
                     <span className="text-xs font-medium text-gray-400 block mb-1.5">Análisis estadístico</span>
                     {section === 'demographics' && demographicsData && demographicsData.length > 0 && (
@@ -815,7 +815,7 @@ export function ResearchAnalysisPage({ onBack }: ResearchAnalysisPageProps) {
                     )}
                   </div>
                   <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
-                    <div className="h-full min-h-0 overflow-y-auto overflow-x-hidden p-3">
+                    <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-3">
                     {section === 'demographics' && demographicsData && demographicsData.length > 0 && (
                       <>
                         {demographicsAnalysisTab === 'summary' && <SampleSummary data={demographicsData} />}
