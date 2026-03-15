@@ -498,7 +498,8 @@ function CrossTable({
                 <td key={j} className="px-2 py-1.5 text-right text-gray-500 font-medium">
                   {colSum}
                 </td>
-              })}
+              );
+            })}
             <td className="px-2 py-1.5 text-right text-gray-400 font-medium">{data.length}</td>
           </tr>
         </tfoot>
