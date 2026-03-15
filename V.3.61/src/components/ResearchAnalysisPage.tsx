@@ -351,38 +351,42 @@ function FreqDonutChart({ rows }: { rows: FreqRow[] }) {
   );
 }
 
-/** Barras horizontales a partir de FreqRow[] (incluye n y %, sin tabla duplicada). */
-function FreqBarChart({ rows, maxBar = 100 }: { rows: FreqRow[]; maxBar?: number }) {
+/** Barras horizontales: ancho de la barra = % sobre el máximo (n/max*100%). */
+function FreqBarChart({ rows }: { rows: FreqRow[] }) {
   const max = Math.max(1, ...rows.map((r) => r.n));
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-1.5 w-full min-w-[220px] max-w-[320px]">
       {rows.map(({ label, n, pct }) => (
         <div key={label} className="flex items-center gap-2">
-          <span className="w-24 text-xs text-gray-400 shrink-0 truncate" title={label}>
+          <span className="w-20 text-xs text-gray-400 shrink-0 truncate" title={label}>
             {label}
           </span>
-          <div className="flex-1 h-4 bg-gray-800 rounded overflow-hidden min-w-0 max-w-[280px]">
+          <div className="flex-1 h-5 bg-gray-800 rounded overflow-hidden min-w-[80px]">
             <div
               className="h-full bg-indigo-500 rounded min-w-[2px] transition-all"
-              style={{ width: `${maxBar ? (n / max) * maxBar : pct}%` }}
+              style={{ width: `${(n / max) * 100}%` }}
             />
           </div>
-          <span className="text-xs text-gray-400 w-6 text-right shrink-0">{n}</span>
-          <span className="text-xs text-gray-500 w-9 text-right shrink-0">{pct.toFixed(1)}%</span>
+          <span className="text-xs text-gray-400 w-5 text-right shrink-0">{n}</span>
+          <span className="text-xs text-gray-500 w-8 text-right shrink-0">{pct.toFixed(1)}%</span>
         </div>
       ))}
     </div>
   );
 }
 
-/** Contenedor centrado: donut + barras para secciones Edad/Género/Área/UPV. */
+/** Dos subsecciones: izquierda = barras centradas, derecha = donut centrado. */
 function DemographicsUnivariateCharts({ rows, emptyMessage }: { rows: FreqRow[]; emptyMessage: string }) {
   if (rows.length === 0) return <p className="text-gray-500 text-sm py-2">{emptyMessage}</p>;
   return (
-    <div className="flex flex-col items-center justify-center w-full py-4">
-      <div className="flex flex-wrap items-center justify-center gap-10">
-        <FreqDonutChart rows={rows} />
+    <div className="grid grid-cols-2 gap-6 w-full py-4 min-h-[200px]">
+      <div className="flex flex-col items-center justify-center border border-gray-700/50 rounded-lg bg-gray-900/20">
+        <span className="text-xs text-gray-500 mb-2 mt-2">Barras</span>
         <FreqBarChart rows={rows} />
+      </div>
+      <div className="flex flex-col items-center justify-center border border-gray-700/50 rounded-lg bg-gray-900/20">
+        <span className="text-xs text-gray-500 mb-2 mt-2">Circular</span>
+        <FreqDonutChart rows={rows} />
       </div>
     </div>
   );
