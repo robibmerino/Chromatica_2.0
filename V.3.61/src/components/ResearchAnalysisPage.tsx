@@ -814,7 +814,8 @@ export function ResearchAnalysisPage({ onBack }: ResearchAnalysisPageProps) {
                       </div>
                     )}
                   </div>
-                  <div className="flex-1 min-h-0 overflow-auto p-3">
+                  <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+                    <div className="h-full min-h-0 overflow-y-auto overflow-x-hidden p-3">
                     {section === 'demographics' && demographicsData && demographicsData.length > 0 && (
                       <>
                         {demographicsAnalysisTab === 'summary' && <SampleSummary data={demographicsData} />}
@@ -853,6 +854,7 @@ export function ResearchAnalysisPage({ onBack }: ResearchAnalysisPageProps) {
                     {currentData == null && (
                       <p className="text-gray-500 text-sm">Carga datos para ver gráficos.</p>
                     )}
+                    </div>
                   </div>
                 </div>
               </div>
