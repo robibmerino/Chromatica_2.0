@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import type { ColorItem, Phase, InspirationMode, SavedPalette } from '../../../types/guidedPalette';
+import type { ColorItem, Phase, InspirationMode, SavedPalette, SavedFromSection } from '../../../types/guidedPalette';
 import { useAuth } from '../../../contexts/AuthContext';
 import { fetchPalettes, insertPalette, deletePalette } from '../../../lib/supabasePalettes';
 import { invalidatePalettes } from '../../../hooks/usePalettesQuery';
@@ -493,6 +493,52 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
     showNotification(COPY.notifications.paletteSaved);
   }, [paletteName, colors, savedPalettes, showNotification, user?.id]);
 
+  /** Guardar paleta desde el modal del banner (nombre + sección + versión). Solo con sesión. */
+  const savePaletteFromSection = useCallback(
+    async (params: { name: string; savedFromSection: SavedFromSection; version?: number }) => {
+      const { name, savedFromSection, version } = params;
+      const trimmed = name.trim();
+      if (!trimmed) {
+        showNotification(COPY.notifications.addPaletteName);
+        return;
+      }
+      const newPalette: SavedPalette = {
+        id: generateId(),
+        name: trimmed,
+        colors: colors.map((c) => c.hex),
+        createdAt: new Date(),
+        savedFromSection,
+        ...(version != null && version > 1 ? { version } : {}),
+      };
+      const updated = [...savedPalettes, newPalette];
+      setSavedPalettes(updated);
+      if (user?.id) {
+        const { error } = await insertPalette(user.id, newPalette);
+        if (error) {
+          setSavedPalettes(savedPalettes);
+          showNotification(`Error al guardar: ${error}`);
+          return;
+        }
+        invalidatePalettes(user.id);
+      } else {
+        localStorage.setItem('colorPalettes', JSON.stringify(updated));
+      }
+      showNotification(COPY.notifications.paletteSaved);
+    },
+    [colors, savedPalettes, showNotification, user?.id]
+  );
+
+  /** Sugerencias para el modal de guardar: nombre sugerido y próxima versión según sección. */
+  const getSaveSuggestions = useCallback(
+    (section: SavedFromSection) => {
+      const fromSection = savedPalettes.filter((p) => p.savedFromSection === section);
+      const suggestedName = fromSection.length > 0 ? fromSection[0].name : savedPalettes[0]?.name ?? '';
+      const nextVersion = fromSection.length + 1;
+      return { suggestedName, nextVersion };
+    },
+    [savedPalettes]
+  );
+
   const removePalette = useCallback(
     async (id: string) => {
       const removed = savedPalettes.find((p) => p.id === id);
@@ -959,6 +1005,8 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
     confirmInspirationComplete,
     cancelInspirationComplete,
     savePalette,
+    savePaletteFromSection,
+    getSaveSuggestions,
     removePalette,
     currentPhaseIndex,
     currentStepperIndex,

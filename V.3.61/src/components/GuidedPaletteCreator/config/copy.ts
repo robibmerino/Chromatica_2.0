@@ -17,6 +17,18 @@ export const COPY = {
     nextToAnalysis: 'Siguiente: Análisis',
     savePalette: 'Guardar paleta',
   },
+  saveModal: {
+    title: 'Guardar paleta',
+    nameLabel: 'Nombre de la paleta',
+    namePlaceholder: 'Ej. Mi paleta de proyecto',
+    profileNote: 'La paleta guardada podrá verse en tu perfil.',
+    cancel: 'Cancelar',
+    save: 'Guardar',
+    sectionRefinement: 'Refinar',
+    sectionApplication: 'Aplicar',
+    sectionAnalysis: 'Análisis',
+    versionLabel: (n: number) => `Versión ${n}`,
+  },
   notifications: {
     paletteRestored: '↩ Paleta inicial restaurada',
     colorsShuffled: '🔀 Colores mezclados',

@@ -4,12 +4,22 @@ import type { SavedPalette } from '../types/guidedPalette';
 const TABLE = 'palettes';
 
 /** Convierte una fila de Supabase a SavedPalette (createdAt como Date). */
-function rowToSavedPalette(row: { id: string; name: string; colors: string[]; created_at: string }): SavedPalette {
+function rowToSavedPalette(row: {
+  id: string;
+  name: string;
+  colors: string[];
+  created_at: string;
+  saved_from_section?: string | null;
+  version?: number | null;
+}): SavedPalette {
+  const section = row.saved_from_section as SavedPalette['savedFromSection'] | undefined;
   return {
     id: row.id,
     name: row.name,
     colors: Array.isArray(row.colors) ? row.colors : [],
     createdAt: new Date(row.created_at),
+    ...(section && ['refinement', 'application', 'analysis'].includes(section) ? { savedFromSection: section } : {}),
+    ...(row.version != null && row.version > 0 ? { version: row.version } : {}),
   };
 }
 
@@ -18,7 +28,7 @@ export async function fetchPalettes(userId: string): Promise<SavedPalette[]> {
   if (!supabase) return [];
   const { data, error } = await supabase
     .from(TABLE)
-    .select('id, name, colors, created_at')
+    .select('id, name, colors, created_at, saved_from_section, version')
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
   if (error) return [];
@@ -43,6 +53,8 @@ export async function insertPalette(userId: string, palette: SavedPalette): Prom
     name: palette.name,
     colors: palette.colors,
     created_at: palette.createdAt.toISOString(),
+    ...(palette.savedFromSection != null ? { saved_from_section: palette.savedFromSection } : {}),
+    ...(palette.version != null && palette.version > 1 ? { version: palette.version } : {}),
     ...colorColumns(palette.colors),
   });
   return { error: error?.message ?? null };

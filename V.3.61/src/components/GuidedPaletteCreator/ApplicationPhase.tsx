@@ -39,6 +39,9 @@ interface ApplicationPhaseProps {
   redoDisabled: boolean;
   hasApplicationSnapshot: boolean;
   onConfirmRestore: () => void;
+  onSavePalette?: () => void;
+  lockPinned?: boolean;
+  onLockToggle?: () => void;
 }
 
 function ApplicationPhaseInner({
@@ -57,6 +60,9 @@ function ApplicationPhaseInner({
   redoDisabled,
   hasApplicationSnapshot,
   onConfirmRestore,
+  onSavePalette,
+  lockPinned = false,
+  onLockToggle,
 }: ApplicationPhaseProps) {
   const [showRestoreConfirm, setShowRestoreConfirm] = React.useState(false);
   const iconAccent = getApplicationIconAccent(inspirationMode);
@@ -83,6 +89,10 @@ function ApplicationPhaseInner({
           onRedo={redo}
           undoDisabled={undoDisabled}
           redoDisabled={redoDisabled}
+          savePaletteLabel={COPY.nav.savePalette}
+          onSavePalette={onSavePalette}
+          lockPinned={lockPinned}
+          onLockToggle={onLockToggle}
         />
       }
       footer={null}

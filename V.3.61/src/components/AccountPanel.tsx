@@ -24,7 +24,7 @@ import PosterExamples from './PosterExamples';
 import { AvatarPersonalizationModal, type AvatarArchetypeColumn, type AvatarAxisSelections } from './AccountPanel/AvatarPersonalizationModal';
 import { AvatarPreview } from './AccountPanel/AvatarPreview';
 import { cn } from '../utils/cn';
-import type { SavedPalette } from '../types/guidedPalette';
+import type { SavedPalette, SavedFromSection } from '../types/guidedPalette';
 
 const inputClass =
   'w-full px-4 py-3 rounded-xl bg-gray-800/80 border border-gray-600/50 text-white placeholder-gray-500 focus:ring-2 focus:ring-violet-500/40 focus:border-violet-500/50 outline-none transition-all';
@@ -55,6 +55,12 @@ function getInitials(name: string | undefined, email: string): string {
   }
   return email.slice(0, 2).toUpperCase();
 }
+
+const SECTION_LABELS: Record<SavedFromSection, string> = {
+  refinement: 'Refinar',
+  application: 'Aplicar',
+  analysis: 'Análisis',
+};
 
 export function AccountPanel({ onBack, onEditPalette, onExportPalette }: AccountPanelProps) {
   const { user, profile, updateProfile, updatePassword, signOut } = useAuth();
@@ -281,9 +287,25 @@ export function AccountPanel({ onBack, onEditPalette, onExportPalette }: Account
                           autoFocus
                         />
                       ) : (
-                        <span className="text-white font-medium truncate block text-sm">
-                          {p.name || 'Sin nombre'}
-                        </span>
+                        <div className="flex flex-col gap-1 min-w-0">
+                          <span className="text-white font-medium truncate block text-sm">
+                            {p.name || 'Sin nombre'}
+                          </span>
+                          {(p.savedFromSection != null || (p.version != null && p.version > 1)) && (
+                            <div className="flex flex-wrap gap-1">
+                              {p.savedFromSection != null && (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-violet-500/20 text-violet-300 border border-violet-500/30">
+                                  {SECTION_LABELS[p.savedFromSection]}
+                                </span>
+                              )}
+                              {p.version != null && p.version > 1 && (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-600/50 text-gray-400 border border-gray-500/40">
+                                  V{p.version}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       )}
                     </div>
                     {editingId !== p.id && (

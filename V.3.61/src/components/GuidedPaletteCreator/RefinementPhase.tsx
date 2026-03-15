@@ -73,6 +73,11 @@ interface RefinementPhaseProps {
   setRefinementGeneralSliders: (v: { tone: number; sat: number; light: number } | ((prev: { tone: number; sat: number; light: number }) => { tone: number; sat: number; light: number })) => void;
   goBack: () => void;
   goNext: () => void;
+  /** Guardar paleta (desde banner); si no hay sesión el handler puede abrir auth. */
+  onSavePalette?: () => void;
+  /** Sección anclada: las acciones no se deshacen desde otras secciones. */
+  lockPinned?: boolean;
+  onLockToggle?: () => void;
 }
 
 function RefinementPhaseInner({
@@ -110,6 +115,9 @@ function RefinementPhaseInner({
   setRefinementGeneralSliders,
   goBack,
   goNext,
+  onSavePalette,
+  lockPinned = false,
+  onLockToggle,
 }: RefinementPhaseProps) {
   const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
   const iconAccent = getRefinementIconAccent(inspirationMode);
@@ -139,6 +147,10 @@ function RefinementPhaseInner({
           onRedo={redo}
           undoDisabled={historyIndex <= 0}
           redoDisabled={historyIndex >= historyLength - 1}
+          savePaletteLabel={COPY.nav.savePalette}
+          onSavePalette={onSavePalette}
+          lockPinned={lockPinned}
+          onLockToggle={onLockToggle}
         />
       }
       footer={null}

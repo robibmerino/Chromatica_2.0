@@ -1,7 +1,10 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 import { useGuidedPalette } from './GuidedPaletteCreator/hooks/useGuidedPalette';
+import { SavePaletteModal } from './GuidedPaletteCreator/SavePaletteModal';
+import type { SavedFromSection } from '../types/guidedPalette';
 import type { InspirationMode } from '../types/guidedPalette';
 import type { OpenPaletteRequest } from './GuidedPaletteCreator/hooks/useGuidedPalette';
 import { GuidedPaletteCreatorHeader } from './GuidedPaletteCreator/GuidedPaletteCreatorHeader';
@@ -90,8 +93,10 @@ export default function GuidedPaletteCreator({
   initialPaletteRequest,
   onConsumeOpenPalette,
 }: GuidedPaletteCreatorProps) {
+  const { user } = useAuth();
   const state = useGuidedPalette({ initialPaletteRequest, onConsumeOpenPalette });
 
+  const [showSavePaletteModal, setShowSavePaletteModal] = useState(false);
   const [combinedPaletteModalColors, setCombinedPaletteModalColors] = useState<string[] | null>(null);
   const [showCombinedPaletteModal, setShowCombinedPaletteModal] = useState(false);
   const [combinedPaletteModalIndividuals, setCombinedPaletteModalIndividuals] = useState<
@@ -101,6 +106,35 @@ export default function GuidedPaletteCreator({
     'balanced' | 'flow-first' | 'palette-first' | 'soft-gradient' | 'custom'
   >('balanced');
   const [combinedColorCount, setCombinedColorCount] = useState<number>(4);
+  /** Candado por sección (Grupo 1: solo UI; Grupo 5: afectará al historial). */
+  const [sectionLocked, setSectionLocked] = useState<{
+    refinement: boolean;
+    application: boolean;
+    analysis: boolean;
+  }>({ refinement: false, application: false, analysis: false });
+
+  const toggleSectionLock = useCallback((section: 'refinement' | 'application' | 'analysis') => {
+    setSectionLocked((prev) => ({ ...prev, [section]: !prev[section] }));
+  }, []);
+
+  const handleSavePaletteClick = useCallback(() => {
+    if (!user) {
+      onOpenAuth();
+      return;
+    }
+    setShowSavePaletteModal(true);
+  }, [user, onOpenAuth]);
+
+  const saveModalSection: SavedFromSection | null =
+    state.phase === 'refinement'
+      ? 'refinement'
+      : state.phase === 'application'
+        ? 'application'
+        : state.phase === 'analysis'
+          ? 'analysis'
+          : null;
+  const saveModalSuggestions =
+    saveModalSection != null ? state.getSaveSuggestions(saveModalSection) : { suggestedName: '', nextVersion: 1 };
 
   useEffect(() => {
     if (!showCombinedPaletteModal) return;
@@ -268,6 +302,9 @@ export default function GuidedPaletteCreator({
       setRefinementGeneralSliders: state.setRefinementGeneralSliders,
       goBack: state.goBack,
       goNext: state.goNext,
+      onSavePalette: handleSavePaletteClick,
+      lockPinned: sectionLocked.refinement,
+      onLockToggle: () => toggleSectionLock('refinement'),
     }),
     [
       state.inspirationMode,
@@ -304,6 +341,9 @@ export default function GuidedPaletteCreator({
       state.setSelectedSupportRole,
       state.goBack,
       state.goNext,
+      handleSavePaletteClick,
+      sectionLocked.refinement,
+      toggleSectionLock,
     ]
   );
 
@@ -324,6 +364,9 @@ export default function GuidedPaletteCreator({
       redoDisabled: state.historyIndex >= state.historyLength - 1,
       hasApplicationSnapshot: state.hasApplicationSnapshot,
       onConfirmRestore: state.resetApplicationToSnapshot,
+      onSavePalette: handleSavePaletteClick,
+      lockPinned: sectionLocked.application,
+      onLockToggle: () => toggleSectionLock('application'),
     }),
     [
       state.colors,
@@ -341,6 +384,9 @@ export default function GuidedPaletteCreator({
       state.undo,
       state.redo,
       state.resetApplicationToSnapshot,
+      handleSavePaletteClick,
+      sectionLocked.application,
+      toggleSectionLock,
     ]
   );
 
@@ -412,15 +458,22 @@ export default function GuidedPaletteCreator({
             <Suspense fallback={<PhaseFallback />}>
               <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
                 <AnalysisPhase
-              colors={state.colors}
-              analysisType={state.analysisType}
-              setAnalysisType={state.setAnalysisType}
-              updateColorsWithHistory={state.updateColorsWithHistory}
-              setColors={state.setColors}
-              showNotification={state.showNotification}
-              goBack={state.goBack}
-              goNext={state.goNext}
-            />
+                  colors={state.colors}
+                  analysisType={state.analysisType}
+                  setAnalysisType={state.setAnalysisType}
+                  updateColorsWithHistory={state.updateColorsWithHistory}
+                  setColors={state.setColors}
+                  showNotification={state.showNotification}
+                  goBack={state.goBack}
+                  goNext={state.goNext}
+                  undo={state.undo}
+                  redo={state.redo}
+                  undoDisabled={state.historyIndex <= 0}
+                  redoDisabled={state.historyIndex >= state.historyLength - 1}
+                  onSavePalette={handleSavePaletteClick}
+                  lockPinned={sectionLocked.analysis}
+                  onLockToggle={() => toggleSectionLock('analysis')}
+                />
               </div>
             </Suspense>
           )}
@@ -453,6 +506,20 @@ export default function GuidedPaletteCreator({
       <AnimatePresence>
         {state.notification && <NotificationToast message={state.notification} />}
       </AnimatePresence>
+
+      {showSavePaletteModal && saveModalSection != null && (
+        <SavePaletteModal
+          open={showSavePaletteModal}
+          onClose={() => setShowSavePaletteModal(false)}
+          onSave={(params) => {
+            state.savePaletteFromSection(params);
+            setShowSavePaletteModal(false);
+          }}
+          section={saveModalSection}
+          suggestedName={saveModalSuggestions.suggestedName}
+          nextVersion={saveModalSuggestions.nextVersion}
+        />
+      )}
 
       {showCombinedPaletteModal && combinedPaletteModalColors && (
         <div

@@ -9,6 +9,10 @@ create table if not exists public.palettes (
   created_at timestamptz not null default now()
 );
 
+-- Sección de la cadena desde la que se guardó (refinement | application | analysis) y versión (2, 3...)
+alter table public.palettes add column if not exists saved_from_section text;
+alter table public.palettes add column if not exists version integer;
+
 -- Columnas opcionales para ver cada color en una celda (paletas de 1–8 colores)
 alter table public.palettes add column if not exists color_1 text;
 alter table public.palettes add column if not exists color_2 text;

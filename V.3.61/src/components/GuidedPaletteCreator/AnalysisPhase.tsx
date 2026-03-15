@@ -21,6 +21,13 @@ interface AnalysisPhaseProps {
   showNotification: (msg: string) => void;
   goBack: () => void;
   goNext: () => void;
+  undo: () => void;
+  redo: () => void;
+  undoDisabled: boolean;
+  redoDisabled: boolean;
+  onSavePalette?: () => void;
+  lockPinned?: boolean;
+  onLockToggle?: () => void;
 }
 
 const ANALYSIS_ICON = (
@@ -48,6 +55,13 @@ function AnalysisPhaseInner({
   showNotification,
   goBack,
   goNext,
+  undo,
+  redo,
+  undoDisabled,
+  redoDisabled,
+  onSavePalette,
+  lockPinned = false,
+  onLockToggle,
 }: AnalysisPhaseProps) {
   return (
     <PhaseLayout
@@ -62,6 +76,14 @@ function AnalysisPhaseInner({
           iconBoxClassName={SECTION_ICON_ACCENTS.blue}
           primaryLabel="Guardar / Exportar →"
           onPrimaryClick={goNext}
+          onUndo={undo}
+          onRedo={redo}
+          undoDisabled={undoDisabled}
+          redoDisabled={redoDisabled}
+          savePaletteLabel={COPY.nav.savePalette}
+          onSavePalette={onSavePalette}
+          lockPinned={lockPinned}
+          onLockToggle={onLockToggle}
         />
       }
       footer={null}
