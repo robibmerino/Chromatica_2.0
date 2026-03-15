@@ -270,26 +270,28 @@ function PreviewTable<T extends Record<string, unknown>>({
   );
 }
 
-/** Tabla de frecuencias: categoría, n, % (compacta). */
-function FrequencyTable({ rows, title }: { rows: FreqRow[]; title?: string }) {
+/** Tabla de frecuencias: categoría, n, % (compacta). dense=true para resumen (menos alto). */
+function FrequencyTable({ rows, title, dense }: { rows: FreqRow[]; title?: string; dense?: boolean }) {
   if (rows.length === 0) return null;
+  const cellPy = dense ? 'py-0' : 'py-0.5';
+  const textSize = dense ? 'text-xs' : 'text-sm';
   return (
-    <div className="space-y-0.5">
+    <div className={dense ? 'space-y-0' : 'space-y-0.5'}>
       {title && <h4 className="text-xs font-medium text-gray-400">{title}</h4>}
-      <table className="w-full text-sm">
+      <table className={`w-full ${textSize}`}>
         <thead>
           <tr className="text-left text-gray-500 border-b border-gray-700">
-            <th className="py-0.5 pr-2">Categoría</th>
-            <th className="py-0.5 w-10 text-right">n</th>
-            <th className="py-0.5 w-12 text-right">%</th>
+            <th className={`${cellPy} pr-2`}>Categoría</th>
+            <th className={`${cellPy} w-10 text-right`}>n</th>
+            <th className={`${cellPy} w-12 text-right`}>%</th>
           </tr>
         </thead>
         <tbody>
           {rows.map(({ label, n, pct }) => (
             <tr key={label} className="border-b border-gray-800/50">
-              <td className="py-0.5 pr-2 text-gray-300">{label}</td>
-              <td className="text-right text-gray-400">{n}</td>
-              <td className="text-right text-gray-400">{pct.toFixed(1)}%</td>
+              <td className={`${cellPy} pr-2 text-gray-300`}>{label}</td>
+              <td className={`${cellPy} text-right text-gray-400`}>{n}</td>
+              <td className={`${cellPy} text-right text-gray-400`}>{pct.toFixed(1)}%</td>
             </tr>
           ))}
         </tbody>
@@ -365,7 +367,7 @@ function DemographicsUpvChart({ data }: { data: DemographicsRow[] }) {
   return <FreqBarChart rows={rows} />;
 }
 
-/** Resumen de la muestra: N total + tablas compactas. */
+/** Resumen de la muestra: N total + tablas en grid 2 columnas (más corto y fácil de leer). */
 function SampleSummary({ data }: { data: DemographicsRow[] }) {
   const n = data.length;
   const ageRows = useMemo(() => getFrequencyCounts(data, (r) => r.age_range?.trim() ?? '', AGE_RANGE_ORDER), [data]);
@@ -377,15 +379,15 @@ function SampleSummary({ data }: { data: DemographicsRow[] }) {
   );
   if (n === 0) return <p className="text-gray-500 text-sm py-2">Carga sociodemográficas para ver el resumen.</p>;
   return (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
       <p className="text-sm text-gray-300">
         <strong>N = {n}</strong> participantes (con consentimiento y datos en sociodemográficas).
       </p>
-      <div className="grid grid-cols-1 gap-2">
-        <FrequencyTable rows={ageRows.map((r) => ({ ...r, label: r.label }))} title="Edad (rango)" />
-        <FrequencyTable rows={genderRows.map((r) => ({ ...r, label: labelGender(r.label) }))} title="Género" />
-        <FrequencyTable rows={careerRows.map((r) => ({ ...r, label: labelCareer(r.label) }))} title="Área diseño" />
-        <FrequencyTable rows={upvRows} title="Estudiante UPV" />
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+        <FrequencyTable dense rows={ageRows.map((r) => ({ ...r, label: r.label }))} title="Edad (rango)" />
+        <FrequencyTable dense rows={genderRows.map((r) => ({ ...r, label: labelGender(r.label) }))} title="Género" />
+        <FrequencyTable dense rows={careerRows.map((r) => ({ ...r, label: labelCareer(r.label) }))} title="Área diseño" />
+        <FrequencyTable dense rows={upvRows} title="Estudiante UPV" />
       </div>
     </div>
   );
