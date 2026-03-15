@@ -58,7 +58,25 @@ Deno.serve(async (req) => {
     return Response.json({ error: error.message }, { status: 500 });
   }
 
-  return new Response(JSON.stringify(rows ?? []), {
+  const userIds = (rows ?? []).map((r: { user_id: string }) => r.user_id);
+  if (userIds.length > 0) {
+    await adminClient.rpc('ensure_participant_codes', { p_user_ids: userIds });
+  }
+
+  const { data: codeRows } = await adminClient
+    .from('research_participant_codes')
+    .select('user_id, code')
+    .in('user_id', userIds);
+
+  const codeByUserId = new Map<string, number>();
+  (codeRows ?? []).forEach((r: { user_id: string; code: number }) => codeByUserId.set(r.user_id, r.code));
+
+  const payload = (rows ?? []).map((r: { user_id: string; [k: string]: unknown }) => ({
+    ...r,
+    code: codeByUserId.get(r.user_id) ?? null,
+  }));
+
+  return new Response(JSON.stringify(payload), {
     headers: {
       'Content-Type': 'application/json',
       'Access-Control-Allow-Origin': '*',

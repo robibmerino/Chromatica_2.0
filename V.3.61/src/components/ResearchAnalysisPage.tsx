@@ -28,6 +28,8 @@ export interface PaletteRow {
 
 export interface DemographicsRow {
   user_id: string;
+  /** Código numérico asignado (1, 2, 3, ...) desde research_participant_codes. */
+  code: number | null;
   age_range: string | null;
   gender: string | null;
   design_career: string | null;
@@ -125,6 +127,7 @@ function labelCareer(raw: string): string {
 }
 
 export type DemographicsDisplayRow = {
+  codigo_id: string;
   user_id: string;
   age_range: string;
   gender: string;
@@ -162,6 +165,7 @@ function formatConsentTime(iso: string | null): string {
 
 function formatDemographicsForDisplay(rows: DemographicsRow[]): DemographicsDisplayRow[] {
   return rows.map((r) => ({
+    codigo_id: r.code != null ? String(r.code) : '—',
     user_id: r.user_id,
     age_range: r.age_range?.trim() || '—',
     gender: (r.gender && GENDER_LABELS[r.gender]) || r.gender || '—',
@@ -172,8 +176,9 @@ function formatDemographicsForDisplay(rows: DemographicsRow[]): DemographicsDisp
   }));
 }
 
-const DEMOGRAPHICS_COLUMNS: { key: keyof DemographicsDisplayRow; label: string }[] = [
-  { key: 'user_id', label: 'User ID' },
+const DEMOGRAPHICS_COLUMN_DEFS: { key: keyof DemographicsDisplayRow; label: string; optional?: boolean }[] = [
+  { key: 'codigo_id', label: 'Código ID' },
+  { key: 'user_id', label: 'User ID', optional: true },
   { key: 'age_range', label: 'Edad' },
   { key: 'gender', label: 'Género' },
   { key: 'design_career', label: 'Área diseño' },
@@ -587,10 +592,16 @@ export function ResearchAnalysisPage({ onBack }: ResearchAnalysisPageProps) {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [demographicsAnalysisTab, setDemographicsAnalysisTab] = useState<DemographicsAnalysisTab>('summary');
   const [crossOptionId, setCrossOptionId] = useState<string>(CROSS_OPTIONS[0].id);
+  const [showUserIdInTable, setShowUserIdInTable] = useState(false);
 
   useEffect(() => {
     setSortBy('');
   }, [section]);
+
+  const demographicsColumns = useMemo(
+    () => DEMOGRAPHICS_COLUMN_DEFS.filter((c) => !c.optional || showUserIdInTable),
+    [showUserIdInTable]
+  );
 
   const fetchPalettes = useResearchFetch<PaletteRow[]>('export-research-data');
   const fetchDemographics = useResearchFetch<DemographicsRow[]>('export-research-demographics');
@@ -638,7 +649,7 @@ export function ResearchAnalysisPage({ onBack }: ResearchAnalysisPageProps) {
     [demographicsData]
   );
 
-  const currentColumns = section === 'demographics' ? DEMOGRAPHICS_COLUMNS : PALETTES_COLUMNS;
+  const currentColumns = section === 'demographics' ? demographicsColumns : PALETTES_COLUMNS;
   const validSortBy = sortBy && currentColumns.some((c) => c.key === sortBy) ? sortBy : null;
 
   const sortedDemographicsRows = useMemo(() => {
@@ -654,6 +665,7 @@ export function ResearchAnalysisPage({ onBack }: ResearchAnalysisPageProps) {
   const downloadDemographicsExcel = useCallback(() => {
     if (!sortedDemographicsRows.length) return;
     const sheetData = sortedDemographicsRows.map((r) => ({
+      'Código ID': r.codigo_id,
       'User ID': r.user_id,
       Edad: r.age_range,
       Género: r.gender,
@@ -776,6 +788,17 @@ export function ResearchAnalysisPage({ onBack }: ResearchAnalysisPageProps) {
               <LayoutGrid className="w-4 h-4" />
               Vista con gráficos
             </label>
+            {section === 'demographics' && (
+              <label className="flex items-center gap-2 ml-4 cursor-pointer text-sm text-gray-400 hover:text-gray-300">
+                <input
+                  type="checkbox"
+                  checked={showUserIdInTable}
+                  onChange={(e) => setShowUserIdInTable(e.target.checked)}
+                  className="rounded border-gray-600 bg-gray-800 text-indigo-500 focus:ring-indigo-500"
+                />
+                Mostrar User ID en tabla
+              </label>
+            )}
 
             {currentData != null && currentData.length > 0 && (
               <div className="flex items-center gap-2 ml-4 pl-4 border-l border-gray-600">
@@ -818,7 +841,7 @@ export function ResearchAnalysisPage({ onBack }: ResearchAnalysisPageProps) {
                 {section === 'demographics' && demographicsData != null && (
                   <PreviewTable
                     rows={sortedDemographicsRows}
-                    columns={DEMOGRAPHICS_COLUMNS}
+                    columns={demographicsColumns}
                     rowKey="user_id"
                     className="min-h-[200px]"
                   />
@@ -846,7 +869,7 @@ export function ResearchAnalysisPage({ onBack }: ResearchAnalysisPageProps) {
                     {section === 'demographics' && demographicsData != null && (
                       <PreviewTable
                         rows={sortedDemographicsRows}
-                        columns={DEMOGRAPHICS_COLUMNS}
+                        columns={demographicsColumns}
                         rowKey="user_id"
                         className="min-h-0"
                         embedded
