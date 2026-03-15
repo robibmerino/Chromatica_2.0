@@ -383,7 +383,7 @@ function SampleSummary({ data }: { data: DemographicsRow[] }) {
       <p className="text-sm text-gray-300">
         <strong>N = {n}</strong> participantes (con consentimiento y datos en sociodemográficas).
       </p>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+      <div className="grid grid-cols-2 gap-x-10 gap-y-6">
         <FrequencyTable dense rows={ageRows.map((r) => ({ ...r, label: r.label }))} title="Edad (rango)" />
         <FrequencyTable dense rows={genderRows.map((r) => ({ ...r, label: labelGender(r.label) }))} title="Género" />
         <FrequencyTable dense rows={careerRows.map((r) => ({ ...r, label: labelCareer(r.label) }))} title="Área diseño" />
