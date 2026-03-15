@@ -312,42 +312,43 @@ export function ResearchAnalysisPage({ onBack }: ResearchAnalysisPageProps) {
   }, [section, handlePreviewDemographics, handlePreviewPalettes]);
 
   const downloadDemographicsExcel = useCallback(() => {
-    if (!demographicsData || demographicsData.length === 0) return;
-    const sheetData = demographicsData.map((r) => ({
-      user_id: r.user_id,
-      age_range: r.age_range ?? '',
-      gender: r.gender ?? '',
-      design_career: r.design_career ?? '',
-      is_upv_student: r.is_upv_student ?? '',
-      consented_at: r.consented_at,
+    if (!sortedDemographicsRows.length) return;
+    const sheetData = sortedDemographicsRows.map((r) => ({
+      'User ID': r.user_id,
+      Edad: r.age_range,
+      Género: r.gender,
+      'Área diseño': r.design_career,
+      'Estudiante UPV': r.is_upv_student,
+      Fecha: r.consented_date,
+      Hora: r.consented_time,
     }));
     const ws = XLSX.utils.json_to_sheet(sheetData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Sociodemográficas');
     XLSX.writeFile(wb, `chromatica-sociodemograficas-${new Date().toISOString().slice(0, 10)}.xlsx`);
-  }, [demographicsData]);
+  }, [sortedDemographicsRows]);
 
   const downloadPalettesExcel = useCallback(() => {
-    if (!palettesData || palettesData.length === 0) return;
-    const sheetData = palettesData.map((r) => ({
-      id: r.id,
-      user_id: r.user_id,
-      name: r.name ?? '',
-      color_1: r.color_1 ?? '',
-      color_2: r.color_2 ?? '',
-      color_3: r.color_3 ?? '',
-      color_4: r.color_4 ?? '',
-      color_5: r.color_5 ?? '',
-      color_6: r.color_6 ?? '',
-      color_7: r.color_7 ?? '',
-      color_8: r.color_8 ?? '',
-      created_at: r.created_at,
+    if (!sortedPalettesRows.length) return;
+    const sheetData = sortedPalettesRows.map((r) => ({
+      ID: r.id,
+      'User ID': r.user_id,
+      Nombre: r.name ?? '',
+      'Color 1': r.color_1 ?? '',
+      'Color 2': r.color_2 ?? '',
+      'Color 3': r.color_3 ?? '',
+      'Color 4': r.color_4 ?? '',
+      'Color 5': r.color_5 ?? '',
+      'Color 6': r.color_6 ?? '',
+      'Color 7': r.color_7 ?? '',
+      'Color 8': r.color_8 ?? '',
+      Creado: r.created_at,
     }));
     const ws = XLSX.utils.json_to_sheet(sheetData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Paletas');
     XLSX.writeFile(wb, `chromatica-paletas-${new Date().toISOString().slice(0, 10)}.xlsx`);
-  }, [palettesData]);
+  }, [sortedPalettesRows]);
 
   const demographicsDisplayRows = useMemo(
     () => formatDemographicsForDisplay(demographicsData ?? []),
