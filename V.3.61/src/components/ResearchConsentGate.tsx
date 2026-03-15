@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useResearch } from '../contexts/ResearchContext';
 import { getSupabaseConfig } from '../lib/env';
 import { deleteUserAfterDecline } from '../lib/deleteUserAfterDecline';
+import { syncDemographicsToSupabase } from '../lib/researchClient';
 import ChromaticaLogo from './ChromaticaLogo';
 import { ParticleBackground } from './ParticleBackground';
 
@@ -43,7 +44,7 @@ const DESIGN_CAREERS = [
  * SyncDemographics enviará los datos a research_demographics cuando haya sesión.
  */
 export function ResearchConsentGate() {
-  const { session, signOut } = useAuth();
+  const { user, session, signOut } = useAuth();
   const { acceptConsent, declineConsent } = useResearch();
   const [researchParticipate, setResearchParticipate] = useState(false);
   const [researchAge, setResearchAge] = useState('');
@@ -76,16 +77,24 @@ export function ResearchConsentGate() {
       if (!researchParticipate) return;
       setSubmitting(true);
       setError(null);
-      const { error: err } = await acceptConsent({
+      const demographics = {
         age_range: researchAge || undefined,
         gender: researchGender || undefined,
         design_career: researchDesignCareer || undefined,
         is_upv_student: researchIsUpvStudent ?? undefined,
-      });
+      };
+      const { error: err } = await acceptConsent(demographics);
+      if (err) {
+        setSubmitting(false);
+        setError(err.message);
+        return;
+      }
+      if (user?.id && (demographics.age_range || demographics.gender || demographics.design_career != null)) {
+        await syncDemographicsToSupabase(user.id, demographics);
+      }
       setSubmitting(false);
-      if (err) setError(err.message);
     },
-    [researchParticipate, researchAge, researchGender, researchDesignCareer, researchIsUpvStudent, acceptConsent]
+    [researchParticipate, researchAge, researchGender, researchDesignCareer, researchIsUpvStudent, acceptConsent, user?.id]
   );
 
   return (

@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { useAuth } from './AuthContext';
-import { researchClient, hasConsent, hasDeclined, giveConsent, setDeclined, revokeConsent } from '../lib/researchClient';
+import { researchClient, hasConsent, hasDeclined, giveConsent, setDeclined, clearDeclined, revokeConsent } from '../lib/researchClient';
 
 interface ResearchContextValue {
   consentGiven: boolean;
@@ -33,8 +33,8 @@ export function ResearchProvider({ children }: { children: ReactNode }) {
       const uid = consentUserId ?? userId;
       const { error } = await giveConsent(demographics, uid || undefined);
       setConsentGiven(true);
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('chromatica_research_declined');
+      if (uid && typeof window !== 'undefined') {
+        clearDeclined(uid);
       }
       return { error };
     },
@@ -45,7 +45,7 @@ export function ResearchProvider({ children }: { children: ReactNode }) {
     if (userId) {
       setDeclined(userId);
     } else if (typeof window !== 'undefined') {
-      localStorage.setItem(STORAGE_CONSENT_DECLINED, '1');
+      localStorage.setItem('chromatica_research_declined', '1');
     }
     setConsentDeclined(true);
   }, [userId]);
