@@ -8,20 +8,21 @@ import { SplashScreen } from './components/SplashScreen';
 import { SetNewPasswordOverlay } from './components/SetNewPasswordOverlay';
 import { SyncDemographics } from './components/SyncDemographics';
 
+function getInitialShowSplash(): boolean {
+  if (typeof window === 'undefined') return true;
+  const hash = window.location.hash;
+  if (hash.includes('access_token=') || hash.includes('refresh_token=')) return false;
+  if (new URLSearchParams(window.location.search).get('share')?.trim()) return false;
+  return true;
+}
+
 export function App() {
-  const [showSplash, setShowSplash] = useState(true);
+  const [showSplash, setShowSplash] = useState(getInitialShowSplash);
   const [showAuthView, setShowAuthView] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-      const hasShare = new URLSearchParams(window.location.search).get('share')?.trim();
-      const returningFromOAuth =
-        typeof window !== 'undefined' &&
-        (window.location.hash.includes('access_token=') || window.location.hash.includes('refresh_token='));
-      if (hasShare || returningFromOAuth) setShowSplash(false);
-    }, 500);
+    const timer = setTimeout(() => setIsLoading(false), 500);
     return () => clearTimeout(timer);
   }, []);
 
