@@ -6,11 +6,14 @@ import type { ColorItem } from '../../../types/guidedPalette';
 
 export type PaletteHistorySectionId = 'refinement' | 'application' | 'analysis';
 
-/** Una entrada del historial por estados: estado completo de la paleta + sección y descripción opcional. */
+/** Una entrada del historial por estados: estado completo de la paleta + sección y descripción opcional.
+ *  Incluye, cuando existe, los sliders globales de Refinar en el momento de la acción.
+ *  (Los flujos antiguos pueden no tener esta propiedad; en ese caso se asume { tone:0, sat:0, light:0 }. */
 export interface StateHistoryEntry {
   colors: ColorItem[];
   sectionId: PaletteHistorySectionId | null;
   description?: string;
+  refinementGeneralSliders?: { tone: number; sat: number; light: number };
 }
 
 /** Acción que puede aplicarse o invertirse sobre la paleta actual. */

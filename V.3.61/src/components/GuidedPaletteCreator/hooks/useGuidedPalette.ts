@@ -220,6 +220,7 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
         colors: newColors.map((c) => ({ ...c })),
         sectionId,
         ...(description != null && description !== '' ? { description } : {}),
+        refinementGeneralSliders: { ...refinementGeneralSliders },
       };
       setStateHistory((prev) => {
         const next = prev.slice(0, idx + 1);
@@ -242,7 +243,7 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
       });
       setHistoryIndex((prev) => Math.min(prev + 1, HISTORY_MAX_SIZE - 1));
     },
-    [getCurrentSectionId]
+    [getCurrentSectionId, refinementGeneralSliders]
   );
 
   const updateColorsWithHistory = useCallback(
@@ -277,7 +278,7 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
     const entry = stateHistory[prevPointer];
     if (!entry?.colors.length) return;
     setColors(entry.colors.map((c) => ({ ...c })));
-    setRefinementGeneralSliders(DEFAULT_REFINEMENT_SLIDERS);
+    setRefinementGeneralSliders(entry.refinementGeneralSliders ?? DEFAULT_REFINEMENT_SLIDERS);
     setHistoryPointer(prevPointer);
     setHistoryIndex(prevPointer);
     historyPointerRef.current = prevPointer;
@@ -290,7 +291,7 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
     const entry = stateHistory[nextPointer];
     if (!entry?.colors.length) return;
     setColors(entry.colors.map((c) => ({ ...c })));
-    setRefinementGeneralSliders(DEFAULT_REFINEMENT_SLIDERS);
+    setRefinementGeneralSliders(entry.refinementGeneralSliders ?? DEFAULT_REFINEMENT_SLIDERS);
     setHistoryPointer(nextPointer);
     setHistoryIndex(nextPointer);
     historyPointerRef.current = nextPointer;
@@ -305,7 +306,7 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
       const entry = stateHistory[index];
       if (!entry?.colors.length) return;
       setColors(entry.colors.map((c) => ({ ...c })));
-      setRefinementGeneralSliders(DEFAULT_REFINEMENT_SLIDERS);
+      setRefinementGeneralSliders(entry.refinementGeneralSliders ?? DEFAULT_REFINEMENT_SLIDERS);
       setHistoryPointer(index);
       setHistoryIndex(index);
       historyPointerRef.current = index;
@@ -334,7 +335,7 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
       historyPointerRef.current = clampedPointer;
       historyIndexRef.current = clampedPointer;
       setColors(entry.colors.map((c) => ({ ...c })));
-      setRefinementGeneralSliders(DEFAULT_REFINEMENT_SLIDERS);
+      setRefinementGeneralSliders(entry.refinementGeneralSliders ?? DEFAULT_REFINEMENT_SLIDERS);
       if (inspirationMode && isInFlowSection) {
         const floor = flowPaletteStateByInspiration[inspirationMode]?.sectionLockFloor ?? DEFAULT_SECTION_LOCK_FLOOR;
         const adjustFloor = (f: number | null): number | null => {
