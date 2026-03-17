@@ -722,12 +722,22 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
     [colors, savedPalettes, showNotification, user?.id]
   );
 
-  /** Sugerencias para el modal de guardar: nombre sugerido y próxima versión según sección. */
+  /** Sugerencias para el modal de guardar: nombre sugerido y próxima versión.
+   * La versión se calcula por nombre de paleta (V1, V2, V3...) solo entre
+   * paletas que comparten exactamente el mismo nombre.
+   */
   const getSaveSuggestions = useCallback(
     (section: SavedFromSection) => {
       const fromSection = savedPalettes.filter((p) => p.savedFromSection === section);
       const suggestedName = fromSection.length > 0 ? fromSection[0].name : savedPalettes[0]?.name ?? '';
-      const nextVersion = fromSection.length + 1;
+      if (!suggestedName) {
+        return { suggestedName: '', nextVersion: 1 };
+      }
+      const normalized = suggestedName.trim().toLowerCase();
+      const withSameName = savedPalettes.filter(
+        (p) => p.name && p.name.trim().toLowerCase() === normalized
+      );
+      const nextVersion = withSameName.length + 1;
       return { suggestedName, nextVersion };
     },
     [savedPalettes]

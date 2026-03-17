@@ -118,8 +118,12 @@ export default function GuidedPaletteCreator({
   }, [user, onOpenAuth]);
 
   useEffect(() => {
+    if (!showHistoryModal) return;
+    if (state.phase === 'refinement' || state.phase === 'application' || state.phase === 'analysis') {
+      return;
+    }
     setShowHistoryModal(false);
-  }, [state.phase]);
+  }, [showHistoryModal, state.phase]);
 
   const saveModalSection: SavedFromSection | null =
     state.phase === 'refinement'

@@ -5,6 +5,8 @@ interface RefinementPhaseHeaderProps {
   originalPalette: ColorItem[];
   historyIndex: number;
   historyLength: number;
+  canUndo: boolean;
+  canRedo: boolean;
   onBack: () => void;
   onRestoreOriginal: () => void;
   onUndo: () => void;
@@ -16,6 +18,8 @@ export function RefinementPhaseHeader({
   originalPalette,
   historyIndex,
   historyLength,
+  canUndo,
+  canRedo,
   onBack,
   onRestoreOriginal,
   onUndo,
@@ -51,9 +55,9 @@ export function RefinementPhaseHeader({
           <button
             type="button"
             onClick={onUndo}
-            disabled={historyIndex <= 0}
+            disabled={!canUndo}
             className={`p-2 rounded-lg text-sm transition-colors ${
-              historyIndex > 0
+              canUndo
                 ? 'bg-gray-700 hover:bg-gray-600 text-white'
                 : 'bg-gray-800 text-gray-600 cursor-not-allowed'
             }`}
@@ -65,9 +69,9 @@ export function RefinementPhaseHeader({
           <button
             type="button"
             onClick={onRedo}
-            disabled={historyIndex >= historyLength - 1}
+            disabled={!canRedo}
             className={`p-2 rounded-lg text-sm transition-colors ${
-              historyIndex < historyLength - 1
+              canRedo
                 ? 'bg-gray-700 hover:bg-gray-600 text-white'
                 : 'bg-gray-800 text-gray-600 cursor-not-allowed'
             }`}

@@ -4,33 +4,46 @@ Objetivo: unificar la parte derecha del banner en Refinar, Aplicar y Análisis c
 
 ---
 
-## Grupos de trabajo (verificar cada uno antes de seguir)
+## TODO general — 6 bloques de trabajo
 
-### Grupo 1 – UI del banner (sin lógica nueva)
-- **SectionBanner**: Añadir botón "Guardar paleta", botón candado (anclar/desanclar), orden fijo: Guardar | Undo/Redo | Candado | Avanzar.
-- Por defecto mostrar **solo un botón** junto a "Avanzar" (ej. "Más opciones" ⋯) que al clic expande y muestra Guardar, Adelante/Atrás, Candado.
+| # | Bloque | Estado | Descripción breve |
+|---|--------|--------|-------------------|
+| **1** | UI del banner | ✅ Hecho | Orden Guardar \| Adelante/Atrás \| Candado \| Avanzar; botón ⋯ que expande; icono guardar (Save); estilo naranja en guardar. |
+| **2** | Guardar paleta | ✅ Hecho | Sin sesión → auth; con sesión → modal (nombre, sección, versión); etiquetas en Mis paletas. |
+| **3** | Candado (estado) | ✅ Hecho | Candado persistido en FlowPaletteState; al cambiar de fase o volver al menú y reentrar se conserva. |
+| **4** | Historial por acciones | ✅ Hecho (base) | Historial = lista de acciones con sectionId; tipo snapshot (prev/next); apply/invert; undo/redo por acción; persistido en flujo. |
+| **5** | Historial multi-sección + candado | ✅ Hecho | getPreviousNavigableIndex/getNextNavigableIndex según candado; en anclada solo acciones de esa sección; desde no anclada se saltan acciones de secciones ancladas; canUndo/canRedo. |
+| **6** | Ajustes y edge cases | 🔲 Pendiente | Restaurar, notificaciones, nombres, etc. |
+
+**Contexto recordatorio**: Adelante/atrás debe revertir *acciones* sobre la paleta (ej. “bajar saturación del color 1”, “intercambiar posiciones 1 y 2”), no snapshots de la paleta. Con candado: las acciones de esa sección no se deshacen desde otras, y dentro de una sección anclada solo se deshacen acciones de esa sección.
+
+---
+
+## Grupos de trabajo (detalle)
+
+### Grupo 1 – UI del banner (sin lógica nueva) ✅
+- **SectionBanner**: Botón "Guardar paleta" con **icono Save** (disquete, reconocible), botón candado, orden: Guardar | Undo/Redo | Candado | Avanzar.
+- Por defecto mostrar **solo un botón** (⋯ "Más opciones") junto a Avanzar; al clic expande y muestra Guardar, Adelante/Atrás, Candado.
 - **RefinementPhase**, **ApplicationPhase**, **AnalysisPhase**: Pasar las nuevas props (onSavePalette, lockPinned, onLockToggle). En Análisis añadir undo/redo (ya existen en el hook; solo falta pasarlos al banner).
 - **Verificación**: En Refinar, Aplicar y Análisis se ve el botón ⋯; al expandir aparecen Guardar paleta, Deshacer, Rehacer, Candado y Avanzar.
 
-### Grupo 2 – Guardar paleta
-- Si no hay sesión: al pulsar "Guardar paleta" abrir inicio/crear sesión (`onOpenAuth`). Si hay sesión, guardar la paleta actual (nombre opcional o pedirlo en modal).
-- **Verificación**: Sin sesión → abre login/registro; con sesión → guarda.
+### Grupo 2 – Guardar paleta ✅
+- Sin sesión → al pulsar Guardar se abre auth. Con sesión → modal con nombre (sugerido + editable), sección y versión; mensaje "La paleta guardada podrá verse en tu perfil"; etiquetas en Mis paletas (Refinar/Aplicar/Análisis + V2, V3…).
+- **Verificación**: Sin sesión → abre login/registro; con sesión → guarda y se ven etiquetas en el perfil.
 
-### Grupo 3 – Candado (estado por sección)
-- Estado: qué secciones están "ancladas" (Refinar, Aplicar, Análisis). Persistir en el estado del flujo (ej. en `useGuidedPalette` o en el estado de `flowPaletteState`).
-- Solo UI: el botón candado alterna anclado/desanclado para la sección actual.
-- **Verificación**: Al pulsar candado en cada sección se ve el cambio de estado (cerrado/abierto).
+### Grupo 3 – Candado (estado por sección) ✅
+- Estado en `FlowPaletteState.sectionLocked`; se guarda con `saveFlowPaletteState` y se restaura al volver al flujo. Hook expone `sectionLocked` y `toggleSectionLock`.
+- **Verificación**: Anclar en Refinar, ir a Aplicar, volver a Refinar → el candado sigue cerrado. Volver al menú de inspiración y reentrar en el mismo flujo → el candado conservado.
 
-### Grupo 4 – Historial por acciones (base)
-- Definir tipos de acción (ej. `adjustSaturation`, `reorder`, `updateColor`, etc.) y estructura del historial como lista de acciones con `sectionId` (refinement | application | analysis).
-- Implementar aplicar/invertir una acción sobre la paleta actual.
-- Por ahora solo en una sección (ej. Refinar): undo/redo aplican/revierten la última acción.
-- **Verificación**: En Refinar, deshacer/rehacer revierte o reaplica la última acción correctamente.
+### Grupo 4 – Historial por acciones (base) ✅
+- `paletteHistoryActions.ts`: tipos `PaletteHistoryAction` (por ahora solo `snapshot` con sectionId, prev, next), `applyAction`, `getInverseAction`, `createSnapshotAction`.
+- Hook: `actionHistory` y `actionHistoryIndex`; `saveToHistory` crea acción snapshot; undo/redo aplican inversa o acción. Persistido en `FlowPaletteState` (actionHistory, actionHistoryIndex); migración desde history/historyIndex al restaurar.
+- **Verificación**: En Refinar (o Aplicar/Análisis), deshacer/rehacer revierte o reaplica correctamente; al volver al menú y reentrar el historial se restaura.
 
-### Grupo 5 – Historial multi-sección + candado
-- Historial unificado Refinar–Aplicar–Análisis con `sectionId` por acción.
-- Reglas: en sección anclada, adelante/atrás solo afectan acciones de esa sección; desde otras secciones, se saltan las acciones de secciones ancladas.
-- **Verificación**: Escenarios con candado en una sección y adelante/atrás desde otra.
+### Grupo 5 – Historial multi-sección + candado ✅
+- `getPreviousNavigableIndex` / `getNextNavigableIndex`: si la sección actual está anclada, solo se consideran acciones de esa sección; si no, se saltan las acciones de secciones ancladas. Posición -1 (inicial) navegable solo si la sección actual no está anclada.
+- Undo/redo saltan al anterior/siguiente índice navegable y aplican `getStateAtPosition`. `canUndo`/`canRedo` para deshabilitar botones.
+- **Verificación**: Anclar Refinar, hacer cambios en Refinar y en Aplicar; desde Aplicar, deshacer debe saltar solo acciones de Aplicar. Desde Refinar (anclada), deshacer solo acciones de Refinar.
 
 ### Grupo 6 – Ajustes y edge cases
 - Restaurar, notificaciones, nombre de paleta al guardar desde banner, etc.
