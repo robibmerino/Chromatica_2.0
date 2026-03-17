@@ -1270,6 +1270,67 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
     []
   );
 
+  /** Selección desde el menú de inspiración.
+   *  Si el flujo ya tiene paleta individual (estado guardado), abre directamente Refinar.
+   *  Si no, entra en el detalle de inspiración como hasta ahora.
+   */
+  const handleInspirationSelectFromMenu = useCallback(
+    (mode: InspirationMode) => {
+      const flowState = flowPaletteStateByInspiration[mode];
+      setInspirationMode(mode);
+
+      if (flowState) {
+        const restoredColors = flowState.colors.map((c) => ({ ...c }));
+        setColors(restoredColors);
+        setHistory(flowState.history.map((row) => row.map((c) => ({ ...c }))));
+        setHistoryIndex(flowState.historyPointer ?? flowState.historyIndex ?? 0);
+
+        if (flowState.stateHistory != null && flowState.stateHistory.length > 0 && flowState.historyPointer != null) {
+          setStateHistory(
+            flowState.stateHistory.map((e) => ({
+              colors: e.colors.map((c) => ({ ...c })),
+              sectionId: e.sectionId,
+              description: e.description,
+            }))
+          );
+          setHistoryPointer(Math.min(flowState.historyPointer ?? 0, flowState.stateHistory.length - 1));
+          historyPointerRef.current = Math.min(flowState.historyPointer ?? 0, flowState.stateHistory.length - 1);
+        } else if (flowState.actionHistory != null && flowState.actionHistory.length > 0) {
+          const { stateHistory: migrated, historyPointer: ptr } = migrateActionHistoryToStateHistory(
+            flowState.actionHistory,
+            flowState.actionHistoryIndex ?? -1
+          );
+          setStateHistory(migrated);
+          setHistoryPointer(ptr);
+          historyPointerRef.current = ptr;
+        } else {
+          const initial = restoredColors.map((c) => ({ ...c }));
+          setStateHistory([{ colors: initial, sectionId: null, description: 'Estado inicial' }]);
+          setHistoryPointer(0);
+          historyPointerRef.current = 0;
+        }
+
+        setOriginalPalette(flowState.originalPalette.map((c) => ({ ...c })));
+        setSliderReference(flowState.sliderReference.map((c) => ({ ...c })));
+        setSupportOverridesByVariant({
+          claro: { ...flowState.supportOverridesByVariant.claro },
+          oscuro: { ...flowState.supportOverridesByVariant.oscuro },
+        });
+        setSupportVariant(flowState.supportVariant);
+        setSelectedColorIndex(flowState.selectedColorIndex);
+        setSelectedSupportRole(flowState.selectedSupportRole);
+        setRefinementMode(flowState.refinementMode);
+        setLastRemovedColor(flowState.lastRemovedColor ? { ...flowState.lastRemovedColor } : null);
+        setRefinementGeneralSliders(flowState.refinementGeneralSliders ?? DEFAULT_REFINEMENT_SLIDERS);
+        setPhase('refinement');
+      }
+
+      // Sin flujo previo: seguir el comportamiento estándar (detalle de inspiración).
+      setPhase('inspiration-detail');
+    },
+    [flowPaletteStateByInspiration]
+  );
+
   const handleLogoClick = useCallback(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.removeItem(GUIDED_PALETTE_DRAFT_KEY);
@@ -1522,6 +1583,7 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
     reportInspirationGeneratedPalette,
     goNext,
     handleInspirationSelect,
+      handleInspirationSelectFromMenu,
     handleLogoClick,
     handleStartNewPalette,
     resetApplicationToSnapshot,

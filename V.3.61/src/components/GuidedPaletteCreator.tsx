@@ -422,7 +422,7 @@ export default function GuidedPaletteCreator({
           {state.phase === 'inspiration-menu' && (
             <div className="flex-1 min-h-0 overflow-auto">
               <InspirationMenuPhase
-                onSelectOption={state.handleInspirationSelect}
+                onSelectOption={state.handleInspirationSelectFromMenu ?? state.handleInspirationSelect}
                 activePalettesByMode={state.flowActivePaletteByMode}
                 onOpenCombinedPalette={handleOpenCombinedPaletteModal}
               />
