@@ -743,6 +743,22 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
     [savedPalettes]
   );
 
+  /** Calcula la próxima versión para un nombre arbitrario.
+   * Usado por el modal para reaccionar a cambios en el campo de nombre.
+   */
+  const getNextVersionForName = useCallback(
+    (rawName: string) => {
+      const trimmed = rawName.trim();
+      if (!trimmed) return 1;
+      const normalized = trimmed.toLowerCase();
+      const withSameName = savedPalettes.filter(
+        (p) => p.name && p.name.trim().toLowerCase() === normalized
+      );
+      return withSameName.length + 1;
+    },
+    [savedPalettes]
+  );
+
   const removePalette = useCallback(
     async (id: string) => {
       const removed = savedPalettes.find((p) => p.id === id);
@@ -1354,6 +1370,7 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
     savePalette,
     savePaletteFromSection,
     getSaveSuggestions,
+    getNextVersionForName,
     removePalette,
     currentPhaseIndex,
     currentStepperIndex,

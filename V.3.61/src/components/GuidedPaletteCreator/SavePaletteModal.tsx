@@ -15,6 +15,7 @@ export interface SavePaletteModalProps {
   section: SavedFromSection;
   suggestedName: string;
   nextVersion: number;
+  getNextVersionForName: (name: string) => number;
 }
 
 export function SavePaletteModal({
@@ -24,14 +25,17 @@ export function SavePaletteModal({
   section,
   suggestedName,
   nextVersion,
+  getNextVersionForName,
 }: SavePaletteModalProps) {
   const [name, setName] = useState('');
+  const [computedVersion, setComputedVersion] = useState(nextVersion);
 
   useEffect(() => {
     if (open) {
       setName(suggestedName);
+      setComputedVersion(getNextVersionForName(suggestedName));
     }
-  }, [open, suggestedName]);
+  }, [open, suggestedName, getNextVersionForName]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,7 +44,7 @@ export function SavePaletteModal({
     onSave({
       name: trimmed,
       savedFromSection: section,
-      ...(nextVersion > 1 ? { version: nextVersion } : {}),
+      ...(computedVersion > 1 ? { version: computedVersion } : {}),
     });
     onClose();
   };
@@ -73,7 +77,11 @@ export function SavePaletteModal({
                 id="save-palette-name"
                 type="text"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setName(value);
+                  setComputedVersion(getNextVersionForName(value));
+                }}
                 placeholder={COPY.saveModal.namePlaceholder}
                 className="w-full px-4 py-3 rounded-xl bg-gray-900/80 border border-gray-600/50 text-white placeholder-gray-500 focus:ring-2 focus:ring-orange-500/40 focus:border-orange-500/50 outline-none transition-all"
                 autoFocus
@@ -88,9 +96,9 @@ export function SavePaletteModal({
               <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-orange-500/20 text-orange-300 border border-orange-500/30">
                 {SECTION_LABELS[section]}
               </span>
-              {nextVersion > 1 && (
+              {computedVersion > 1 && (
                 <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-gray-600/50 text-gray-300 border border-gray-500/40">
-                  {COPY.saveModal.versionLabel(nextVersion)}
+                  {COPY.saveModal.versionLabel(computedVersion)}
                 </span>
               )}
             </div>

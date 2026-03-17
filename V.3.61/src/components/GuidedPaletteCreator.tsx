@@ -528,6 +528,7 @@ export default function GuidedPaletteCreator({
           section={saveModalSection}
           suggestedName={saveModalSuggestions.suggestedName}
           nextVersion={saveModalSuggestions.nextVersion}
+          getNextVersionForName={state.getNextVersionForName}
         />
       )}
 
