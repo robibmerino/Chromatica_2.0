@@ -1323,6 +1323,7 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
         setLastRemovedColor(flowState.lastRemovedColor ? { ...flowState.lastRemovedColor } : null);
         setRefinementGeneralSliders(flowState.refinementGeneralSliders ?? DEFAULT_REFINEMENT_SLIDERS);
         setPhase('refinement');
+        return;
       }
 
       // Sin flujo previo: seguir el comportamiento estándar (detalle de inspiración).

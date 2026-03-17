@@ -468,6 +468,9 @@ export default function GuidedPaletteCreator({
               <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
                 <AnalysisPhase
                   colors={state.colors}
+                  supportColorsList={state.supportColorsList}
+                  updateSupportColor={state.updateSupportColor}
+                  resetSupportPalette={state.resetSupportPalette}
                   analysisType={state.analysisType}
                   setAnalysisType={state.setAnalysisType}
                   updateColorsWithHistory={state.updateColorsWithHistory}

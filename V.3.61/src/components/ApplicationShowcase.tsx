@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import html2canvas from 'html2canvas';
 import JSZip from 'jszip';
 import type { InteriorPalette } from './InteriorPreviews';
-import { hexToHsl, hslToHex } from '../utils/colorUtils';
 import {
   type ApplicationShowcaseProps,
   type EditingInRightColumn,
@@ -17,6 +16,8 @@ import { getMainPaletteRole } from './ApplicationShowcase/constants';
 import { ArchitectureSection } from './ApplicationShowcase/ArchitectureSection';
 import { PosterSection } from './ApplicationShowcase/PosterSection';
 import { BrandingSection } from './ApplicationShowcase/BrandingSection';
+import { FloatingPanel } from './GuidedPaletteCreator/FloatingPanel';
+import { ColorEditPanelBody } from './ColorEditPanelBody';
 
 export type { SupportPaletteVariant, SupportColorItem } from './ApplicationShowcase/types';
 
@@ -74,6 +75,28 @@ export default function ApplicationShowcase({
           : customBgColor;
     setDraftHex(hex);
   }, [editingColorModal]);
+
+  // Colores "efectivos" para vista previa en tiempo real (sin tocar historial hasta Aceptar)
+  const previewLocalColors = useMemo(() => {
+    if (!editingColorModal || editingColorModal.type !== 'main') return localColors;
+    const next = [...localColors];
+    if (editingColorModal.index >= 0 && editingColorModal.index < next.length) {
+      next[editingColorModal.index] = draftHex;
+    }
+    return next;
+  }, [localColors, editingColorModal, draftHex]);
+
+  const previewSupportColors = useMemo(() => {
+    if (!editingColorModal || editingColorModal.type !== 'support') return supportColorsList;
+    return supportColorsList.map((s) =>
+      s.role === editingColorModal.role ? { ...s, hex: draftHex } : s
+    );
+  }, [supportColorsList, editingColorModal, draftHex]);
+
+  const previewCustomBgColor = useMemo(() => {
+    if (!editingColorModal || editingColorModal.type !== 'background') return customBgColor;
+    return draftHex;
+  }, [customBgColor, editingColorModal, draftHex]);
 
   const handleColorChange = (index: number, newColor: string, changeDescription?: string) => {
     const newColors = [...localColors];
@@ -258,7 +281,7 @@ export default function ApplicationShowcase({
   const currentCategory = categories.find(c => c.id === activeCategory)!;
   const currentVariant = activeVariants[activeCategory];
 
-  const getColor = (index: number) => colors[index % colors.length];
+  const getColor = (index: number) => previewLocalColors[index % previewLocalColors.length];
 
   /**
    * Paleta para previews de interiores (memoizada para evitar recálculos en cada render).
@@ -266,11 +289,13 @@ export default function ApplicationShowcase({
    * - background, surface, muted = paleta de apoyo (fondo, sobrefondo, texto fino) o índices 3–5.
    */
   const interiorColors = useMemo((): InteriorPalette => {
-    const main = (i: number) => localColors[i % localColors.length] ?? colors[i % colors.length];
-    const fondo = supportColorsList.find((s) => s.role === 'fondo')?.hex;
-    const sobrefondo = supportColorsList.find((s) => s.role === 'sobrefondo')?.hex;
-    const textoFino = supportColorsList.find((s) => s.role === 'texto fino')?.hex;
-    const texto = supportColorsList.find((s) => s.role === 'texto')?.hex;
+    const main = (i: number) =>
+      previewLocalColors[i % previewLocalColors.length] ??
+      colors[i % colors.length];
+    const fondo = previewSupportColors.find((s) => s.role === 'fondo')?.hex;
+    const sobrefondo = previewSupportColors.find((s) => s.role === 'sobrefondo')?.hex;
+    const textoFino = previewSupportColors.find((s) => s.role === 'texto fino')?.hex;
+    const texto = previewSupportColors.find((s) => s.role === 'texto')?.hex;
     return {
       primary: main(0),
       secondary: main(1),
@@ -279,27 +304,29 @@ export default function ApplicationShowcase({
       surface: sobrefondo ?? main(4) ?? '#2d2d44',
       muted: textoFino ?? texto ?? main(5) ?? '#6b7280',
     };
-  }, [localColors, colors, supportColorsList]);
+  }, [previewLocalColors, colors, previewSupportColors]);
 
   /** Paleta para pósters: interiores + text, textLight y accent2 (4º color principal). */
   const posterColors = useMemo(() => {
-    const main = (i: number) => localColors[i % localColors.length] ?? colors[i % colors.length];
-    const texto = supportColorsList.find((s) => s.role === 'texto')?.hex;
-    const textoFino = supportColorsList.find((s) => s.role === 'texto fino')?.hex;
+    const main = (i: number) =>
+      previewLocalColors[i % previewLocalColors.length] ??
+      colors[i % colors.length];
+    const texto = previewSupportColors.find((s) => s.role === 'texto')?.hex;
+    const textoFino = previewSupportColors.find((s) => s.role === 'texto fino')?.hex;
     return {
       ...interiorColors,
       text: texto ?? interiorColors.muted ?? '#e5e7eb',
       textLight: textoFino ?? interiorColors.muted ?? '#9ca3af',
-      accent2: localColors.length > 3 ? main(3) : interiorColors.accent,
+      accent2: previewLocalColors.length > 3 ? main(3) : interiorColors.accent,
     };
-  }, [interiorColors, localColors, colors, supportColorsList]);
+  }, [interiorColors, previewLocalColors, colors, previewSupportColors]);
 
   const getBgColor = () => {
     switch (bgMode) {
       case 'light': return '#ffffff';
       case 'dark': return '#1a1a2e';
-      case 'color': return localColors[0] ?? getColor(0);
-      case 'custom': return customBgColor;
+      case 'color': return previewLocalColors[0] ?? getColor(0);
+      case 'custom': return previewCustomBgColor;
     }
   };
 
@@ -518,7 +545,7 @@ export default function ApplicationShowcase({
         
         {/* Color items - using simple div for reordering */}
         <div className="flex gap-2">
-          {localColors.map((color, i) => (
+          {previewLocalColors.map((color, i) => (
             <div
               key={i}
               className="flex-1 relative group"
@@ -650,7 +677,7 @@ export default function ApplicationShowcase({
               )}
             </div>
             <div className="flex gap-2">
-              {supportColorsList.map((item) => (
+              {previewSupportColors.map((item) => (
                 <div
                   key={item.role}
                   className="flex-1 relative group min-w-0"
@@ -694,108 +721,34 @@ export default function ApplicationShowcase({
 
         {/* Modal de edición de color (al hacer clic en Tu paleta, paleta de apoyo o fondo personalizado) */}
         {editingColorModal && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="application-edit-color-title"
-            onClick={() => setEditingColorModal(null)}
+          <FloatingPanel
+            open
+            onClose={() => setEditingColorModal(null)}
+            title={
+              editingColorModal.type === 'main'
+                ? `Editar ${getMainPaletteRole(editingColorModal.index).label}`
+                : editingColorModal.type === 'support'
+                  ? `Editar ${supportColorsList.find((s) => s.role === editingColorModal.role)?.label ?? 'color de apoyo'}`
+                  : 'Editar fondo personalizado'
+            }
+            initialWidth={360}
+            initialHeight={560}
           >
-            <div
-              className="bg-gray-800 rounded-2xl border border-gray-600 shadow-xl p-5 w-full max-w-sm flex flex-col gap-4"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3 id="application-edit-color-title" className="text-sm font-semibold text-white shrink-0">
-                {editingColorModal.type === 'main'
-                  ? `Editar ${getMainPaletteRole(editingColorModal.index).label}`
-                  : editingColorModal.type === 'support'
-                    ? `Editar ${supportColorsList.find((s) => s.role === editingColorModal.role)?.label ?? 'color de apoyo'}`
-                    : 'Editar fondo personalizado'}
-              </h3>
-              <div className="w-full h-24 rounded-xl shadow-inner shrink-0" style={{ backgroundColor: draftHex }} />
-              <div className="flex items-center gap-3">
-                <div className="relative w-14 h-14 shrink-0 rounded-lg border-2 border-gray-600 overflow-hidden">
-                  <input
-                    type="color"
-                    value={draftHex}
-                    onChange={(e) => setDraftHex(e.target.value)}
-                    className="absolute inset-0 w-full h-full cursor-pointer bg-transparent opacity-0"
-                    style={{ padding: 0 }}
-                    aria-label="Elegir color"
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ backgroundColor: draftHex }} aria-hidden>
-                    <span className="w-7 h-7 rounded-full bg-black/40 flex items-center justify-center">
-                      <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                      </svg>
-                    </span>
-                  </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <label className="text-[10px] text-gray-500 uppercase tracking-wider block mb-1">HEX</label>
-                  <input
-                    type="text"
-                    value={draftHex.toUpperCase()}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      if (/^#[0-9A-Fa-f]{6}$/.test(v)) setDraftHex(v);
-                      const noHash = v.replace(/^#/, '');
-                      if (/^[0-9A-Fa-f]{6}$/.test(noHash)) setDraftHex('#' + noHash);
-                    }}
-                    className="w-full bg-gray-700 text-white text-sm font-mono px-3 py-2 rounded-lg border border-gray-600 focus:border-indigo-500 focus:outline-none"
-                    aria-label="Código HEX"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const hsl = hexToHsl(draftHex);
-                    setDraftHex(hslToHex(hsl.h, hsl.s, Math.min(95, hsl.l + 15)));
-                  }}
-                  className="py-2.5 bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm rounded-lg transition-colors font-medium"
-                >
-                  +Claro
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const hsl = hexToHsl(draftHex);
-                    setDraftHex(hslToHex(hsl.h, hsl.s, Math.max(5, hsl.l - 15)));
-                  }}
-                  className="py-2.5 bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm rounded-lg transition-colors font-medium"
-                >
-                  +Oscuro
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (editingColorModal.type === 'main') {
-                      handleColorChange(editingColorModal.index, draftHex, 'Tono');
-                    } else if (editingColorModal.type === 'support') {
-                      updateSupportColor?.(editingColorModal.role, draftHex);
-                    } else {
-                      setCustomBgColor(draftHex);
-                    }
-                    setEditingColorModal(null);
-                  }}
-                  className="py-2.5 bg-green-600 hover:bg-green-500 text-white text-sm rounded-lg transition-colors font-medium col-span-1"
-                >
-                  ✓ Aceptar cambio
-                </button>
-              </div>
-              <div className="flex gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setEditingColorModal(null)}
-                  className="flex-1 py-2 rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-700/50 text-sm font-medium"
-                >
-                  Cancelar
-                </button>
-              </div>
-            </div>
-          </div>
+            <ColorEditPanelBody
+              draftHex={draftHex}
+              setDraftHex={setDraftHex}
+              onAccept={() => {
+                if (editingColorModal.type === 'main') {
+                  handleColorChange(editingColorModal.index, draftHex, 'Tono');
+                } else if (editingColorModal.type === 'support') {
+                  updateSupportColor?.(editingColorModal.role, draftHex);
+                } else {
+                  setCustomBgColor(draftHex);
+                }
+                setEditingColorModal(null);
+              }}
+            />
+          </FloatingPanel>
         )}
         </>
       </div>
