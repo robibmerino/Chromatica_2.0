@@ -60,6 +60,7 @@ export const COPY = {
     colorsShuffled: '🔀 Colores mezclados',
     addPaletteName: '⚠️ Añade un nombre a tu paleta',
     paletteSaved: '✅ ¡Paleta guardada!',
+    paletteDuplicateColors: '⚠️ Ya tienes una paleta con estos colores (mismo orden).',
     correctionApplied: '✅ Corrección aplicada',
     changesApplied: '✅ Cambios aplicados',
     colorAdded: '➕ Color añadido',

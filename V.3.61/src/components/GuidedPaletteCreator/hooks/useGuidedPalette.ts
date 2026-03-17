@@ -696,10 +696,21 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
         showNotification(COPY.notifications.addPaletteName);
         return;
       }
+      const currentHexes = colors.map((c) => c.hex);
+      const hasExactMatch = savedPalettes.some((p) => {
+        if (p.colors.length !== currentHexes.length) return false;
+        for (let i = 0; i < currentHexes.length; i++) {
+          if (p.colors[i] !== currentHexes[i]) return false;
+        }
+        return true;
+      });
+      if (hasExactMatch) {
+        showNotification(COPY.notifications.paletteDuplicateColors);
+      }
       const newPalette: SavedPalette = {
         id: generateId(),
         name: trimmed,
-        colors: colors.map((c) => c.hex),
+        colors: currentHexes,
         createdAt: new Date(),
         savedFromSection,
         ...(version != null && version > 1 ? { version } : {}),
@@ -749,8 +760,15 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
    */
   const getSaveSuggestions = useCallback(
     (section: SavedFromSection) => {
-      const fromSection = savedPalettes.filter((p) => p.savedFromSection === section);
-      const suggestedName = fromSection.length > 0 ? fromSection[0].name : savedPalettes[0]?.name ?? '';
+      let suggestedName = '';
+      if (savedPalettes.length > 0) {
+        // Última paleta guardada por fecha de creación
+        const latest = savedPalettes.reduce<SavedPalette | null>((acc, p) => {
+          if (!acc) return p;
+          return p.createdAt > acc.createdAt ? p : acc;
+        }, null);
+        suggestedName = latest?.name ?? '';
+      }
       if (!suggestedName) {
         return { suggestedName: '', nextVersion: 1 };
       }
