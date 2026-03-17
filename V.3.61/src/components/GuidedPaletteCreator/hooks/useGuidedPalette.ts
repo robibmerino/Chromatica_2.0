@@ -697,16 +697,6 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
         return;
       }
       const currentHexes = colors.map((c) => c.hex);
-      const hasExactMatch = savedPalettes.some((p) => {
-        if (p.colors.length !== currentHexes.length) return false;
-        for (let i = 0; i < currentHexes.length; i++) {
-          if (p.colors[i] !== currentHexes[i]) return false;
-        }
-        return true;
-      });
-      if (hasExactMatch) {
-        showNotification(COPY.notifications.paletteDuplicateColors);
-      }
       const newPalette: SavedPalette = {
         id: generateId(),
         name: trimmed,
@@ -777,6 +767,19 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
     },
     [savedPalettes, getNextVersionForName]
   );
+
+  /** Indica si la paleta actual coincide en colores (y orden) con alguna ya guardada. */
+  const hasExactDuplicateColors = useMemo(() => {
+    const currentHexes = colors.map((c) => c.hex);
+    if (!currentHexes.length || !savedPalettes.length) return false;
+    return savedPalettes.some((p) => {
+      if (p.colors.length !== currentHexes.length) return false;
+      for (let i = 0; i < currentHexes.length; i++) {
+        if (p.colors[i] !== currentHexes[i]) return false;
+      }
+      return true;
+    });
+  }, [colors, savedPalettes]);
 
   const removePalette = useCallback(
     async (id: string) => {
@@ -1390,6 +1393,7 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
     savePaletteFromSection,
     getSaveSuggestions,
     getNextVersionForName,
+    hasExactDuplicateColors,
     removePalette,
     currentPhaseIndex,
     currentStepperIndex,

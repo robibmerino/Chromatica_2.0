@@ -529,6 +529,7 @@ export default function GuidedPaletteCreator({
           suggestedName={saveModalSuggestions.suggestedName}
           nextVersion={saveModalSuggestions.nextVersion}
           getNextVersionForName={state.getNextVersionForName}
+          hasExactDuplicateColors={state.hasExactDuplicateColors}
         />
       )}
 

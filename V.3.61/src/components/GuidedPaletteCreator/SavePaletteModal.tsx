@@ -16,6 +16,7 @@ export interface SavePaletteModalProps {
   suggestedName: string;
   nextVersion: number;
   getNextVersionForName: (name: string) => number;
+  hasExactDuplicateColors: boolean;
 }
 
 export function SavePaletteModal({
@@ -26,6 +27,7 @@ export function SavePaletteModal({
   suggestedName,
   nextVersion,
   getNextVersionForName,
+  hasExactDuplicateColors,
 }: SavePaletteModalProps) {
   const [name, setName] = useState('');
   const [computedVersion, setComputedVersion] = useState(nextVersion);
@@ -91,6 +93,12 @@ export function SavePaletteModal({
             <p className="text-sm text-gray-400 leading-snug">
               {COPY.saveModal.profileNote}
             </p>
+
+            {hasExactDuplicateColors && (
+              <p className="text-xs text-amber-300 bg-amber-500/10 border border-amber-500/40 rounded-lg px-3 py-2">
+                {COPY.notifications.paletteDuplicateColors}
+              </p>
+            )}
 
             <div className="flex flex-wrap gap-2">
               <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-orange-500/20 text-orange-300 border border-orange-500/30">
