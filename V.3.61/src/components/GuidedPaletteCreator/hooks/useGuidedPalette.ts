@@ -112,6 +112,10 @@ interface GuidedPaletteDraft {
   supportOverridesByVariant: Record<SupportPaletteVariant, Partial<Record<SupportPaletteRole, string>>>;
   supportVariant: SupportPaletteVariant;
   refinementGeneralSliders: RefinementGeneralSliders;
+  flowPaletteStateByInspiration: Partial<Record<InspirationMode, FlowPaletteState>>;
+  inspirationFlowEverCompleted: Partial<Record<InspirationMode, true>>;
+  inspirationDetailSavedState: InspirationDetailSavedState;
+  inspirationGeneratedPaletteByMode: Partial<Record<InspirationMode, string[]>>;
 }
 
 /** Roles de la paleta de apoyo editables en Refinar. */
@@ -463,6 +467,20 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
             setRefinementGeneralSliders(
               draft.refinementGeneralSliders ?? DEFAULT_REFINEMENT_SLIDERS
             );
+            if (draft.flowPaletteStateByInspiration) {
+              setFlowPaletteStateByInspiration(draft.flowPaletteStateByInspiration);
+            }
+            if (draft.inspirationFlowEverCompleted) {
+              setInspirationFlowEverCompleted(draft.inspirationFlowEverCompleted);
+            }
+            if (draft.inspirationDetailSavedState) {
+              setInspirationDetailSavedState(draft.inspirationDetailSavedState);
+            }
+            if (draft.inspirationGeneratedPaletteByMode) {
+              setInspirationGeneratedPaletteByMode(
+                draft.inspirationGeneratedPaletteByMode
+              );
+            }
           }
         }
       } catch {
@@ -489,6 +507,10 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
       supportOverridesByVariant,
       supportVariant,
       refinementGeneralSliders,
+      flowPaletteStateByInspiration,
+      inspirationFlowEverCompleted,
+      inspirationDetailSavedState,
+      inspirationGeneratedPaletteByMode,
     };
 
     try {
@@ -504,6 +526,10 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
     supportOverridesByVariant,
     supportVariant,
     refinementGeneralSliders,
+    flowPaletteStateByInspiration,
+    inspirationFlowEverCompleted,
+    inspirationDetailSavedState,
+    inspirationGeneratedPaletteByMode,
   ]);
 
   /** Abrir una paleta guardada en el flujo Paleta combinada (Refinar o Guardar). */

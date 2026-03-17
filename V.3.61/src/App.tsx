@@ -27,6 +27,11 @@ export function App() {
   }, []);
 
   const handleEnter = useCallback(() => {
+    // Al salir de la pantalla inicial siempre empezamos un flujo nuevo:
+    // limpiamos cualquier borrador previo de la paleta guiada.
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem('guidedPaletteWorkingState.v1');
+    }
     setShowSplash(false);
   }, []);
 
