@@ -722,27 +722,6 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
     [colors, savedPalettes, showNotification, user?.id]
   );
 
-  /** Sugerencias para el modal de guardar: nombre sugerido y próxima versión.
-   * La versión se calcula por nombre de paleta (V1, V2, V3...) solo entre
-   * paletas que comparten exactamente el mismo nombre.
-   */
-  const getSaveSuggestions = useCallback(
-    (section: SavedFromSection) => {
-      const fromSection = savedPalettes.filter((p) => p.savedFromSection === section);
-      const suggestedName = fromSection.length > 0 ? fromSection[0].name : savedPalettes[0]?.name ?? '';
-      if (!suggestedName) {
-        return { suggestedName: '', nextVersion: 1 };
-      }
-      const normalized = suggestedName.trim().toLowerCase();
-      const withSameName = savedPalettes.filter(
-        (p) => p.name && p.name.trim().toLowerCase() === normalized
-      );
-      const nextVersion = withSameName.length + 1;
-      return { suggestedName, nextVersion };
-    },
-    [savedPalettes]
-  );
-
   /** Calcula la próxima versión para un nombre arbitrario.
    * Usado por el modal para reaccionar a cambios en el campo de nombre.
    */
@@ -754,9 +733,31 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
       const withSameName = savedPalettes.filter(
         (p) => p.name && p.name.trim().toLowerCase() === normalized
       );
-      return withSameName.length + 1;
+      if (withSameName.length === 0) return 1;
+      const maxVersion = withSameName.reduce((max, palette) => {
+        const v = palette.version ?? 1;
+        return v > max ? v : max;
+      }, 1);
+      return maxVersion + 1;
     },
     [savedPalettes]
+  );
+
+  /** Sugerencias para el modal de guardar: nombre sugerido y próxima versión.
+   * Usa `getNextVersionForName` para que la versión sea coherente con todas
+   * las paletas existentes (aunque haya huecos por versiones borradas).
+   */
+  const getSaveSuggestions = useCallback(
+    (section: SavedFromSection) => {
+      const fromSection = savedPalettes.filter((p) => p.savedFromSection === section);
+      const suggestedName = fromSection.length > 0 ? fromSection[0].name : savedPalettes[0]?.name ?? '';
+      if (!suggestedName) {
+        return { suggestedName: '', nextVersion: 1 };
+      }
+      const nextVersion = getNextVersionForName(suggestedName);
+      return { suggestedName, nextVersion };
+    },
+    [savedPalettes, getNextVersionForName]
   );
 
   const removePalette = useCallback(
