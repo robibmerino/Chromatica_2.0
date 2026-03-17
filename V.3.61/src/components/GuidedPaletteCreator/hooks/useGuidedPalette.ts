@@ -101,6 +101,19 @@ export type SupportPaletteRole = 'fondo' | 'sobrefondo' | 'texto' | 'texto fino'
 
 export type SupportPaletteVariant = 'claro' | 'oscuro';
 
+/** Clave de localStorage para el borrador de paleta guiada. */
+const GUIDED_PALETTE_DRAFT_KEY = 'guidedPaletteWorkingState.v1';
+
+interface GuidedPaletteDraft {
+  phase: Phase;
+  inspirationMode: InspirationMode | null;
+  colors: { hex: string; locked?: boolean }[];
+  colorCount: number;
+  supportOverridesByVariant: Record<SupportPaletteVariant, Partial<Record<SupportPaletteRole, string>>>;
+  supportVariant: SupportPaletteVariant;
+  refinementGeneralSliders: RefinementGeneralSliders;
+}
+
 /** Roles de la paleta de apoyo editables en Refinar. */
 export const SUPPORT_PALETTE_ROLES: { role: SupportPaletteRole; label: string; initial: string }[] = [
   { role: 'fondo', label: 'Fondo', initial: 'F' },
@@ -408,6 +421,7 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
   );
 
   /** Carga paletas: desde Supabase si hay usuario, desde localStorage si no. */
+  // Carga paletas guardadas (usuario o invitado) y, si aplica, el borrador local de la paleta guiada.
   useEffect(() => {
     if (user?.id) {
       fetchPalettes(user.id).then(setSavedPalettes);
@@ -424,7 +438,73 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
         }
       } else setSavedPalettes([]);
     }
+
+    // Restaurar borrador solo si no hay petición inicial de paleta guardada
+    if (typeof window !== 'undefined' && !initialPaletteRequest) {
+      try {
+        const raw = window.localStorage.getItem(GUIDED_PALETTE_DRAFT_KEY);
+        if (raw) {
+          const draft = JSON.parse(raw) as GuidedPaletteDraft;
+          if (Array.isArray(draft.colors) && draft.colors.length > 0) {
+            const restoredColors: ColorItem[] = draft.colors.map((c) => ({
+              id: generateId(),
+              hex: c.hex,
+              locked: c.locked ?? false,
+            }));
+            setColors(restoredColors);
+            setColorCount(draft.colorCount || restoredColors.length || 4);
+            setPhase(draft.phase ?? 'inspiration-menu');
+            setInspirationMode(draft.inspirationMode ?? null);
+            setSupportOverridesByVariant({
+              claro: { ...(draft.supportOverridesByVariant?.claro ?? {}) },
+              oscuro: { ...(draft.supportOverridesByVariant?.oscuro ?? {}) },
+            });
+            setSupportVariant(draft.supportVariant ?? 'claro');
+            setRefinementGeneralSliders(
+              draft.refinementGeneralSliders ?? DEFAULT_REFINEMENT_SLIDERS
+            );
+          }
+        }
+      } catch {
+        // Si hay error al leer el borrador, se ignora y se limpiará en el siguiente guardado.
+      }
+    }
   }, [user?.id]);
+
+  // Persistir un borrador ligero de la paleta actual para invitados y usuarios.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    // Si no hay colores o estamos en el menú inicial, limpiar borrador.
+    if (!colors.length && phase === 'inspiration-menu') {
+      window.localStorage.removeItem(GUIDED_PALETTE_DRAFT_KEY);
+      return;
+    }
+
+    const draft: GuidedPaletteDraft = {
+      phase,
+      inspirationMode,
+      colors: colors.map((c) => ({ hex: c.hex, locked: c.locked })),
+      colorCount,
+      supportOverridesByVariant,
+      supportVariant,
+      refinementGeneralSliders,
+    };
+
+    try {
+      window.localStorage.setItem(GUIDED_PALETTE_DRAFT_KEY, JSON.stringify(draft));
+    } catch {
+      // Si el storage está lleno o deshabilitado, simplemente no persistimos.
+    }
+  }, [
+    phase,
+    inspirationMode,
+    colors,
+    colorCount,
+    supportOverridesByVariant,
+    supportVariant,
+    refinementGeneralSliders,
+  ]);
 
   /** Abrir una paleta guardada en el flujo Paleta combinada (Refinar o Guardar). */
   useEffect(() => {
@@ -1165,6 +1245,9 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
   );
 
   const handleLogoClick = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(GUIDED_PALETTE_DRAFT_KEY);
+    }
     setPendingInspirationComplete(null);
     setColors([]);
     setPaletteName('');
@@ -1177,6 +1260,9 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
   }, []);
 
   const handleStartNewPalette = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(GUIDED_PALETTE_DRAFT_KEY);
+    }
     setPendingInspirationComplete(null);
     setColors([]);
     setPaletteName('');
