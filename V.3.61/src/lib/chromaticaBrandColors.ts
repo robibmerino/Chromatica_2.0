@@ -31,3 +31,32 @@ export function colorAtPhase(phase: number, faceOffset: number): string {
   const t = pos - i;
   return lerpColor(CHROMATICA_BRAND_COLORS[i]!, CHROMATICA_BRAND_COLORS[(i + 1) % N]!, t);
 }
+
+/** Parada de un `linear-gradient` horizontal sincronizado con `colorAtPhase`. */
+export type BrandLinearStop = { pct: number; colorIndex: number };
+
+/** `linear-gradient(90deg, …)` a partir de fase de marca y paradas (% → índice en la rueda). */
+export function linearBrandGradient90(
+  phase: number,
+  stops: readonly BrandLinearStop[],
+): string {
+  return `linear-gradient(90deg, ${stops
+    .map((s) => `${colorAtPhase(phase, s.colorIndex)} ${s.pct}%`)
+    .join(', ')})`;
+}
+
+/** Splash / título «atica» / línea — cinco tintas equiespaciadas. */
+export const SPLASH_BRAND_STOPS_ATICA: readonly BrandLinearStop[] = [
+  { pct: 0, colorIndex: 0 },
+  { pct: 25, colorIndex: 1 },
+  { pct: 50, colorIndex: 2 },
+  { pct: 75, colorIndex: 3 },
+  { pct: 100, colorIndex: 4 },
+];
+
+/** Botón Comenzar + halo — tres muestreos de la misma rueda. */
+export const SPLASH_BRAND_STOPS_COMENZAR: readonly BrandLinearStop[] = [
+  { pct: 0, colorIndex: 0 },
+  { pct: 50, colorIndex: 2 },
+  { pct: 100, colorIndex: 4 },
+];

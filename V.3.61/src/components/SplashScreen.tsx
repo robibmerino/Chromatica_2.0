@@ -3,8 +3,17 @@ import { motion, AnimatePresence, useSpring, useTransform } from 'framer-motion'
 import { ChromaticaSymbolLogo } from './ChromaticaSymbolLogo';
 import {
   CHROMATICA_BRAND_COLOR_COUNT,
-  colorAtPhase,
+  SPLASH_BRAND_STOPS_ATICA,
+  SPLASH_BRAND_STOPS_COMENZAR,
+  linearBrandGradient90,
 } from '../lib/chromaticaBrandColors';
+
+/** Velocidad de la rueda cromática (fase/s) compartida logo + «atica» + CTA. */
+const SPLASH_BRAND_PHASE_SPEED = 0.22;
+
+const SPLASH_LOGO_WRAP_CLASS =
+  'mb-0 -mb-4 sm:-mb-5 md:-mb-7 lg:-mb-9 block drop-shadow-[0_0_28px_rgba(43,176,200,0.28)] [&_svg]:w-[9rem] [&_svg]:h-[9rem] sm:[&_svg]:w-[10.75rem] sm:[&_svg]:h-[10.75rem] md:[&_svg]:w-[12.25rem] md:[&_svg]:h-[12.25rem] lg:[&_svg]:w-[14rem] lg:[&_svg]:h-[14rem]';
+
 interface SplashScreenProps {
   onEnter: () => void;
 }
@@ -47,20 +56,15 @@ export const SplashScreen = ({ onEnter }: SplashScreenProps) => {
   const mouseY = useSpring(0.5, { stiffness: 50, damping: 20 });
   
   /** Fase cromática compartida: logo geométrico + título (misma paleta que el símbolo). */
-  const SPLASH_SYMBOL_SPEED = 0.22;
   const [brandPhase, setBrandPhase] = useState(0);
 
-  /** Degradado suave entre las 5 tintas de marca; avanza con la misma fase que el logo. */
-  const aticaBrandGradient = useMemo(() => {
-    const c = (o: number) => colorAtPhase(brandPhase, o);
-    return `linear-gradient(90deg, ${c(0)} 0%, ${c(1)} 25%, ${c(2)} 50%, ${c(3)} 75%, ${c(4)} 100%)`;
-  }, [brandPhase]);
-
-  /** Misma rueda cromática en tres paradas (botón Comenzar + halo). */
-  const comenzarBrandGradient = useMemo(() => {
-    const c = (o: number) => colorAtPhase(brandPhase, o);
-    return `linear-gradient(90deg, ${c(0)} 0%, ${c(2)} 50%, ${c(4)} 100%)`;
-  }, [brandPhase]);
+  const { aticaBrandGradient, comenzarBrandGradient } = useMemo(
+    () => ({
+      aticaBrandGradient: linearBrandGradient90(brandPhase, SPLASH_BRAND_STOPS_ATICA),
+      comenzarBrandGradient: linearBrandGradient90(brandPhase, SPLASH_BRAND_STOPS_COMENZAR),
+    }),
+    [brandPhase],
+  );
 
   // Organic color phase using sine waves for smooth transitions
   const [time, setTime] = useState(0);
@@ -83,7 +87,7 @@ export const SplashScreen = ({ onEnter }: SplashScreenProps) => {
     const tick = (ts: number) => {
       const dt = (ts - last) / 1000;
       last = ts;
-      setBrandPhase((p) => (p + SPLASH_SYMBOL_SPEED * dt) % CHROMATICA_BRAND_COLOR_COUNT);
+      setBrandPhase((p) => (p + SPLASH_BRAND_PHASE_SPEED * dt) % CHROMATICA_BRAND_COLOR_COUNT);
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -383,79 +387,60 @@ export const SplashScreen = ({ onEnter }: SplashScreenProps) => {
 
         {/* Main content */}
         <div className="relative z-10 flex flex-col items-center">
-          {/* Marca + título */}
-          <motion.div
-            initial={{ y: 40, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 1, delay: 0.2, ease: "easeOut" }}
-            className="mb-3 flex flex-col items-center"
-          >
-            <div
-              className="mb-0 -mb-3 sm:-mb-4 md:-mb-6 lg:-mb-8 block drop-shadow-[0_0_28px_rgba(43,176,200,0.28)] [&_svg]:w-[8.25rem] [&_svg]:h-[8.25rem] sm:[&_svg]:w-[9.75rem] sm:[&_svg]:h-[9.75rem] md:[&_svg]:w-[11.25rem] md:[&_svg]:h-[11.25rem] lg:[&_svg]:w-[12.75rem] lg:[&_svg]:h-[12.75rem]"
+          {/* Marca + título + subtítulo: translateY sube el grupo sin desplazar el botón (el hueco en flujo se conserva) */}
+          <div className="flex flex-col items-center -translate-y-10 sm:-translate-y-12 md:-translate-y-16 lg:-translate-y-20">
+            {/* Marca + título */}
+            <motion.div
+              initial={{ y: 40, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ duration: 1, delay: 0.2, ease: "easeOut" }}
+              className="flex flex-col items-center"
             >
-              <ChromaticaSymbolLogo phase={brandPhase} size={200} className="block" />
-            </div>
-            <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-tight leading-none select-none">
-              <span className="text-white drop-shadow-lg">chrom</span>
-              <motion.span
-                className="bg-clip-text text-transparent inline"
-                style={{
-                  backgroundImage: aticaBrandGradient,
-                  backgroundSize: '200% 100%',
-                }}
-                animate={{
-                  backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
-                }}
-                transition={{
-                  duration: 10,
-                  repeat: Infinity,
-                  ease: 'linear',
-                }}
-              >
-                atica
-              </motion.span>
-            </h1>
-          </motion.div>
+              <div className={SPLASH_LOGO_WRAP_CLASS}>
+                <ChromaticaSymbolLogo phase={brandPhase} size={224} className="block" />
+              </div>
+              <h1 className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-black tracking-tight leading-none select-none">
+                <span className="text-white drop-shadow-lg">chrom</span>
+                <motion.span
+                  className="bg-clip-text text-transparent inline"
+                  style={{
+                    backgroundImage: aticaBrandGradient,
+                    backgroundSize: '200% 100%',
+                  }}
+                  animate={{
+                    backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
+                  }}
+                  transition={{
+                    duration: 10,
+                    repeat: Infinity,
+                    ease: 'linear',
+                  }}
+                >
+                  atica
+                </motion.span>
+              </h1>
+            </motion.div>
 
-          {/* Subtitle */}
-          <motion.p
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.8, delay: 0.5 }}
-            className="text-gray-400 text-base sm:text-lg md:text-xl tracking-[0.35em] uppercase mb-10 font-light"
-          >
-            Palette Studio
-          </motion.p>
+            {/* Línea fina entre el título y el subtítulo */}
+            <motion.div
+              initial={{ scaleX: 0.3, opacity: 0 }}
+              animate={{ scaleX: 1, opacity: 1 }}
+              transition={{ duration: 0.85, delay: 0.42, ease: 'easeOut' }}
+              className="mt-3 mb-2 h-px w-36 max-w-[min(18rem,85vw)] origin-center rounded-full opacity-90 sm:mt-4 sm:mb-3 sm:w-44 md:w-52"
+              style={{ background: aticaBrandGradient }}
+              aria-hidden={true}
+            />
 
-          {/* Decorative animated line */}
-          <motion.div
-            initial={{ scaleX: 0, opacity: 0 }}
-            animate={{ scaleX: 1, opacity: 1 }}
-            transition={{ duration: 1.2, delay: 0.7 }}
-            className="relative w-40 h-0.5 mb-10 overflow-hidden rounded-full"
-          >
-            <motion.div
-              className="absolute inset-0"
-              style={{
-                background: aticaBrandGradient,
-              }}
-            />
-            <motion.div
-              className="absolute inset-0"
-              style={{
-                background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent)',
-                backgroundSize: '200% 100%'
-              }}
-              animate={{
-                backgroundPosition: ['200% 0%', '-200% 0%']
-              }}
-              transition={{
-                duration: 2,
-                repeat: Infinity,
-                ease: "linear"
-              }}
-            />
-          </motion.div>
+            {/* Subtitle */}
+            <motion.p
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ duration: 0.8, delay: 0.5 }}
+              className="text-gray-400 text-base sm:text-lg md:text-xl tracking-[0.35em] uppercase mb-10 font-light"
+            >
+              Palette Studio
+            </motion.p>
+          </div>
 
           {/* Enter button — cristal + borde con degradado de marca */}
           <motion.button
@@ -472,14 +457,14 @@ export const SplashScreen = ({ onEnter }: SplashScreenProps) => {
             whileHover={{ scale: 1.08 }}
             whileTap={{ scale: 0.95 }}
           >
-            {/* Halo exterior al hover */}
+            {/* Halo suave al hover (acotado; antes invadía demasiado el lienzo) */}
             <motion.div
-              className="pointer-events-none absolute -inset-4 rounded-full opacity-0 transition-opacity duration-500 group-hover:opacity-70"
+              className="pointer-events-none absolute -inset-2 rounded-full opacity-0 transition-opacity duration-500 group-hover:opacity-35"
               style={{
                 background: comenzarBrandGradient,
-                filter: 'blur(20px)',
+                filter: 'blur(12px)',
               }}
-              animate={isHovering ? { scale: [1, 1.15, 1] } : {}}
+              animate={isHovering ? { scale: [1, 1.06, 1] } : {}}
               transition={{
                 duration: 1.5,
                 repeat: Infinity,
@@ -487,39 +472,28 @@ export const SplashScreen = ({ onEnter }: SplashScreenProps) => {
               }}
             />
 
-            {/* Anillo degradado (marco) */}
-            <motion.div
-              className="relative rounded-full p-[1.5px] shadow-[0_8px_32px_rgba(0,0,0,0.35)]"
-              style={{
-                background: comenzarBrandGradient,
-                backgroundSize: '200% 100%',
-              }}
-              animate={{
-                backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
-              }}
-              transition={{
-                duration: 4,
-                repeat: Infinity,
-                ease: 'linear',
-              }}
-            >
-              {/*
-                El padre pinta el gradiente en TODO el rectángulo: bg-transparent deja ver ese relleno.
-                Aquí tapamos solo el centro con el mismo tono que la splash (#08080c) + alpha para cristal neutro.
-              */}
-              <div
-                className="relative overflow-hidden rounded-full border border-white/20 px-10 py-4 backdrop-blur-xl sm:px-14 sm:py-5"
-                style={{ backgroundColor: 'rgba(8, 8, 12, 0.82)' }}
+            {/*
+              Cuerpo: solo vidrio (sin degradado). Borde: capa aparte con mask-composite para que
+              backgroundPosition de Framer no mueva dos fondos a la vez (eso reintroducía el arcoíris dentro).
+            */}
+            <span className="relative inline-flex rounded-full shadow-[0_4px_18px_rgba(0,0,0,0.28)]">
+              <span
+                className="relative z-0 flex items-center justify-center overflow-hidden rounded-full px-10 py-4 sm:px-14 sm:py-5"
+                style={{
+                  backgroundColor: 'rgba(8, 8, 12, 0.22)',
+                  backdropFilter: 'blur(22px)',
+                  WebkitBackdropFilter: 'blur(22px)',
+                }}
               >
-                <div
-                  className="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-b from-white/[0.1] via-transparent to-transparent"
-                  aria-hidden
+                <span
+                  className="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-b from-white/[0.1] via-transparent to-transparent shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]"
+                  aria-hidden={true}
                 />
 
-                <motion.div
+                <motion.span
                   className="pointer-events-none absolute inset-0 rounded-full bg-black"
                   initial={{ opacity: 0 }}
-                  animate={{ opacity: isButtonPressed ? 0.18 : 0 }}
+                  animate={{ opacity: isButtonPressed ? 0.22 : 0 }}
                   transition={{ duration: 0.1 }}
                 />
 
@@ -530,7 +504,7 @@ export const SplashScreen = ({ onEnter }: SplashScreenProps) => {
                   >
                     Comenzar
                   </motion.span>
-                  <motion.div
+                  <motion.span
                     className="flex items-center"
                     animate={
                       isHovering
@@ -555,17 +529,17 @@ export const SplashScreen = ({ onEnter }: SplashScreenProps) => {
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
-                      aria-hidden
+                      aria-hidden={true}
                     >
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                     </svg>
-                  </motion.div>
+                  </motion.span>
                 </span>
 
                 {isHovering && (
-                  <div className="pointer-events-none absolute inset-0">
+                  <span className="pointer-events-none absolute inset-0 z-10">
                     {[...Array(6)].map((_, i) => (
-                      <motion.div
+                      <motion.span
                         key={i}
                         className="absolute left-1/2 top-1/2 h-1.5 w-1.5 rounded-full bg-white"
                         initial={{ x: 0, y: 0, opacity: 0 }}
@@ -583,21 +557,33 @@ export const SplashScreen = ({ onEnter }: SplashScreenProps) => {
                         }}
                       />
                     ))}
-                  </div>
+                  </span>
                 )}
-              </div>
-            </motion.div>
-          </motion.button>
+              </span>
 
-          {/* Hint text */}
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.8, delay: 1.3 }}
-            className="mt-8 text-gray-500 text-sm tracking-wide"
-          >
-            Diseña paletas de color únicas
-          </motion.p>
+              <motion.span
+                aria-hidden
+                className="pointer-events-none absolute inset-0 z-[1] rounded-full"
+                style={{
+                  padding: 2,
+                  backgroundImage: comenzarBrandGradient,
+                  backgroundSize: '200% 100%',
+                  WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+                  WebkitMaskComposite: 'xor',
+                  mask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+                  maskComposite: 'exclude',
+                }}
+                animate={{
+                  backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
+                }}
+                transition={{
+                  duration: 4,
+                  repeat: Infinity,
+                  ease: 'linear',
+                }}
+              />
+            </span>
+          </motion.button>
         </div>
 
         {/* Ambient moving shapes in corners */}
