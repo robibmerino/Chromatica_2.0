@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import ButtonParticles from '../ButtonParticles';
+import { ChromaticaSymbolLogo } from '../ChromaticaSymbolLogo';
 import {
   STEPPER_STEPS,
   INSPIRATION_MODE_LABELS,
@@ -242,7 +243,7 @@ export function FlowProgress({
                   whileHover={clickable ? { scale: 1.08 } : {}}
                   whileTap={clickable ? { scale: 0.96 } : {}}
                   transition={{ type: 'spring', stiffness: 400, damping: 28 }}
-                  className="relative flex items-center justify-center rounded-2xl p-2 outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 min-w-0"
+                  className="relative flex items-center justify-center overflow-visible rounded-2xl p-2 outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 min-w-0"
                 >
                   {/* Anillo de foco (activo o hover): animado y suave */}
                   {(originCurrent || (originHovered && clickable)) && (
@@ -266,23 +267,15 @@ export function FlowProgress({
                       }}
                     />
                   )}
-                  {/* Capas concéntricas + cuadrícula de colores */}
-                  <span className="relative z-10 flex items-center justify-center w-10 h-10 rounded-xl bg-gray-900/80 ring-1 ring-gray-700/80">
-                    <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-800/90 ring-1 ring-gray-600/60">
-                      <span
-                        className="grid w-5 h-5 grid-cols-2 grid-rows-2 gap-px rounded-md overflow-hidden ring-1 ring-gray-600/40"
-                        aria-hidden
-                      >
-                        {QUAD_COLORS.map((fill, i) => (
-                          <motion.span
-                            key={i}
-                            className="rounded-[2px]"
-                            style={{ backgroundColor: fill }}
-                            whileHover={clickable ? { scale: 1.15 } : {}}
-                            transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                          />
-                        ))}
-                      </span>
+                  {/* Capas concéntricas (tamaño fijo); el símbolo SVG puede ser mayor — overflow visible */}
+                  <span className="relative z-10 flex size-12 shrink-0 items-center justify-center overflow-visible rounded-xl bg-gray-900/80 ring-1 ring-gray-700/80">
+                    <span className="flex size-10 shrink-0 items-center justify-center overflow-visible rounded-lg bg-gray-800/90 ring-1 ring-gray-600/60">
+                      <ChromaticaSymbolLogo
+                        size={44}
+                        animated
+                        speed={0.28}
+                        className="shrink-0"
+                      />
                     </span>
                   </span>
                 </motion.button>

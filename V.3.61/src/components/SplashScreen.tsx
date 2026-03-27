@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence, useSpring, useTransform } from 'framer-motion';
+import { ChromaticaLogoMark } from './ChromaticaLogoMark';
 interface SplashScreenProps {
   onEnter: () => void;
 }
@@ -128,6 +129,19 @@ export const SplashScreen = ({ onEnter }: SplashScreenProps) => {
       hsl(${hue3}, 80%, 65%) 50%, 
       hsl(${hue4}, 85%, 60%) 75%,
       hsl(${hue5}, 80%, 65%) 100%
+    )`;
+  };
+
+  /** Degradado más simple solo para el botón Comenzar (tres paradas). */
+  const getComenzarButtonGradient = () => {
+    const hueLeft = getOrganicHue(15, 0.3);
+    const hueMid = getOrganicHue(100, 0.35);
+    const hueRight = getOrganicHue(210, 0.32);
+    return `linear-gradient(
+      90deg,
+      hsl(${hueLeft}, 82%, 63%) 0%,
+      hsl(${hueMid}, 86%, 58%) 50%,
+      hsl(${hueRight}, 80%, 63%) 100%
     )`;
   };
 
@@ -366,14 +380,18 @@ export const SplashScreen = ({ onEnter }: SplashScreenProps) => {
 
         {/* Main content */}
         <div className="relative z-10 flex flex-col items-center">
-          {/* Logo/Title */}
+          {/* Marca + título */}
           <motion.div
             initial={{ y: 40, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 1, delay: 0.2, ease: "easeOut" }}
-            className="mb-3"
+            className="mb-3 flex flex-col items-center"
           >
-            <h1 className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-black tracking-tight select-none">
+            <ChromaticaLogoMark
+              className="w-[8.25rem] h-auto sm:w-[9.75rem] md:w-[11.25rem] lg:w-[12.75rem] mb-0 -mb-3 sm:-mb-4 md:-mb-6 lg:-mb-8 block drop-shadow-[0_0_28px_rgba(255,255,255,0.14)]"
+              strokeScale={1}
+            />
+            <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-tight leading-none select-none">
               <span className="text-white drop-shadow-lg">chrom</span>
               <motion.span 
                 className="bg-clip-text text-transparent"
@@ -453,7 +471,7 @@ export const SplashScreen = ({ onEnter }: SplashScreenProps) => {
             <motion.div
               className="absolute -inset-4 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500"
               style={{
-                background: getAticaGradient(),
+                background: getComenzarButtonGradient(),
                 filter: 'blur(25px)'
               }}
               animate={isHovering ? {
@@ -470,7 +488,7 @@ export const SplashScreen = ({ onEnter }: SplashScreenProps) => {
             <motion.div 
               className="absolute inset-0 rounded-full"
               style={{
-                background: getAticaGradient(),
+                background: getComenzarButtonGradient(),
                 backgroundSize: '200% 100%'
               }}
               animate={{
@@ -602,12 +620,34 @@ export const SplashScreen = ({ onEnter }: SplashScreenProps) => {
           }}
         />
 
+        {/* Logo colaborador — Neuroarquitectura (horizontal, PNG) */}
+        <motion.a
+          href="https://www.linkedin.com/company/laboratorio-de-neuroarquitectura-de-la-upv/posts/?feedView=all"
+          target="_blank"
+          rel="noopener noreferrer"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 1.05 }}
+          whileHover={{ scale: 1.04 }}
+          whileTap={{ scale: 0.97 }}
+          className="group absolute left-4 sm:left-6 bottom-10 sm:bottom-12 z-20 block cursor-pointer select-none outline-none focus-visible:ring-2 focus-visible:ring-white/35 focus-visible:ring-offset-2 focus-visible:ring-offset-[#08080c] rounded-sm"
+          aria-label="Laboratorio de Neuroarquitectura de la UPV en LinkedIn"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <img
+            src="/neuroarquitectura-logo-horizontal.png"
+            alt=""
+            className="w-auto max-w-[min(52vw,28rem)] sm:max-w-[34rem] h-[4.7rem] sm:h-[5.3rem] object-contain object-left object-bottom opacity-[0.78] transition-all duration-300 ease-out group-hover:opacity-100 group-hover:brightness-110 group-hover:drop-shadow-[0_0_20px_rgba(255,255,255,0.18)]"
+            draggable={false}
+          />
+        </motion.a>
+
         {/* Footer */}
         <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.8, delay: 1.1 }}
-          className="absolute bottom-6 sm:bottom-8 flex items-center gap-3 text-gray-500 text-xs sm:text-sm"
+          className="absolute bottom-6 sm:bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-3 text-gray-500 text-xs sm:text-sm"
         >
           <span className="opacity-50 font-mono">Beta V.1.06</span>
           <span className="opacity-20">|</span>
