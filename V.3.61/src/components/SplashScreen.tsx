@@ -503,10 +503,16 @@ export const SplashScreen = ({ onEnter }: SplashScreenProps) => {
                 ease: 'linear',
               }}
             >
-              {/* Interior casi sin tinte: solo desenfoque; el color animado queda solo en el anillo p-[1.5px] */}
-              <div className="relative overflow-hidden rounded-full border border-white/18 bg-transparent px-10 py-4 backdrop-blur-2xl sm:px-14 sm:py-5">
+              {/*
+                El padre pinta el gradiente en TODO el rectángulo: bg-transparent deja ver ese relleno.
+                Aquí tapamos solo el centro con el mismo tono que la splash (#08080c) + alpha para cristal neutro.
+              */}
+              <div
+                className="relative overflow-hidden rounded-full border border-white/20 px-10 py-4 backdrop-blur-xl sm:px-14 sm:py-5"
+                style={{ backgroundColor: 'rgba(8, 8, 12, 0.82)' }}
+              >
                 <div
-                  className="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-b from-white/[0.12] via-transparent to-transparent"
+                  className="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-b from-white/[0.1] via-transparent to-transparent"
                   aria-hidden
                 />
 
