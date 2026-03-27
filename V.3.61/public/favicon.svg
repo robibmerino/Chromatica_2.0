@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="46 36 108 128">
+  <defs>
+    <mask id="chromatica-favicon-mask">
+      <rect x="0" y="0" width="200" height="200" fill="white" />
+      <circle cx="100" cy="100" r="25" fill="black" />
+    </mask>
+  </defs>
+  <g mask="url(#chromatica-favicon-mask)">
+    <polygon points="48.04,70 100,100 100,40" fill="#2BB0C8" />
+    <polygon points="100,40 100,100 151.96,70" fill="#E8AE1E" />
+    <polygon points="151.96,130 100,100 100,160" fill="#CE3B7F" />
+    <polygon points="100,160 100,100 48.04,130" fill="#7B40A8" />
+    <polygon points="48.04,130 100,100 48.04,70" fill="#1A8FAA" />
+  </g>
+</svg>
