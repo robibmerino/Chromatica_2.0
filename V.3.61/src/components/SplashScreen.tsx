@@ -1,6 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence, useSpring, useTransform } from 'framer-motion';
-import { ChromaticaLogoMark } from './ChromaticaLogoMark';
+import { ChromaticaSymbolLogo } from './ChromaticaSymbolLogo';
+import {
+  CHROMATICA_BRAND_COLOR_COUNT,
+  colorAtPhase,
+} from '../lib/chromaticaBrandColors';
 interface SplashScreenProps {
   onEnter: () => void;
 }
@@ -42,6 +46,22 @@ export const SplashScreen = ({ onEnter }: SplashScreenProps) => {
   const mouseX = useSpring(0.5, { stiffness: 50, damping: 20 });
   const mouseY = useSpring(0.5, { stiffness: 50, damping: 20 });
   
+  /** Fase cromática compartida: logo geométrico + título (misma paleta que el símbolo). */
+  const SPLASH_SYMBOL_SPEED = 0.22;
+  const [brandPhase, setBrandPhase] = useState(0);
+
+  /** Degradado suave entre las 5 tintas de marca; avanza con la misma fase que el logo. */
+  const aticaBrandGradient = useMemo(() => {
+    const c = (o: number) => colorAtPhase(brandPhase, o);
+    return `linear-gradient(90deg, ${c(0)} 0%, ${c(1)} 25%, ${c(2)} 50%, ${c(3)} 75%, ${c(4)} 100%)`;
+  }, [brandPhase]);
+
+  /** Misma rueda cromática en tres paradas (botón Comenzar + halo). */
+  const comenzarBrandGradient = useMemo(() => {
+    const c = (o: number) => colorAtPhase(brandPhase, o);
+    return `linear-gradient(90deg, ${c(0)} 0%, ${c(2)} 50%, ${c(4)} 100%)`;
+  }, [brandPhase]);
+
   // Organic color phase using sine waves for smooth transitions
   const [time, setTime] = useState(0);
   
@@ -54,6 +74,20 @@ export const SplashScreen = ({ onEnter }: SplashScreenProps) => {
     };
     animationId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(animationId);
+  }, []);
+
+  // Rueda de marca (logo + “atica”) en sincronía
+  useEffect(() => {
+    let raf = 0;
+    let last = performance.now();
+    const tick = (ts: number) => {
+      const dt = (ts - last) / 1000;
+      last = ts;
+      setBrandPhase((p) => (p + SPLASH_SYMBOL_SPEED * dt) % CHROMATICA_BRAND_COLOR_COUNT);
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
   }, []);
 
   // Generate particles on mount - más cantidad, variedad y movimientos orgánicos
@@ -112,37 +146,6 @@ export const SplashScreen = ({ onEnter }: SplashScreenProps) => {
     const base = Math.sin(time * speed) * 180 + 180;
     const variation = Math.sin(time * speed * 0.7 + 2) * 30;
     return (base + variation + offset) % 360;
-  };
-
-  // Generate smooth gradient for "atica" with organic color flow
-  const getAticaGradient = () => {
-    const hue1 = getOrganicHue(0, 0.3);
-    const hue2 = getOrganicHue(45, 0.35);
-    const hue3 = getOrganicHue(90, 0.4);
-    const hue4 = getOrganicHue(135, 0.45);
-    const hue5 = getOrganicHue(180, 0.5);
-    
-    return `linear-gradient(
-      90deg, 
-      hsl(${hue1}, 80%, 65%) 0%, 
-      hsl(${hue2}, 85%, 60%) 25%, 
-      hsl(${hue3}, 80%, 65%) 50%, 
-      hsl(${hue4}, 85%, 60%) 75%,
-      hsl(${hue5}, 80%, 65%) 100%
-    )`;
-  };
-
-  /** Degradado más simple solo para el botón Comenzar (tres paradas). */
-  const getComenzarButtonGradient = () => {
-    const hueLeft = getOrganicHue(15, 0.3);
-    const hueMid = getOrganicHue(100, 0.35);
-    const hueRight = getOrganicHue(210, 0.32);
-    return `linear-gradient(
-      90deg,
-      hsl(${hueLeft}, 82%, 63%) 0%,
-      hsl(${hueMid}, 86%, 58%) 50%,
-      hsl(${hueRight}, 80%, 63%) 100%
-    )`;
   };
 
   // Transform mouse position to background effect
@@ -387,25 +390,26 @@ export const SplashScreen = ({ onEnter }: SplashScreenProps) => {
             transition={{ duration: 1, delay: 0.2, ease: "easeOut" }}
             className="mb-3 flex flex-col items-center"
           >
-            <ChromaticaLogoMark
-              className="w-[8.25rem] h-auto sm:w-[9.75rem] md:w-[11.25rem] lg:w-[12.75rem] mb-0 -mb-3 sm:-mb-4 md:-mb-6 lg:-mb-8 block drop-shadow-[0_0_28px_rgba(255,255,255,0.14)]"
-              strokeScale={1}
-            />
+            <div
+              className="mb-0 -mb-3 sm:-mb-4 md:-mb-6 lg:-mb-8 block drop-shadow-[0_0_28px_rgba(43,176,200,0.28)] [&_svg]:w-[8.25rem] [&_svg]:h-[8.25rem] sm:[&_svg]:w-[9.75rem] sm:[&_svg]:h-[9.75rem] md:[&_svg]:w-[11.25rem] md:[&_svg]:h-[11.25rem] lg:[&_svg]:w-[12.75rem] lg:[&_svg]:h-[12.75rem]"
+            >
+              <ChromaticaSymbolLogo phase={brandPhase} size={200} className="block" />
+            </div>
             <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-tight leading-none select-none">
               <span className="text-white drop-shadow-lg">chrom</span>
-              <motion.span 
-                className="bg-clip-text text-transparent"
-                style={{ 
-                  backgroundImage: getAticaGradient(),
-                  backgroundSize: '200% 100%'
+              <motion.span
+                className="bg-clip-text text-transparent inline"
+                style={{
+                  backgroundImage: aticaBrandGradient,
+                  backgroundSize: '200% 100%',
                 }}
                 animate={{
-                  backgroundPosition: ['0% 50%', '100% 50%', '0% 50%']
+                  backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
                 }}
                 transition={{
                   duration: 10,
                   repeat: Infinity,
-                  ease: "linear"
+                  ease: 'linear',
                 }}
               >
                 atica
@@ -433,7 +437,7 @@ export const SplashScreen = ({ onEnter }: SplashScreenProps) => {
             <motion.div
               className="absolute inset-0"
               style={{
-                background: getAticaGradient()
+                background: aticaBrandGradient,
               }}
             />
             <motion.div
@@ -453,124 +457,130 @@ export const SplashScreen = ({ onEnter }: SplashScreenProps) => {
             />
           </motion.div>
 
-          {/* Enter button - enhanced interactivity */}
+          {/* Enter button — cristal + borde con degradado de marca */}
           <motion.button
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.8, delay: 0.9 }}
+            type="button"
             onClick={onEnter}
             onMouseEnter={() => setIsHovering(true)}
             onMouseLeave={() => { setIsHovering(false); setIsButtonPressed(false); }}
             onMouseDown={() => setIsButtonPressed(true)}
             onMouseUp={() => setIsButtonPressed(false)}
-            className="group relative px-10 sm:px-14 py-4 sm:py-5 rounded-full overflow-hidden"
+            className="group relative inline-flex cursor-pointer rounded-full border-0 bg-transparent p-0 outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#08080c]"
             whileHover={{ scale: 1.08 }}
             whileTap={{ scale: 0.95 }}
           >
-            {/* Button glow backdrop */}
+            {/* Halo exterior al hover */}
             <motion.div
-              className="absolute -inset-4 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+              className="pointer-events-none absolute -inset-4 rounded-full opacity-0 transition-opacity duration-500 group-hover:opacity-70"
               style={{
-                background: getComenzarButtonGradient(),
-                filter: 'blur(25px)'
+                background: comenzarBrandGradient,
+                filter: 'blur(20px)',
               }}
-              animate={isHovering ? {
-                scale: [1, 1.2, 1],
-              } : {}}
+              animate={isHovering ? { scale: [1, 1.15, 1] } : {}}
               transition={{
                 duration: 1.5,
                 repeat: Infinity,
-                ease: "easeInOut"
+                ease: 'easeInOut',
               }}
             />
 
-            {/* Button background with animated gradient */}
-            <motion.div 
-              className="absolute inset-0 rounded-full"
+            {/* Anillo degradado (marco) */}
+            <motion.div
+              className="relative rounded-full p-[1.5px] shadow-[0_8px_32px_rgba(0,0,0,0.35)]"
               style={{
-                background: getComenzarButtonGradient(),
-                backgroundSize: '200% 100%'
+                background: comenzarBrandGradient,
+                backgroundSize: '200% 100%',
               }}
               animate={{
-                backgroundPosition: ['0% 50%', '100% 50%', '0% 50%']
+                backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
               }}
               transition={{
                 duration: 4,
                 repeat: Infinity,
-                ease: "linear"
+                ease: 'linear',
               }}
-            />
-            
-            {/* Button inner border */}
-            <div className="absolute inset-0.5 rounded-full bg-gradient-to-b from-white/20 to-transparent opacity-50" />
+            >
+              {/* Interior casi sin tinte: solo desenfoque; el color animado queda solo en el anillo p-[1.5px] */}
+              <div className="relative overflow-hidden rounded-full border border-white/18 bg-transparent px-10 py-4 backdrop-blur-2xl sm:px-14 sm:py-5">
+                <div
+                  className="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-b from-white/[0.12] via-transparent to-transparent"
+                  aria-hidden
+                />
 
-            {/* Button pressed state overlay */}
-            <motion.div
-              className="absolute inset-0 rounded-full bg-black"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: isButtonPressed ? 0.2 : 0 }}
-              transition={{ duration: 0.1 }}
-            />
+                <motion.div
+                  className="pointer-events-none absolute inset-0 rounded-full bg-black"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: isButtonPressed ? 0.18 : 0 }}
+                  transition={{ duration: 0.1 }}
+                />
 
-            {/* Button text */}
-            <span className="relative z-10 text-white font-semibold text-base sm:text-lg tracking-wide flex items-center gap-3">
-              <motion.span
-                animate={isHovering ? { x: -3 } : { x: 0 }}
-                transition={{ duration: 0.2 }}
-              >
-                Comenzar
-              </motion.span>
-              <motion.div
-                className="flex items-center"
-                animate={isHovering ? { 
-                  x: [0, 8, 0],
-                  opacity: [1, 0.5, 1]
-                } : { x: 0 }}
-                transition={isHovering ? {
-                  duration: 1,
-                  repeat: Infinity,
-                  ease: "easeInOut"
-                } : { duration: 0.2 }}
-              >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-              </motion.div>
-            </span>
-
-            {/* Particle burst on hover */}
-            {isHovering && (
-              <div className="absolute inset-0 pointer-events-none">
-                {[...Array(6)].map((_, i) => (
+                <span className="relative z-10 flex items-center gap-3 text-base font-semibold tracking-wide text-white sm:text-lg">
+                  <motion.span
+                    animate={isHovering ? { x: -3 } : { x: 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    Comenzar
+                  </motion.span>
                   <motion.div
-                    key={i}
-                    className="absolute w-1.5 h-1.5 rounded-full bg-white"
-                    style={{
-                      left: '50%',
-                      top: '50%'
-                    }}
-                    initial={{ x: 0, y: 0, opacity: 0 }}
-                    animate={{
-                      x: Math.cos(i * 60 * Math.PI / 180) * 60,
-                      y: Math.sin(i * 60 * Math.PI / 180) * 30,
-                      opacity: [0, 1, 0],
-                      scale: [0, 1, 0.5]
-                    }}
-                    transition={{
-                      duration: 1,
-                      repeat: Infinity,
-                      delay: i * 0.1,
-                      ease: "easeOut"
-                    }}
-                  />
-                ))}
+                    className="flex items-center"
+                    animate={
+                      isHovering
+                        ? {
+                            x: [0, 8, 0],
+                            opacity: [1, 0.5, 1],
+                          }
+                        : { x: 0 }
+                    }
+                    transition={
+                      isHovering
+                        ? {
+                            duration: 1,
+                            repeat: Infinity,
+                            ease: 'easeInOut',
+                          }
+                        : { duration: 0.2 }
+                    }
+                  >
+                    <svg
+                      className="h-5 w-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      aria-hidden
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    </svg>
+                  </motion.div>
+                </span>
+
+                {isHovering && (
+                  <div className="pointer-events-none absolute inset-0">
+                    {[...Array(6)].map((_, i) => (
+                      <motion.div
+                        key={i}
+                        className="absolute left-1/2 top-1/2 h-1.5 w-1.5 rounded-full bg-white"
+                        initial={{ x: 0, y: 0, opacity: 0 }}
+                        animate={{
+                          x: Math.cos((i * 60 * Math.PI) / 180) * 60,
+                          y: Math.sin((i * 60 * Math.PI) / 180) * 30,
+                          opacity: [0, 1, 0],
+                          scale: [0, 1, 0.5],
+                        }}
+                        transition={{
+                          duration: 1,
+                          repeat: Infinity,
+                          delay: i * 0.1,
+                          ease: 'easeOut',
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
+            </motion.div>
           </motion.button>
 
           {/* Hint text */}

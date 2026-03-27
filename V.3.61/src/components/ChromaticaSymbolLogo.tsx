@@ -1,35 +1,8 @@
 import { useState, useEffect, useId, type SVGProps } from 'react';
-
-/** Colores de marca en orden de cara (sentido horario). */
-const BRAND_COLORS = [
-  '#2BB0C8',
-  '#E8AE1E',
-  '#CE3B7F',
-  '#7B40A8',
-  '#1A8FAA',
-] as const;
-
-function lerpColor(hexA: string, hexB: string, t: number): string {
-  const parse = (h: string) => [
-    parseInt(h.slice(1, 3), 16),
-    parseInt(h.slice(3, 5), 16),
-    parseInt(h.slice(5, 7), 16),
-  ];
-  const [r1, g1, b1] = parse(hexA);
-  const [r2, g2, b2] = parse(hexB);
-  const r = Math.round(r1 + (r2 - r1) * t);
-  const g = Math.round(g1 + (g2 - g1) * t);
-  const b = Math.round(b1 + (b2 - b1) * t);
-  return `rgb(${r},${g},${b})`;
-}
-
-function colorAtPhase(phase: number, faceOffset: number): string {
-  const N = BRAND_COLORS.length;
-  const pos = ((((phase + faceOffset) % N) + N) % N);
-  const i = Math.floor(pos);
-  const t = pos - i;
-  return lerpColor(BRAND_COLORS[i]!, BRAND_COLORS[(i + 1) % N]!, t);
-}
+import {
+  CHROMATICA_BRAND_COLOR_COUNT,
+  colorAtPhase,
+} from '../lib/chromaticaBrandColors';
 
 export type ChromaticaSymbolLogoProps = Omit<
   SVGProps<SVGSVGElement>,
@@ -38,17 +11,22 @@ export type ChromaticaSymbolLogoProps = Omit<
   /** Tamaño en px (ancho y alto del SVG). */
   size?: number;
   animated?: boolean;
-  /** Ciclos de color por segundo. */
+  /** Ciclos de color por segundo (ignorado si `phase` está controlado desde fuera). */
   speed?: number;
+  /**
+   * Fase compartida con otros elementos (p. ej. texto). Si se pasa, desactiva el RAF interno.
+   */
+  phase?: number;
 };
 
 /**
- * Logo geométrico tipo “C” con caras de color. Opcionalmente anima el desplazamiento cromático.
+ * Logo geométrico tipo “C” con caras de color. Opcionalmente anima el desplazamiento_cromático.
  */
 export function ChromaticaSymbolLogo({
   size = 200,
   animated = false,
   speed = 0.3,
+  phase: controlledPhase,
   className,
   'aria-hidden': ariaHidden,
   ...svgRest
@@ -67,12 +45,16 @@ export function ChromaticaSymbolLogo({
   const UL = `${cx - h},${cy - R / 2}`;
   const O = `${cx},${cy}`;
 
-  const [phase, setPhase] = useState(0);
+  const [internalPhase, setInternalPhase] = useState(0);
   const maskId = `chromatica-symbol-mask-${useId().replace(/:/g, '')}`;
 
+  const isControlled = controlledPhase !== undefined;
+  const phase = isControlled ? controlledPhase! : internalPhase;
+
   useEffect(() => {
+    if (isControlled) return;
     if (!animated) {
-      setPhase(0);
+      setInternalPhase(0);
       return;
     }
 
@@ -81,12 +63,12 @@ export function ChromaticaSymbolLogo({
     const tick = (ts: number) => {
       const dt = (ts - last) / 1000;
       last = ts;
-      setPhase((p) => (p + speed * dt) % BRAND_COLORS.length);
+      setInternalPhase((p) => (p + speed * dt) % CHROMATICA_BRAND_COLOR_COUNT);
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [animated, speed]);
+  }, [animated, speed, isControlled]);
 
   const c = {
     T1: colorAtPhase(phase, 0),
