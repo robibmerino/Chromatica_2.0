@@ -18,6 +18,8 @@ import { AnalysisVibrancyMainColumn } from './analysis/AnalysisVibrancyMainColum
 import { AnalysisVibrancyRightAside } from './analysis/AnalysisVibrancyRightAside';
 import { AnalysisCvdMainColumn } from './analysis/AnalysisCvdMainColumn';
 import { AnalysisCvdRightAside } from './analysis/AnalysisCvdRightAside';
+import { AnalysisHarmonyMainColumn } from './analysis/AnalysisHarmonyMainColumn';
+import { AnalysisHarmonyRightAside } from './analysis/AnalysisHarmonyRightAside';
 import { AnalysisScoreCard } from './analysis/AnalysisScoreCard';
 import { AnalysisMainHeader } from './analysis/AnalysisMainHeader';
 import { AnalysisReferenceModal } from './analysis/AnalysisReferenceModal';
@@ -46,6 +48,11 @@ import {
   evaluateCvdGlobalScore,
   type CvdUiType,
 } from './analysis/cvd/cvdAnalysis';
+import {
+  evaluateChromaticHarmony,
+  harmonyBadge,
+  harmonySidebarTone,
+} from './analysis/harmony/harmonyAnalysis';
 import type { AnalysisAspectId, EditingColor, ReferenceItem, RoleKey } from './analysis/types';
 import { TOP_COMBOS_ROLE } from './analysis/types';
 
@@ -125,7 +132,9 @@ function AnalysisPhaseInner(props: AnalysisPhaseProps) {
         : analysisType === 'vibrancy'
           ? 'vibrancyHarmony'
           : analysisType === 'cvd'
-            ? 'cvdSimulation'
+          ? 'cvdSimulation'
+          : analysisType === 'harmony'
+            ? 'chromaticHarmony'
             : 'perceptualDeltaE';
   const setAnalysisAspect = React.useCallback(
     (aspect: AnalysisAspectId) => {
@@ -133,6 +142,7 @@ function AnalysisPhaseInner(props: AnalysisPhaseProps) {
       else if (aspect === 'temperatureHarmony') setAnalysisType('temperature');
       else if (aspect === 'vibrancyHarmony') setAnalysisType('vibrancy');
       else if (aspect === 'cvdSimulation') setAnalysisType('cvd');
+      else if (aspect === 'chromaticHarmony') setAnalysisType('harmony');
       else setAnalysisType('scientific');
     },
     [setAnalysisType]
@@ -191,6 +201,8 @@ function AnalysisPhaseInner(props: AnalysisPhaseProps) {
     handleAutoAdjustPerceptualDeltaE,
     handleAutoAdjustTemperatureHarmony,
     handleAutoAdjustVibrancyHarmony,
+    handleAutoAdjustCvd,
+    handleAutoAdjustHarmony,
   } = wcag;
 
   const posterPerceptualEvaluated = React.useMemo(() => evaluatePosterPerceptualDeltaE(roleHexMap), [roleHexMap]);
@@ -246,6 +258,11 @@ function AnalysisPhaseInner(props: AnalysisPhaseProps) {
   const cvdBadgeInfo = React.useMemo(() => cvdBadge(cvdGlobalScoreValue), [cvdGlobalScoreValue]);
   const cvdGlobalScoreDesc = React.useMemo(() => cvdScoreDesc(cvdGlobalScoreValue), [cvdGlobalScoreValue]);
 
+  const harmonyAnalysis = React.useMemo(() => evaluateChromaticHarmony(roleHexMap), [roleHexMap]);
+  const harmonyScoreValue = harmonyAnalysis.score;
+  const harmonyTone = React.useMemo(() => harmonySidebarTone(harmonyScoreValue), [harmonyScoreValue]);
+  const harmonyBadgeInfo = React.useMemo(() => harmonyBadge(harmonyScoreValue), [harmonyScoreValue]);
+
   const headlineScore = React.useMemo(() => {
     const parts: number[] = [];
     if (contrastScore != null) parts.push(contrastScore);
@@ -253,6 +270,7 @@ function AnalysisPhaseInner(props: AnalysisPhaseProps) {
     parts.push(temperatureHarmonyScoreValue);
     parts.push(vibrancyHarmonyScoreValue);
     parts.push(cvdGlobalScoreValue);
+    parts.push(harmonyScoreValue);
     return Math.round(parts.reduce((a, b) => a + b, 0) / parts.length);
   }, [
     contrastScore,
@@ -260,6 +278,7 @@ function AnalysisPhaseInner(props: AnalysisPhaseProps) {
     temperatureHarmonyScoreValue,
     vibrancyHarmonyScoreValue,
     cvdGlobalScoreValue,
+    harmonyScoreValue,
   ]);
 
   return (
@@ -301,6 +320,7 @@ function AnalysisPhaseInner(props: AnalysisPhaseProps) {
             temperatureHarmonyScore={temperatureHarmonyScoreValue}
             vibrancyHarmonyScore={vibrancyHarmonyScoreValue}
             cvdSimulationScore={cvdGlobalScoreValue}
+            harmonyScore={harmonyScoreValue}
             textSidebarFillClass={sidebarFillClass}
             textSidebarScoreClass={sidebarScoreClass}
             posterPerceptualSidebarFillClass={posterPerceptualTone.fillClass}
@@ -311,6 +331,8 @@ function AnalysisPhaseInner(props: AnalysisPhaseProps) {
             vibrancySidebarScoreClass={vibrancyHarmonyTone.textClass}
             cvdSidebarFillClass={cvdTone.fillClass}
             cvdSidebarScoreClass={cvdTone.textClass}
+            harmonySidebarFillClass={harmonyTone.fillClass}
+            harmonySidebarScoreClass={harmonyTone.textClass}
           />
 
           {/* Columna central: contraste texto WCAG o triple análisis del mockup (CIE + W3C) */}
@@ -353,6 +375,14 @@ function AnalysisPhaseInner(props: AnalysisPhaseProps) {
                 globalScoreDesc={cvdGlobalScoreDesc}
                 badgeLabel={cvdBadgeInfo.label}
                 badgeClassName={cvdBadgeInfo.className}
+                onAutoAdjust={handleAutoAdjustCvd}
+              />
+            ) : analysisAspect === 'chromaticHarmony' ? (
+              <AnalysisHarmonyMainColumn
+                analysis={harmonyAnalysis}
+                badgeLabel={harmonyBadgeInfo.label}
+                badgeClassName={harmonyBadgeInfo.className}
+                onAutoAdjust={handleAutoAdjustHarmony}
               />
             ) : (
             <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
@@ -768,6 +798,18 @@ function AnalysisPhaseInner(props: AnalysisPhaseProps) {
             />
           ) : analysisAspect === 'vibrancyHarmony' ? (
             <AnalysisVibrancyRightAside
+              effectiveColors={effectiveColors}
+              effectiveSupportColors={effectiveSupportColors}
+              resetSupportPalette={resetSupportPalette}
+              supportResetButtonRef={supportResetButtonRef}
+              supportResetTooltipRect={supportResetTooltipRect}
+              setSupportResetTooltipRect={setSupportResetTooltipRect}
+              setEditingColor={setEditingColor}
+              setDraftHex={setDraftHex}
+              onOpenReference={setActiveReference}
+            />
+          ) : analysisAspect === 'chromaticHarmony' ? (
+            <AnalysisHarmonyRightAside
               effectiveColors={effectiveColors}
               effectiveSupportColors={effectiveSupportColors}
               resetSupportPalette={resetSupportPalette}

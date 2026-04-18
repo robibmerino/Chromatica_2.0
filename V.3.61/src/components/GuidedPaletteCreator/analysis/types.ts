@@ -36,7 +36,8 @@ export type AnalysisAspectId =
   | 'perceptualDeltaE'
   | 'temperatureHarmony'
   | 'vibrancyHarmony'
-  | 'cvdSimulation';
+  | 'cvdSimulation'
+  | 'chromaticHarmony';
 
 export type EditingColor =
   | { type: 'main'; index: number }

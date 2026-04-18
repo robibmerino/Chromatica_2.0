@@ -11,6 +11,7 @@ type AnalysisContrastLeftAsideProps = {
   temperatureHarmonyScore: number;
   vibrancyHarmonyScore: number;
   cvdSimulationScore: number;
+  harmonyScore: number;
   textSidebarFillClass: string;
   textSidebarScoreClass: string;
   posterPerceptualSidebarFillClass: string;
@@ -21,6 +22,8 @@ type AnalysisContrastLeftAsideProps = {
   vibrancySidebarScoreClass: string;
   cvdSidebarFillClass: string;
   cvdSidebarScoreClass: string;
+  harmonySidebarFillClass: string;
+  harmonySidebarScoreClass: string;
 };
 
 export function AnalysisContrastLeftAside({
@@ -32,6 +35,7 @@ export function AnalysisContrastLeftAside({
   temperatureHarmonyScore,
   vibrancyHarmonyScore,
   cvdSimulationScore,
+  harmonyScore,
   textSidebarFillClass,
   textSidebarScoreClass,
   posterPerceptualSidebarFillClass,
@@ -42,6 +46,8 @@ export function AnalysisContrastLeftAside({
   vibrancySidebarScoreClass,
   cvdSidebarFillClass,
   cvdSidebarScoreClass,
+  harmonySidebarFillClass,
+  harmonySidebarScoreClass,
 }: AnalysisContrastLeftAsideProps) {
   const headline = headlineScore != null ? headlineScore : '--';
   const headlineWidth = headlineScore != null ? headlineScore : 0;
@@ -269,6 +275,47 @@ export function AnalysisContrastLeftAside({
           </div>
           <span className={`text-xs font-bold min-w-[36px] text-right ${cvdSidebarScoreClass}`}>
             {cvdSimulationScore}%
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onSelectAspect('chromaticHarmony')}
+          aria-pressed={activeAspect === 'chromaticHarmony'}
+          className={`w-full text-left rounded-xl border px-3 py-2.5 flex items-center gap-3 transition-colors ${
+            activeAspect === 'chromaticHarmony'
+              ? 'border-violet-400/70 bg-gray-800/90 ring-1 ring-violet-500/30'
+              : 'border-gray-600/70 bg-gray-800/70 hover:bg-gray-700/70 hover:border-violet-400/45'
+          }`}
+        >
+          <div className="w-9 h-9 rounded-md bg-violet-500/15 text-violet-300 flex items-center justify-center flex-shrink-0">
+            <svg
+              viewBox="0 0 24 24"
+              className="w-4 h-4"
+              aria-hidden
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="M2 12h20" />
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-gray-100 truncate">{ANALYSIS_LEFT_ASIDE.navButtonHarmonyMode}</p>
+            <p className="text-[10px] text-gray-500 truncate">{ANALYSIS_LEFT_ASIDE.navButtonHarmonyHint}</p>
+            <div className="mt-1 h-[3px] rounded-full bg-gray-900/90 overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${harmonySidebarFillClass}`}
+                style={{ width: `${harmonyScore}%` }}
+              />
+            </div>
+          </div>
+          <span className={`text-xs font-bold min-w-[36px] text-right ${harmonySidebarScoreClass}`}>
+            {harmonyScore}%
           </span>
         </button>
       </div>

@@ -24,6 +24,7 @@ export const ANALYSIS_CENTRAL_HEADER = {
   titleTemperatureHarmony: 'Armonía de temperatura',
   titleVibrancyHarmony: 'Saturación y vibración',
   titleCvdSimulation: 'Simulación de daltonismo (CVD)',
+  titleChromaticHarmony: 'Armonía cromática',
   primaryActionAutoAdjust: 'Auto-ajustar',
 } as const;
 
@@ -46,13 +47,15 @@ export const ANALYSIS_LEFT_ASIDE = {
   globalScoreCaption: 'Puntuación global',
   /** Subtítulo bajo la nota grande: promedio de contraste texto + modo póster. */
   globalScoreCombinedHint:
-    'Promedio: WCAG texto + póster (ΔE+Y+L*) + temperatura + vibración + simulación CVD',
+    'Promedio: WCAG texto + póster (ΔE+Y+L*) + temperatura + vibración + simulación CVD + armonía cromática',
   navButtonTemperatureMode: 'Temperatura cálido / frío',
   navButtonTemperatureHint: 'Ou et al. · balance térmico',
   navButtonVibrancyMode: 'Saturación y vibración',
   navButtonVibrancyHint: 'LCh croma + colorfulness (Hasler & Süsstrunk)',
   navButtonCvdMode: 'Daltonismo (CVD)',
   navButtonCvdHint: 'Viénot–Brettel–Mollon (1999) · ΔE en simulado',
+  navButtonHarmonyMode: 'Armonía cromática',
+  navButtonHarmonyHint: 'Patrones en rueda tonal (análogo, triádico, etc.)',
   accessibilityHeading: 'Accesibilidad',
   /** Misma etiqueta corta en modo interfaz (navegación, chip de puntuación, `analysisType` científico). */
   shortLabelPerceptualMode: 'Póster · ΔE+Y+L*',
@@ -66,6 +69,7 @@ export const ANALYSIS_GLOBAL_MODE_LABEL = {
   temperatureMode: 'Temperatura (warm / cool)',
   vibrancyMode: 'Vibración / saturación',
   cvdMode: 'Simulación CVD',
+  harmonyMode: 'Armonía cromática',
 } as const;
 
 export const ANALYSIS_RIGHT_ASIDE = {
@@ -77,6 +81,7 @@ export const ANALYSIS_RIGHT_ASIDE = {
     temperatureHarmony: '¿Qué mide la temperatura de color?',
     vibrancyHarmony: '¿Qué mide la saturación y vibración?',
     cvdSimulation: '¿Qué es la simulación de daltonismo aquí?',
+    chromaticHarmony: '¿Qué mide la armonía cromática?',
   },
   whyItMatters: '¿Por qué importa?',
   quickTip: 'Consejo rápido',

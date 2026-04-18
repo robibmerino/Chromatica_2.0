@@ -1,9 +1,32 @@
+import React from 'react';
 import type { ReferenceItem } from './types';
 
 type AnalysisReferenceModalProps = {
   reference: ReferenceItem;
   onClose: () => void;
 };
+
+/** `**negrita**` y `^^énfasis cian^^` en textos de referencia (solo estos patrones). */
+function renderReferenceSummaryInline(text: string): React.ReactNode {
+  const segments = text.split(/(\*\*[^*]+\*\*|\^\^[^\^]+\^\^)/g).filter(Boolean);
+  return segments.map((seg, i) => {
+    if (seg.startsWith('**') && seg.endsWith('**')) {
+      return (
+        <strong key={i} className="font-semibold text-slate-100">
+          {seg.slice(2, -2)}
+        </strong>
+      );
+    }
+    if (seg.startsWith('^^') && seg.endsWith('^^')) {
+      return (
+        <span key={i} className="font-semibold text-cyan-300">
+          {seg.slice(2, -2)}
+        </span>
+      );
+    }
+    return seg;
+  });
+}
 
 export function AnalysisReferenceModal({ reference, onClose }: AnalysisReferenceModalProps) {
   return (
@@ -41,7 +64,7 @@ export function AnalysisReferenceModal({ reference, onClose }: AnalysisReference
         <div className="mt-4 min-h-0 flex-1 overflow-y-auto rounded-xl border border-slate-700/70 bg-slate-900/55 px-3.5 py-3.5">
           <div className="space-y-3 text-sm leading-relaxed text-slate-300">
             {reference.summaryParagraphs.map((paragraph, index) => (
-              <p key={index}>{paragraph}</p>
+              <p key={`${reference.id}-summary-${index}`}>{renderReferenceSummaryInline(paragraph)}</p>
             ))}
           </div>
         </div>

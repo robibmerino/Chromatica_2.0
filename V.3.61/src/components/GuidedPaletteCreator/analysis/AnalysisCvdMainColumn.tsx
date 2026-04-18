@@ -24,6 +24,7 @@ type AnalysisCvdMainColumnProps = {
   globalScoreDesc: string;
   badgeLabel: string;
   badgeClassName: string;
+  onAutoAdjust?: () => void;
 };
 
 function CvdMiniScene({
@@ -66,6 +67,7 @@ export function AnalysisCvdMainColumn({
   globalScoreDesc,
   badgeLabel,
   badgeClassName,
+  onAutoAdjust,
 }: AnalysisCvdMainColumnProps) {
   const conflicts = React.useMemo(
     () => detectCvdConflicts(roleHexMap, selectedCvd),
@@ -81,6 +83,8 @@ export function AnalysisCvdMainColumn({
         title={ANALYSIS_CENTRAL_HEADER.titleCvdSimulation}
         badgeLabel={badgeLabel}
         badgeClassName={badgeClassName}
+        onAutoAdjust={onAutoAdjust}
+        autoAdjustClassName="bg-gradient-to-r from-fuchsia-500 to-cyan-400 hover:from-fuchsia-400 hover:to-cyan-300"
         iconBoxClassName="bg-pink-500/15 text-pink-300"
         icon={
           <svg

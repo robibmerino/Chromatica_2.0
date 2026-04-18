@@ -5,6 +5,8 @@ import { buildRoleHexMap } from './buildRoleHexMap';
 import { computeAutoAdjustedPerceptualHexes } from './perceptual/autoAdjustPerceptualDeltaE';
 import { computeAutoAdjustedTemperatureHexes } from './temperature/autoAdjustTemperatureHarmony';
 import { computeAutoAdjustedVibrancyHexes } from './vibrancy/autoAdjustVibrancyHarmony';
+import { computeAutoAdjustedCvdHexes } from './cvd/autoAdjustCvd';
+import { computeAutoAdjustedHarmonyHexes } from './harmony/autoAdjustHarmony';
 import type { ContrastComboConfig, InfoPanelKey, RoleKey, SupportSwatch } from './types';
 import { DEFAULT_CONTRAST_COMBOS, TOP_COMBOS_ROLE } from './types';
 
@@ -314,6 +316,20 @@ export function useWcagContrastAnalysis({
     });
   }, [applyHexToRole, roleHexMap]);
 
+  const handleAutoAdjustCvd = React.useCallback(() => {
+    const updates = computeAutoAdjustedCvdHexes(roleHexMap);
+    Object.entries(updates).forEach(([role, hex]) => {
+      applyHexToRole(role, hex);
+    });
+  }, [applyHexToRole, roleHexMap]);
+
+  const handleAutoAdjustHarmony = React.useCallback(() => {
+    const updates = computeAutoAdjustedHarmonyHexes(roleHexMap);
+    Object.entries(updates).forEach(([role, hex]) => {
+      applyHexToRole(role, hex);
+    });
+  }, [applyHexToRole, roleHexMap]);
+
   return {
     roleHexMap,
     explorerSelectedRole,
@@ -332,5 +348,7 @@ export function useWcagContrastAnalysis({
     handleAutoAdjustPerceptualDeltaE,
     handleAutoAdjustTemperatureHarmony,
     handleAutoAdjustVibrancyHarmony,
+    handleAutoAdjustCvd,
+    handleAutoAdjustHarmony,
   };
 }
