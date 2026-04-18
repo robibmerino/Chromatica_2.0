@@ -60,18 +60,24 @@ export function CharacterLabelBelowCard({
   const padCls = compact ? 'px-2 py-0.5' : 'px-2 py-1';
   const subtitleTags = subtitle.split(',').map((s) => s.trim()).filter(Boolean);
   return (
-    <div className={`flex flex-wrap gap-2 justify-center mt-2 w-full ${className}`}>
+    <div
+      className={`column-summary-png-char-label flex flex-wrap gap-2 justify-center mt-2 w-full ${className}`}
+    >
       <span
         className={`${textSize} font-medium rounded-full ${padCls} ${pill.bg} ${pill.text} shrink-0`}
       >
-        {title}
+        <span className="column-summary-png-char-label-text relative inline-block leading-tight">
+          {title}
+        </span>
       </span>
       {subtitleTags.map((tag) => (
         <span
           key={tag}
           className={`${textSize} rounded-full ${padCls} bg-gray-600/40 text-gray-400 shrink-0`}
         >
-          {tag}
+          <span className="column-summary-png-char-label-text relative inline-block leading-tight">
+            {tag}
+          </span>
         </span>
       ))}
     </div>

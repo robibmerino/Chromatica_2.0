@@ -7,11 +7,17 @@ import { INSPIRATION_MENU_OPTIONS } from './config/inspirationMenuOptions';
 import type { InspirationMode } from '../../types/guidedPalette';
 import { PaletteBar } from '../inspiration/PaletteBar';
 import { blendColorsVibrant } from '../inspiration/archetypePaletteUtils';
+import type { InspirationMenuPaletteOption } from './hooks/useGuidedPalette';
+import { INSPIRATION_MODE_LABELS } from './config/phasesConfig';
 
 interface InspirationMenuPhaseProps {
   onSelectOption: (mode: InspirationMode) => void;
   /** Paletas activas por flujo (cadena Refinar→Aplicar→Análisis→Guardar). */
   activePalettesByMode?: Partial<Record<InspirationMode, string[]>>;
+  /** Opciones de paleta por tarjeta (incluye subflujos agrupados). */
+  paletteOptionsByMode?: Partial<Record<InspirationMode, InspirationMenuPaletteOption[]>>;
+  /** Fuente por defecto por tarjeta: normalmente el último subflujo usado. */
+  defaultPaletteSourceByMode?: Partial<Record<InspirationMode, InspirationMode>>;
   /** Abre la vista emergente para ver/editar la paleta combinada. */
   onOpenCombinedPalette?: (colors: string[]) => void;
 }
@@ -43,8 +49,35 @@ function buildCombinedPaletteFromOrigins(
 export function InspirationMenuPhase({
   onSelectOption,
   activePalettesByMode,
+  paletteOptionsByMode,
+  defaultPaletteSourceByMode,
   onOpenCombinedPalette,
 }: InspirationMenuPhaseProps) {
+  const [sourceIndexByMode, setSourceIndexByMode] = useState<Partial<Record<InspirationMode, number>>>({});
+
+  const getPaletteMetaForMode = (mode: InspirationMode) => {
+    const options = paletteOptionsByMode?.[mode] ?? [];
+    if (!options.length) {
+      const colors = activePalettesByMode?.[mode];
+      if (!colors?.length) return null;
+      return {
+        colors,
+        selectedOption: null,
+        options: [] as InspirationMenuPaletteOption[],
+        normalizedIndex: 0,
+      };
+    }
+    const preferredSource = defaultPaletteSourceByMode?.[mode];
+    const preferredIndex = preferredSource
+      ? options.findIndex((option) => option.sourceMode === preferredSource)
+      : -1;
+    const fallbackIndex = preferredIndex >= 0 ? preferredIndex : 0;
+    const requestedIndex = sourceIndexByMode[mode] ?? fallbackIndex;
+    const normalizedIndex = ((requestedIndex % options.length) + options.length) % options.length;
+    const selectedOption = options[normalizedIndex];
+    return { colors: selectedOption.colors, selectedOption, options, normalizedIndex };
+  };
+
   const combinedPalette = useMemo(
     () => buildCombinedPaletteFromOrigins(activePalettesByMode),
     [activePalettesByMode]
@@ -91,15 +124,59 @@ export function InspirationMenuPhase({
               index={index}
               onSelectOption={onSelectOption}
             />
-            {activePalettesByMode?.[opt.id] && activePalettesByMode[opt.id]!.length > 0 && (
+            {(() => {
+              const paletteMeta = getPaletteMetaForMode(opt.id);
+              if (!paletteMeta) return null;
+              const { colors, selectedOption, options, normalizedIndex } = paletteMeta;
+              const canCycleOptions = options.length > 1;
+              const selectedLabel = selectedOption
+                ? INSPIRATION_MODE_LABELS[selectedOption.sourceMode]
+                : null;
+              return (
               <div className="flex flex-col gap-1">
                 <p className="text-xs text-gray-400">Paleta activa</p>
                 <PaletteBar
-                  colors={activePalettesByMode[opt.id]!.slice(0, 8)}
+                  colors={colors.slice(0, 8)}
                   className="h-8"
                 />
+                {selectedLabel && (
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[11px] text-gray-500 truncate">{selectedLabel}</p>
+                    {canCycleOptions && (
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSourceIndexByMode((prev) => ({
+                              ...prev,
+                              [opt.id]: normalizedIndex - 1,
+                            }))
+                          }
+                          className="px-1.5 py-0.5 rounded bg-gray-800/80 border border-gray-700 text-gray-300 hover:text-white hover:bg-gray-700/80 transition-colors"
+                          aria-label="Mostrar subflujo anterior"
+                        >
+                          ‹
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSourceIndexByMode((prev) => ({
+                              ...prev,
+                              [opt.id]: normalizedIndex + 1,
+                            }))
+                          }
+                          className="px-1.5 py-0.5 rounded bg-gray-800/80 border border-gray-700 text-gray-300 hover:text-white hover:bg-gray-700/80 transition-colors"
+                          aria-label="Mostrar siguiente subflujo"
+                        >
+                          ›
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-            )}
+              );
+            })()}
           </div>
         ))}
       </div>

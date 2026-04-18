@@ -40,6 +40,8 @@ export const INSPIRATION_MODE_LABELS: Record<InspirationMode, string> = {
   'archetypes-menu': 'Arquetipos o Formas',
   archetypes: 'Explora Arquetipos',
   shapes: 'Formas',
+  aquarium: 'Pecera',
+  design: 'Diseño',
   trending: 'Paletas en tendencia',
   'multi-origin': 'Paleta combinada',
 };
@@ -101,6 +103,24 @@ const FLOW_ACCENT_MAP: Record<InspirationMode, FlowAccent> = {
     completedBg: 'rgba(192, 38, 211, 0.1)',
     completedBorder: 'rgba(168, 85, 247, 0.22)',
     particle: '#d946ef',
+  },
+  aquarium: {
+    active: '#0e7490',
+    activeBg: 'rgba(14, 116, 144, 0.18)',
+    activeRing: 'rgba(34, 211, 238, 0.35)',
+    completed: '#06b6d4',
+    completedBg: 'rgba(8, 145, 178, 0.1)',
+    completedBorder: 'rgba(6, 182, 212, 0.22)',
+    particle: '#22d3ee',
+  },
+  design: {
+    active: '#0f766e',
+    activeBg: 'rgba(15, 118, 110, 0.18)',
+    activeRing: 'rgba(45, 212, 191, 0.35)',
+    completed: '#14b8a6',
+    completedBg: 'rgba(13, 148, 136, 0.1)',
+    completedBorder: 'rgba(20, 184, 166, 0.22)',
+    particle: '#2dd4bf',
   },
   trending: {
     active: '#c2410c',

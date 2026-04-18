@@ -110,10 +110,9 @@ export function ResearchConsentGate() {
         <div className="w-full max-w-md">
           <h1 className="text-xl font-semibold text-white mb-1">Colaboración con la investigación</h1>
           <p className="text-gray-400 text-sm mb-6">
-            La Universidad Politécnica de Valencia (UPV), Laboratorio de Neuroarquitectura,
-            usa datos anónimos de Chromatica para estudios sobre diseño e innovación docente.
-            No se guardan nombres ni correos; solo uso de la herramienta y, si quieres, datos
-            opcionales para análisis sociodemográfico.
+            El Laboratorio de Neuroarquitectura UPV, usa datos anónimos de Chromatica para estudios sobre
+            elección de color. No se guardan nombres ni correos; solo uso de la herramienta y los siguientes
+            datos sociodemográficos.
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">

@@ -1,16 +1,26 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import ButtonParticles from '../ButtonParticles';
-import { ARCHETYPE_BUTTON_CONFIG, SHAPE_BUTTON_CONFIG } from './config/archetypeShapeButtonConfig';
+import {
+  ARCHETYPE_BUTTON_CONFIG,
+  SHAPE_BUTTON_CONFIG,
+  AQUARIUM_BUTTON_CONFIG,
+  DESIGN_BUTTON_CONFIG,
+} from './config/archetypeShapeButtonConfig';
 
 interface ArchetypeOrShapeButtonProps {
-  type: 'archetypes' | 'shapes';
+  type: 'archetypes' | 'shapes' | 'aquarium' | 'design';
   onClick: () => void;
 }
 
 export function ArchetypeOrShapeButton({ type, onClick }: ArchetypeOrShapeButtonProps) {
   const [isHovered, setIsHovered] = useState(false);
-  const config = type === 'archetypes' ? ARCHETYPE_BUTTON_CONFIG : SHAPE_BUTTON_CONFIG;
+  const config = {
+    archetypes: ARCHETYPE_BUTTON_CONFIG,
+    shapes: SHAPE_BUTTON_CONFIG,
+    aquarium: AQUARIUM_BUTTON_CONFIG,
+    design: DESIGN_BUTTON_CONFIG,
+  }[type];
 
   return (
     <motion.button
@@ -19,7 +29,7 @@ export function ArchetypeOrShapeButton({ type, onClick }: ArchetypeOrShapeButton
       onMouseLeave={() => setIsHovered(false)}
       whileHover={{ scale: 1.02, y: -3 }}
       whileTap={{ scale: 0.98 }}
-      className={`relative overflow-hidden rounded-2xl p-6 text-left bg-gradient-to-br ${config.bgGradient} border ${config.borderColor} group transition-all`}
+      className={`relative overflow-hidden rounded-2xl p-6 md:p-5 lg:p-6 text-left bg-gradient-to-br ${config.bgGradient} border ${config.borderColor} group transition-all min-h-[260px] md:min-h-[280px] lg:min-h-[300px]`}
     >
       <ButtonParticles isHovered={isHovered} color={config.particleColor} count={20} intensity="medium" />
 

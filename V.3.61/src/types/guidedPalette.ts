@@ -17,6 +17,8 @@ export type InspirationMode =
   | 'image'
   | 'archetypes'
   | 'shapes'
+  | 'aquarium'
+  | 'design'
   | 'trending'
   | 'archetypes-menu'
   /** Flujo combinado creado desde las paletas activas de origen. */

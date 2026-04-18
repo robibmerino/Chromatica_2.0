@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useResearch } from '../contexts/ResearchContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import ChromaticaLogo from './ChromaticaLogo';
+import { LabIntroAsidePanel } from './LabIntroAsidePanel';
 import { ParticleBackground } from './ParticleBackground';
 
 const inputClass =
@@ -43,9 +44,17 @@ const DESIGN_CAREERS = [
 
 interface AuthPageProps {
   onBack: () => void;
+  /** Tras login o registro correctos; si no se pasa, se usa `onBack`. */
+  onSuccess?: () => void;
+  /** Tras «Comenzar»: panel del laboratorio a la izquierda (pantallas grandes) y acceso sin cuenta. */
+  labEntryAside?: {
+    onContinueWithoutAuth: () => void;
+  };
+  /** Etiqueta del botón superior izquierdo (p. ej. «Inicio» en el primer acceso). */
+  backLabel?: string;
 }
 
-export function AuthPage({ onBack }: AuthPageProps) {
+export function AuthPage({ onBack, onSuccess, labEntryAside, backLabel = 'Volver' }: AuthPageProps) {
   const { signIn, signUp, signInWithOAuth, resetPasswordForEmail, error, clearError } = useAuth();
   const { acceptConsent } = useResearch();
   const [isRegister, setIsRegister] = useState(false);
@@ -69,9 +78,9 @@ export function AuthPage({ onBack }: AuthPageProps) {
       setOauthLoading(provider);
       const { error: err } = await signInWithOAuth(provider);
       setOauthLoading(null);
-      if (!err) onBack();
+      if (!err) (onSuccess ?? onBack)();
     },
-    [signInWithOAuth, clearError, onBack]
+    [signInWithOAuth, clearError, onBack, onSuccess]
   );
 
   const handleSubmit = useCallback(
@@ -99,9 +108,9 @@ export function AuthPage({ onBack }: AuthPageProps) {
         }
       }
       setSubmitting(false);
-      if (!err) onBack();
+      if (!err) (onSuccess ?? onBack)();
     },
-    [email, password, isRegister, signUp, signIn, clearError, onBack, researchParticipate, researchAge, researchGender, researchDesignCareer, researchIsUpvStudent, acceptConsent]
+    [email, password, isRegister, signUp, signIn, clearError, onBack, onSuccess, researchParticipate, researchAge, researchGender, researchDesignCareer, researchIsUpvStudent, acceptConsent]
   );
 
   const handleForgotSubmit = useCallback(
@@ -118,31 +127,7 @@ export function AuthPage({ onBack }: AuthPageProps) {
     [email, resetPasswordForEmail, clearError]
   );
 
-  return (
-    <div className="min-h-screen bg-[#0a0a0f] flex flex-col relative">
-      <ParticleBackground particleCount={120} showOrbs opacityScale={0.85} />
-      <header className="relative z-10 border-b border-gray-700/50 bg-gray-900/80 backdrop-blur-md sticky top-0">
-        <div className="max-w-4xl mx-auto pl-2 pr-4 py-5 grid grid-cols-3 items-center">
-          <div className="flex justify-start -ml-1">
-            <button
-              type="button"
-              onClick={onBack}
-              className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
-            >
-              <ArrowLeft className="w-5 h-5" />
-              Volver
-            </button>
-          </div>
-          <div className="flex justify-center">
-            <ChromaticaLogo size="xl" showSubtitle />
-          </div>
-          <div className="flex justify-end" aria-hidden />
-        </div>
-      </header>
-
-      <main className="relative z-10 flex-1 flex items-center justify-center p-6">
-        <div className="w-full max-w-sm">
-          {showForgotPassword ? (
+  const formsInner = showForgotPassword ? (
             <>
               <h1 className="text-2xl font-semibold text-white mb-1">Restablecer contraseña</h1>
               <p className="text-gray-400 text-sm mb-6">
@@ -213,7 +198,7 @@ export function AuthPage({ onBack }: AuthPageProps) {
               : 'Entra con tu cuenta para ver y sincronizar tus paletas.'}
           </p>
 
-          {isSupabaseConfigured() && (
+          {isSupabaseConfigured() && (!isRegister || !researchParticipate) && (
             <div className="mb-6 space-y-3">
               <p className="text-xs text-gray-500 text-center">o continúa con</p>
               <div className="grid grid-cols-2 gap-3">
@@ -323,10 +308,9 @@ export function AuthPage({ onBack }: AuthPageProps) {
                   ¿Colaboras con la investigación?
                 </h3>
                 <p className="text-xs text-gray-400">
-                  La Universidad Politécnica de Valencia (UPV), Laboratorio de Neuroarquitectura,
-                  usa datos anónimos de Chromatica para estudios sobre diseño e innovación docente.
-                  No se guardan nombres ni correos; solo uso de la herramienta y, si quieres, datos
-                  opcionales para análisis sociodemográfico.
+                  El Laboratorio de Neuroarquitectura UPV, usa datos anónimos de Chromatica para estudios
+                  sobre elección de color. No se guardan nombres ni correos; solo uso de la herramienta y
+                  los siguientes datos sociodemográficos.
                 </p>
                 <label className="flex items-start gap-2 cursor-pointer">
                   <input
@@ -421,8 +405,58 @@ export function AuthPage({ onBack }: AuthPageProps) {
             </button>
           </form>
             </>
-          )}
+          );
+
+  return (
+    <div className="min-h-screen bg-[#0a0a0f] flex flex-col relative">
+      <ParticleBackground particleCount={120} showOrbs opacityScale={0.85} />
+      <header className="relative z-10 border-b border-gray-700/50 bg-gray-900/80 backdrop-blur-md sticky top-0">
+        <div className="max-w-4xl mx-auto pl-2 pr-4 py-5 grid grid-cols-3 items-center">
+          <div className="flex justify-start -ml-1">
+            <button
+              type="button"
+              onClick={onBack}
+              className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              {backLabel}
+            </button>
+          </div>
+          <div className="flex justify-center">
+            <ChromaticaLogo size="xl" showSubtitle />
+          </div>
+          <div className="flex justify-end" aria-hidden />
         </div>
+      </header>
+
+      <main
+        className={
+          labEntryAside
+            ? 'relative z-10 flex-1 flex items-start justify-center p-6 py-8 lg:items-center lg:py-10'
+            : 'relative z-10 flex-1 flex items-center justify-center p-6'
+        }
+      >
+        {labEntryAside ? (
+          <div className="w-full max-w-5xl mx-auto">
+            <div className="overflow-hidden rounded-2xl border border-gray-700/60 bg-gray-950/70 shadow-2xl shadow-black/40 backdrop-blur-md">
+              <div className="grid grid-cols-1 divide-y divide-gray-700/50 lg:grid-cols-2 lg:divide-x lg:divide-y-0 lg:items-stretch">
+                <aside className="order-2 flex min-h-[20rem] flex-col justify-center px-5 py-7 sm:px-7 sm:py-9 lg:order-1 lg:min-h-[24rem]">
+                  <LabIntroAsidePanel
+                    variant="split"
+                    onContinueWithoutAuth={labEntryAside.onContinueWithoutAuth}
+                  />
+                </aside>
+                <div className="order-1 flex min-h-[20rem] flex-col justify-center px-5 py-7 sm:px-7 sm:py-9 lg:order-2 lg:min-h-[24rem]">
+                  <div className="mx-auto w-full max-w-sm">{formsInner}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="w-full max-w-sm mx-auto">
+            {formsInner}
+          </div>
+        )}
       </main>
     </div>
   );

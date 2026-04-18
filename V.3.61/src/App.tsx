@@ -16,9 +16,13 @@ function getInitialShowSplash(): boolean {
   return true;
 }
 
+/** Origen del flujo de auth: primera entrada (splash) o desde la app. */
+type AuthEntry = 'main' | 'first-access' | null;
+
 export function App() {
   const [showSplash, setShowSplash] = useState(getInitialShowSplash);
   const [showAuthView, setShowAuthView] = useState(false);
+  const [authEntry, setAuthEntry] = useState<AuthEntry>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -27,16 +31,36 @@ export function App() {
   }, []);
 
   const handleEnter = useCallback(() => {
-    // Al salir de la pantalla inicial siempre empezamos un flujo nuevo:
-    // limpiamos cualquier borrador previo de la paleta guiada.
     if (typeof window !== 'undefined') {
       window.localStorage.removeItem('guidedPaletteWorkingState.v1');
     }
     setShowSplash(false);
+    setAuthEntry('first-access');
+    setShowAuthView(true);
   }, []);
 
-  const openAuth = useCallback(() => setShowAuthView(true), []);
-  const closeAuth = useCallback(() => setShowAuthView(false), []);
+  const openAuth = useCallback(() => {
+    setAuthEntry('main');
+    setShowAuthView(true);
+  }, []);
+
+  const closeAuth = useCallback(() => {
+    setShowAuthView(false);
+    if (authEntry === 'first-access') {
+      setShowSplash(true);
+    }
+    setAuthEntry(null);
+  }, [authEntry]);
+
+  const finishAuthSuccess = useCallback(() => {
+    setShowAuthView(false);
+    setAuthEntry(null);
+  }, []);
+
+  const continueWithoutAuthFromEntry = useCallback(() => {
+    setShowAuthView(false);
+    setAuthEntry(null);
+  }, []);
 
   if (isLoading) {
     return (
@@ -46,6 +70,12 @@ export function App() {
     );
   }
 
+  /** Misma ventana (lab + acceso) al entrar desde el splash o desde «Iniciar sesión» en la app. */
+  const labEntryAside =
+    authEntry === 'first-access' || authEntry === 'main'
+      ? { onContinueWithoutAuth: continueWithoutAuthFromEntry }
+      : undefined;
+
   return (
     <AuthProvider>
       <SyncDemographics />
@@ -54,7 +84,13 @@ export function App() {
           {showSplash ? (
             <SplashScreen key="splash" onEnter={handleEnter} />
           ) : showAuthView ? (
-            <AuthPage key="auth" onBack={closeAuth} />
+            <AuthPage
+              key="auth"
+              onBack={closeAuth}
+              onSuccess={finishAuthSuccess}
+              labEntryAside={labEntryAside}
+              backLabel={authEntry === 'first-access' ? 'Inicio' : 'Volver'}
+            />
           ) : (
             <ResearchGateOrMainView key="app" onOpenAuth={openAuth} />
           )}

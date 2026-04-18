@@ -372,7 +372,7 @@ export function ArchetypeAxesColumn({
   useEffect(() => {
     if (!selectedCardId) return;
     // No migrar [] a getPhase2InitialAxisState: mantener [] para que el fondo use
-    // el fallback de Fase 1 (Firmamento #48106a) y replique las condiciones de Fase 1
+    // el fallback de Fase 1 (background-1, slate neutro) y replique las condiciones de Fase 1
     const needsMigration = rawAxesState.some((s) => {
       const cfg = configById.get(s.axisId);
       if (!cfg || !hasCustomOption(cfg)) return false;

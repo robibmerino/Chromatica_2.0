@@ -81,7 +81,7 @@ interface TinderCardPreviewProps {
   hideLabels?: boolean;
   /** Oculta el fondo de la tarjeta (Fase 2: sin fondo predeterminado al entrar) */
   hideBackground?: boolean;
-  /** Si true: usa fondo Fase 1 (Firmamento) salvo que axis-background tenga hasBeenConfigured */
+  /** Si true: usa fondo Fase 1 (Penumbra / background-1) salvo que axis-background tenga hasBeenConfigured */
   useDefaultBackgroundUnlessConfigured?: boolean;
   /** Modo avatar: cuando 'detail', el detalle (Familiar/Herramienta/Inspiración) se muestra grande y centrado en lugar de la figura */
   centerLayer?: 'figure' | 'detail';
@@ -234,7 +234,7 @@ export function TinderCardPreview({
     >
       <div
         className={cn(
-          'relative rounded-2xl overflow-hidden border border-gray-600/50',
+          'column-summary-png-card-surface relative rounded-2xl overflow-hidden border border-gray-600/50',
           fullSize ? 'flex-1 min-h-0 w-full' : 'w-full aspect-[3/4] shadow-2xl shrink-0'
         )}
         style={fullSize ? undefined : { maxWidth: CARD_PREVIEW_MAX_WIDTH }}

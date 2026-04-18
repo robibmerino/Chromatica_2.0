@@ -87,7 +87,7 @@ export function buildPaletteWithAnalogous(
       colors.push(item.color);
       labels.push(item.label);
     } else if (configured.length === 0) {
-      // Ningún eje configurado: usar color real del eje (p. ej. Firmamento) para coincidir con la tarjeta
+      // Ningún eje configurado: usar color real del eje (p. ej. fondo Fase 1) para coincidir con la tarjeta
       colors.push(item?.color ?? INACTIVE_PALETTE[i] ?? INACTIVE_PALETTE[0]);
       labels.push(item?.label ?? '—');
     } else {

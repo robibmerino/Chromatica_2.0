@@ -4,6 +4,17 @@ import reactPlugin from 'eslint-plugin-react';
 import reactHooksPlugin from 'eslint-plugin-react-hooks';
 
 export default tseslint.config(
+  {
+    ignores: [
+      'dist/**',
+      'build/**',
+      'coverage/**',
+      'storybook-static/**',
+      'playwright-report/**',
+      'test-results/**',
+      'scripts/**',
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

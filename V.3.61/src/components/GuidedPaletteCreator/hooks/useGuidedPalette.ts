@@ -116,7 +116,17 @@ interface GuidedPaletteDraft {
   inspirationFlowEverCompleted: Partial<Record<InspirationMode, true>>;
   inspirationDetailSavedState: InspirationDetailSavedState;
   inspirationGeneratedPaletteByMode: Partial<Record<InspirationMode, string[]>>;
+  inspirationPaletteUseOrderByMode?: Partial<Record<InspirationMode, number>>;
 }
+
+export interface InspirationMenuPaletteOption {
+  sourceMode: InspirationMode;
+  colors: string[];
+}
+
+const MENU_SUBFLOW_MODE_MAP: Partial<Record<InspirationMode, InspirationMode[]>> = {
+  'archetypes-menu': ['archetypes', 'shapes', 'aquarium', 'design'],
+};
 
 /** Roles de la paleta de apoyo editables en Refinar. */
 export const SUPPORT_PALETTE_ROLES: { role: SupportPaletteRole; label: string; initial: string }[] = [
@@ -196,6 +206,11 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
   const [inspirationGeneratedPaletteByMode, setInspirationGeneratedPaletteByMode] = useState<
     Partial<Record<InspirationMode, string[]>>
   >({});
+  /** Orden de uso de "Usar paleta" por modo; mayor valor = más reciente. */
+  const [inspirationPaletteUseOrderByMode, setInspirationPaletteUseOrderByMode] = useState<
+    Partial<Record<InspirationMode, number>>
+  >({});
+  const inspirationPaletteUseOrderCounterRef = useRef(0);
   /** Flujos en los que el usuario ya pulsó "Usar paleta" al menos una vez; sin esto no se puede ir a Refinar/Aplicar/etc. en esa cadena. */
   const [inspirationFlowEverCompleted, setInspirationFlowEverCompleted] = useState<
     Partial<Record<InspirationMode, true>>
@@ -481,6 +496,11 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
                 draft.inspirationGeneratedPaletteByMode
               );
             }
+            if (draft.inspirationPaletteUseOrderByMode) {
+              setInspirationPaletteUseOrderByMode(draft.inspirationPaletteUseOrderByMode);
+              const maxOrder = Math.max(0, ...Object.values(draft.inspirationPaletteUseOrderByMode));
+              inspirationPaletteUseOrderCounterRef.current = maxOrder;
+            }
           }
         }
       } catch {
@@ -511,6 +531,7 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
       inspirationFlowEverCompleted,
       inspirationDetailSavedState,
       inspirationGeneratedPaletteByMode,
+      inspirationPaletteUseOrderByMode,
     };
 
     try {
@@ -530,6 +551,7 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
     inspirationFlowEverCompleted,
     inspirationDetailSavedState,
     inspirationGeneratedPaletteByMode,
+    inspirationPaletteUseOrderByMode,
   ]);
 
   /** Abrir una paleta guardada en el flujo Paleta combinada (Refinar o Guardar). */
@@ -636,6 +658,11 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
     (newColors: string[], savedState?: unknown) => {
       if (inspirationMode) {
         setInspirationFlowEverCompleted((prev) => ({ ...prev, [inspirationMode]: true }));
+        setInspirationPaletteUseOrderByMode((prev) => {
+          const nextOrder = inspirationPaletteUseOrderCounterRef.current + 1;
+          inspirationPaletteUseOrderCounterRef.current = nextOrder;
+          return { ...prev, [inspirationMode]: nextOrder };
+        });
       }
       setColors(
         newColors.map((hex) => ({
@@ -680,6 +707,11 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
     if (!pendingInspirationComplete) return;
     const { newColors, savedState, inspirationMode: mode } = pendingInspirationComplete;
     setInspirationFlowEverCompleted((prev) => ({ ...prev, [mode]: true }));
+    setInspirationPaletteUseOrderByMode((prev) => {
+      const nextOrder = inspirationPaletteUseOrderCounterRef.current + 1;
+      inspirationPaletteUseOrderCounterRef.current = nextOrder;
+      return { ...prev, [mode]: nextOrder };
+    });
     setFlowPaletteStateByInspiration((prev) => {
       const next = { ...prev };
       delete next[mode];
@@ -1345,6 +1377,8 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
     setFlowPaletteStateByInspiration({});
     setInspirationGeneratedPaletteByMode({});
     setInspirationFlowEverCompleted({});
+    setInspirationPaletteUseOrderByMode({});
+    inspirationPaletteUseOrderCounterRef.current = 0;
   }, []);
 
   const handleStartNewPalette = useCallback(() => {
@@ -1360,6 +1394,8 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
     setFlowPaletteStateByInspiration({});
     setInspirationGeneratedPaletteByMode({});
     setInspirationFlowEverCompleted({});
+    setInspirationPaletteUseOrderByMode({});
+    inspirationPaletteUseOrderCounterRef.current = 0;
   }, []);
 
   const hasCompletedCurrentFlow =
@@ -1382,6 +1418,63 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
     }
     return result;
   }, [flowPaletteStateByInspiration]);
+
+  /** Opciones de paleta por modo del menú (incluye subflujos agrupados). */
+  const menuPaletteOptionsByMode = useMemo(() => {
+    const optionsByMode: Partial<Record<InspirationMode, InspirationMenuPaletteOption[]>> = {};
+
+    (Object.entries(MENU_SUBFLOW_MODE_MAP) as [InspirationMode, InspirationMode[]][]).forEach(
+      ([menuMode, subflowModes]) => {
+        const groupedOptions: InspirationMenuPaletteOption[] = [];
+        subflowModes.forEach((subflowMode) => {
+          const snapshot = flowPaletteStateByInspiration[subflowMode];
+          if (!snapshot?.colors?.length) return;
+          groupedOptions.push({
+            sourceMode: subflowMode,
+            colors: snapshot.colors.map((c) => c.hex),
+          });
+        });
+        if (groupedOptions.length) {
+          optionsByMode[menuMode] = groupedOptions;
+        }
+      }
+    );
+
+    (Object.keys(flowPaletteStateByInspiration) as InspirationMode[]).forEach((mode) => {
+      const snapshot = flowPaletteStateByInspiration[mode];
+      if (!snapshot?.colors?.length) return;
+      const belongsToParentGroup = (Object.values(MENU_SUBFLOW_MODE_MAP) as InspirationMode[][]).some(
+        (subflowModes) => subflowModes.includes(mode)
+      );
+      if (belongsToParentGroup) return;
+      optionsByMode[mode] = [
+        {
+          sourceMode: mode,
+          colors: snapshot.colors.map((c) => c.hex),
+        },
+      ];
+    });
+
+    return optionsByMode;
+  }, [flowPaletteStateByInspiration]);
+
+  /** Fuente por defecto para cada modo del menú: prioriza el subflujo usado más recientemente. */
+  const menuPreferredPaletteSourceByMode = useMemo(() => {
+    const preferredByMode: Partial<Record<InspirationMode, InspirationMode>> = {};
+
+    (Object.entries(menuPaletteOptionsByMode) as [InspirationMode, InspirationMenuPaletteOption[]][])
+      .forEach(([menuMode, options]) => {
+        if (!options.length) return;
+        const preferred = options.reduce<InspirationMode>((winner, current) => {
+          const winnerOrder = inspirationPaletteUseOrderByMode[winner] ?? 0;
+          const currentOrder = inspirationPaletteUseOrderByMode[current.sourceMode] ?? 0;
+          return currentOrder > winnerOrder ? current.sourceMode : winner;
+        }, options[0].sourceMode);
+        preferredByMode[menuMode] = preferred;
+      });
+
+    return preferredByMode;
+  }, [menuPaletteOptionsByMode, inspirationPaletteUseOrderByMode]);
 
   /** Usa la paleta combinada de orígenes como un flujo propio ("multi-origin"). */
   const handleUseCombinedPalette = useCallback(
@@ -1593,6 +1686,8 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
     toggleSectionLock,
     inspirationDetailSavedState,
     flowActivePaletteByMode,
+    menuPaletteOptionsByMode,
+    menuPreferredPaletteSourceByMode,
     handleUseCombinedPalette,
     hasMultiOriginFlow,
   };

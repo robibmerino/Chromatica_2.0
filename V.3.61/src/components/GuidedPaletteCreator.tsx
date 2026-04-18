@@ -424,6 +424,8 @@ export default function GuidedPaletteCreator({
               <InspirationMenuPhase
                 onSelectOption={state.handleInspirationSelectFromMenu ?? state.handleInspirationSelect}
                 activePalettesByMode={state.flowActivePaletteByMode}
+                paletteOptionsByMode={state.menuPaletteOptionsByMode}
+                defaultPaletteSourceByMode={state.menuPreferredPaletteSourceByMode}
                 onOpenCombinedPalette={handleOpenCombinedPaletteModal}
               />
             </div>

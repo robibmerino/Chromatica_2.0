@@ -1,7 +1,8 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useCallback, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X } from 'lucide-react';
+import html2canvas from 'html2canvas';
+import { X, Download } from 'lucide-react';
 import { PaletteBar } from './PaletteBar';
 import type { ColumnKey } from '../GuidedPaletteCreator/config/archetypeColumnButtonConfig';
 import { NEUTRAL_PALETTE } from './archetypePaletteUtils';
@@ -11,6 +12,11 @@ import { QuienTinderErrorBoundary } from './QuienTinderErrorBoundary';
 import { getFallbackAxisOrder } from './archetypeAxesConfig';
 import type { ArchetypeAxisState } from './archetypeAxesTypes';
 import { ColorTag, getSummaryTagsForColumn } from './ColumnSummaryModal';
+import {
+  ARCHETYPES_GLOBAL_PNG_CAPTURE_ID,
+  injectArchetypeSummaryPngExportStyles,
+  sanitizeHtml2CanvasCaptureSubtree,
+} from './archetypeSummaryPngExport';
 
 const SUMMARY_COLUMNS: ColumnKey[] = ['quien', 'que', 'como'];
 
@@ -56,6 +62,93 @@ export function ArchetypesGlobalSummaryModal({
   onConfirm,
   onClose,
 }: ArchetypesGlobalSummaryModalProps) {
+  const captureRef = useRef<HTMLDivElement>(null);
+  const downloadInFlightRef = useRef(false);
+  const [isDownloadingPng, setIsDownloadingPng] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+
+  const handleDownloadPng = useCallback(async () => {
+    const el = captureRef.current;
+    if (!el || downloadInFlightRef.current) return;
+    downloadInFlightRef.current = true;
+    setIsDownloadingPng(true);
+    setDownloadError(null);
+
+    const motionShell = el.parentElement as HTMLElement | null;
+    const prevTransition = motionShell?.style.transition ?? '';
+    const prevWillChange = motionShell?.style.willChange ?? '';
+
+    if (motionShell) {
+      motionShell.style.transition = 'none';
+      motionShell.style.willChange = 'auto';
+      motionShell.style.setProperty('transform', 'none', 'important');
+    }
+
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    });
+
+    try {
+      const canvas = await html2canvas(el, {
+        scale: 2,
+        backgroundColor: '#111827',
+        useCORS: true,
+        allowTaint: false,
+        logging: false,
+        foreignObjectRendering: false,
+        ignoreElements: (node) =>
+          node instanceof HTMLElement && node.dataset.exportSkip === 'true',
+        onclone: (clonedDoc) => {
+          injectArchetypeSummaryPngExportStyles(clonedDoc, {
+            rootId: ARCHETYPES_GLOBAL_PNG_CAPTURE_ID,
+            styleElementId: 'archetypes-export-snapshot-css',
+          });
+          sanitizeHtml2CanvasCaptureSubtree(clonedDoc, ARCHETYPES_GLOBAL_PNG_CAPTURE_ID);
+        },
+      });
+
+      if (canvas.width < 2 || canvas.height < 2) {
+        throw new Error('Captura vacía');
+      }
+
+      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+      const fileName = `chromatica-resumen-arquetipos-${stamp}.png`;
+
+      const blob: Blob | null = await new Promise((resolve) => {
+        canvas.toBlob((b) => resolve(b), 'image/png', 1);
+      });
+      if (!blob || blob.size < 24) {
+        throw new Error('PNG inválido');
+      }
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => {
+        link.remove();
+        URL.revokeObjectURL(url);
+      }, 2500);
+    } catch (e) {
+      console.error('Export PNG resumen arquetipos:', e);
+      const detail = e instanceof Error ? e.message : String(e);
+      setDownloadError(
+        `No se pudo generar el PNG (${detail}). Vuelve a intentarlo; si persiste, prueba con Chrome o Edge actualizado.`
+      );
+    } finally {
+      if (motionShell) {
+        motionShell.style.removeProperty('transform');
+        motionShell.style.transition = prevTransition;
+        motionShell.style.willChange = prevWillChange;
+      }
+      downloadInFlightRef.current = false;
+      setIsDownloadingPng(false);
+    }
+  }, []);
+
   const { activeCards, allTags } = useMemo(() => {
     const cards: ActiveCardItem[] = [];
     const tags: Array<{ label: string; color: string; size?: 'xs' | 'sm' }> = [];
@@ -140,13 +233,30 @@ export function ArchetypesGlobalSummaryModal({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.98, y: 8 }}
           transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-          className="relative z-10 w-[1200px] h-[700px] overflow-hidden rounded-2xl border border-gray-600/60 bg-gradient-to-b from-gray-900 via-gray-900/98 to-gray-900 shadow-2xl shadow-black/50 flex flex-col"
+          className="relative z-10 w-[1200px] max-w-[min(1200px,calc(100vw-2rem))] h-[700px] max-h-[min(700px,calc(100vh-3rem))] flex flex-col shadow-2xl shadow-black/50"
           role="dialog"
           aria-modal="true"
           aria-labelledby="archetypes-global-summary-title"
         >
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700/70 bg-gray-900/80">
-            <div>
+          {downloadError && (
+            <div className="shrink-0 mx-4 mt-3 rounded-xl border border-red-500/35 bg-red-950/50 px-4 py-3 flex items-start justify-between gap-3">
+              <p className="text-xs text-red-100 leading-relaxed">{downloadError}</p>
+              <button
+                type="button"
+                onClick={() => setDownloadError(null)}
+                className="shrink-0 text-xs font-medium text-red-200 hover:text-white underline-offset-2 hover:underline"
+              >
+                Cerrar aviso
+              </button>
+            </div>
+          )}
+          <div
+            id={ARCHETYPES_GLOBAL_PNG_CAPTURE_ID}
+            ref={captureRef}
+            className="flex flex-col flex-1 min-h-0 w-full h-full overflow-hidden rounded-2xl border border-gray-600/60 bg-gradient-to-b from-gray-900 via-gray-900/98 to-gray-900"
+          >
+          <div className="archetypes-png-header flex items-center justify-between px-6 py-4 border-b border-gray-700/70 bg-gray-900/80">
+            <div className="min-w-0 pr-4 archetypes-png-header-title">
               <h2 id="archetypes-global-summary-title" className="text-lg font-semibold text-white">
                 Resumen de Arquetipos
               </h2>
@@ -154,7 +264,16 @@ export function ArchetypesGlobalSummaryModal({
                 Quién, Qué y Cómo
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2" data-export-skip="true">
+              <button
+                type="button"
+                onClick={handleDownloadPng}
+                disabled={isDownloadingPng}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-600 text-sm text-gray-200 hover:bg-gray-800 hover:border-gray-500 font-medium transition-colors disabled:opacity-50 disabled:pointer-events-none"
+              >
+                <Download className="w-4 h-4 shrink-0" aria-hidden />
+                {isDownloadingPng ? 'Generando…' : 'PNG'}
+              </button>
               <button
                 type="button"
                 onClick={onConfirm}
@@ -211,7 +330,7 @@ export function ArchetypesGlobalSummaryModal({
                   {/* Columna central: todas las etiquetas entremezcladas (margen perimetral, organización más vertical) */}
                   <div className="flex-1 min-w-0 rounded-xl bg-gray-800/40 border border-gray-700/50 flex flex-col overflow-hidden">
                     <div className="flex-1 min-h-0 flex items-center justify-center p-6 overflow-auto">
-                      <div className="flex flex-wrap justify-center content-center gap-2 w-full max-w-[58%]">
+                      <div className="archetypes-png-tag-wrap flex flex-wrap justify-center content-center gap-2 w-full max-w-[58%]">
                         {allTags.map((t, i) => (
                           <ColorTag
                             key={`${t.label}-${i}`}
@@ -245,12 +364,9 @@ export function ArchetypesGlobalSummaryModal({
                                   )
                                 : Array.from({ length: palette.length }, () => '');
                               return (
-                                <PaletteBar
-                                  key={columnKey}
-                                  colors={palette}
-                                  labels={paletteLabels}
-                                  className="h-8"
-                                />
+                                <div key={columnKey} className="palette-bar-png-export w-full">
+                                  <PaletteBar colors={palette} labels={paletteLabels} className="h-8" />
+                                </div>
                               );
                             })}
                           </div>
@@ -258,10 +374,9 @@ export function ArchetypesGlobalSummaryModal({
                         <section className="w-full">
                           <p className="text-xs text-gray-500 mb-1.5 text-center">Paleta general</p>
                           <div className="rounded-2xl bg-gray-800/80 border border-gray-700/60 px-4 py-3">
-                            <PaletteBar
-                              colors={combinedPalette.slice(0, colorCount)}
-                              className="h-10"
-                            />
+                            <div className="palette-bar-png-export w-full">
+                              <PaletteBar colors={combinedPalette.slice(0, colorCount)} className="h-10" />
+                            </div>
                           </div>
                         </section>
                       </div>
@@ -273,6 +388,7 @@ export function ArchetypesGlobalSummaryModal({
             </>
           </div>
 
+          </div>
         </motion.div>
       </motion.div>
     </AnimatePresence>

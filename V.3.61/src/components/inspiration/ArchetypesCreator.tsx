@@ -906,6 +906,37 @@ export const ArchetypesCreator: React.FC<ArchetypesCreatorProps> = ({
     [activatedColumns, columnPalettes, columnPaletteLabels]
   );
 
+  /** Desde el resumen: deja la columna (botón Quién/Qué/Cómo) como al inicio, sin matches ni paleta activa. */
+  const handleBorrarColumnFromSummary = useCallback(
+    (uiColumnKey: ColumnKey) => {
+      const contentKey = getContentColumnKey(uiColumnKey);
+      const defaultLen = Math.max(colorCount, 4);
+      const defaultColors = DEFAULT_COLUMN_PALETTES[uiColumnKey].slice(0, defaultLen);
+      const dashLabels = Array.from({ length: defaultLen }, () => '—');
+
+      setColumnFlowState((prev) => ({
+        ...prev,
+        [contentKey]: createInitialColumnFlowState(),
+      }));
+      setActivatedColumns((prev) => ({ ...prev, [uiColumnKey]: false }));
+      setActiveColumnView((v) => (v === uiColumnKey ? null : v));
+
+      if (uiColumnKey === 'quien') {
+        setQuienPalette(defaultColors);
+        setQuienPaletteLabels(dashLabels);
+      } else if (uiColumnKey === 'que') {
+        setQuePalette(defaultColors);
+        setQuePaletteLabels(dashLabels);
+      } else {
+        setComoPalette(defaultColors);
+        setComoPaletteLabels(dashLabels);
+      }
+
+      setSummaryModalColumn(null);
+    },
+    [colorCount]
+  );
+
   const handleColumnClick = useCallback(
     (key: ColumnKey) => {
       const contentKey = getContentColumnKey(key);
@@ -1191,6 +1222,9 @@ export const ArchetypesCreator: React.FC<ArchetypesCreatorProps> = ({
             const key = summaryModalColumn;
             setSummaryModalColumn(null);
             handleEditarColumn(key);
+          }}
+          onBorrar={() => {
+            if (summaryModalColumn) handleBorrarColumnFromSummary(summaryModalColumn);
           }}
         />
       )}

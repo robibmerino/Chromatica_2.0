@@ -1,7 +1,8 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useCallback, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Pencil } from 'lucide-react';
+import html2canvas from 'html2canvas';
+import { X, Pencil, Trash2, Download } from 'lucide-react';
 import { blendHex } from '../../utils/colorUtils';
 import { cn } from '../../utils/cn';
 import { TinderCardPreview } from './TinderCardPreview';
@@ -46,6 +47,12 @@ import type { ColumnKey } from '../GuidedPaletteCreator/config/archetypeColumnBu
 import { COLUMN_BUTTON_CONFIG } from '../GuidedPaletteCreator/config/archetypeColumnButtonConfig';
 import { QuienTinderErrorBoundary } from './QuienTinderErrorBoundary';
 import { PaletteBar } from './PaletteBar';
+import {
+  applyColumnSummaryCloneLayoutFixes,
+  COLUMN_SUMMARY_PNG_CAPTURE_ID,
+  injectArchetypeSummaryPngExportStyles,
+  sanitizeHtml2CanvasCaptureSubtree,
+} from './archetypeSummaryPngExport';
 
 interface ColumnSummaryModalProps {
   columnKey: ColumnKey;
@@ -56,6 +63,8 @@ interface ColumnSummaryModalProps {
   isPaletteActive?: boolean;
   onClose: () => void;
   onEditar: () => void;
+  /** Restablece la columna (Quién / Qué / Cómo) como si no se hubiera usado. */
+  onBorrar: () => void;
 }
 
 function sortMatchedCards(matched: ColumnFlowState['matchedCards']) {
@@ -124,13 +133,13 @@ export function ColorTag({
   return (
     <span
       className={cn(
-        'rounded-full py-1 shrink-0 font-medium border border-white/20',
+        'inline-flex items-center justify-center rounded-full py-1 shrink-0 font-medium border border-white/20 box-border max-w-full',
         size === 'xs' && 'text-xs px-2',
         size === 'sm' && 'text-sm px-2.5 font-semibold'
       )}
       style={{ backgroundColor: `${color}40`, color }}
     >
-      {label}
+      <span className="relative z-[1] max-w-full leading-tight">{label}</span>
     </span>
   );
 }
@@ -164,7 +173,7 @@ export function getSummaryTagsForColumn(
     const variantName = getComponentVariantName(
       componentId,
       componentState.versionId,
-      axisState.customVersionId ?? axisState.versionId,
+      axisState.customVersionId ?? componentState.versionId,
       customFallback,
       axisConfig.label
     );
@@ -220,14 +229,14 @@ function SummaryAxisSlot({
   if (!isConfigured) return null;
 
   return (
-    <div className="rounded-xl border border-gray-600/50 bg-gray-800/50 p-4 space-y-3">
-      <p className="text-[10px] text-gray-400">{axisLabel}</p>
+    <div className="column-summary-png-axis-slot rounded-xl border border-gray-600/50 bg-gray-800/50 p-4 space-y-3">
+      <p className="column-summary-png-axis-label text-[10px] text-gray-400">{axisLabel}</p>
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-3">
           <AxisColorBox color={colorLeft} label={labelLeft} />
           <div className="flex-1 min-w-0 relative flex items-center">
             <div
-              className="w-full h-3 rounded-full overflow-hidden"
+              className="column-summary-png-axis-track w-full h-3 rounded-full overflow-hidden"
               style={{
                 background: `linear-gradient(to right, ${colorLeft}, ${colorRight})`,
               }}
@@ -235,7 +244,7 @@ function SummaryAxisSlot({
             />
             {/* Indicador de posición */}
             <div
-              className="absolute top-1/2 -translate-y-1/2 w-5 h-5 rounded-full border-2 border-white shadow-lg pointer-events-none"
+              className="column-summary-png-axis-thumb absolute top-1/2 -translate-y-1/2 w-5 h-5 rounded-full border-2 border-white shadow-lg pointer-events-none"
               style={{
                 left: `clamp(0px, calc(${state.sliderValue}% - 10px), calc(100% - 20px))`,
                 backgroundColor: blendedColor,
@@ -259,6 +268,7 @@ export function ColumnSummaryModal({
   isPaletteActive = true,
   onClose,
   onEditar,
+  onBorrar,
 }: ColumnSummaryModalProps) {
   const sortedMatched = useMemo(
     () => sortMatchedCards(flowState.matchedCards),
@@ -347,6 +357,98 @@ export function ColumnSummaryModal({
   const paletteSlice = paletteColors.slice(0, 4);
   const paletteLabelsSlice = paletteLabels?.slice(0, 4);
 
+  const captureRef = useRef<HTMLDivElement>(null);
+  const downloadInFlightRef = useRef(false);
+  const [isDownloadingPng, setIsDownloadingPng] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+
+  const handleDownloadPng = useCallback(async () => {
+    const el = captureRef.current;
+    if (!el || downloadInFlightRef.current) return;
+    downloadInFlightRef.current = true;
+    setIsDownloadingPng(true);
+    setDownloadError(null);
+
+    const motionShell = el.parentElement as HTMLElement | null;
+    const prevTransition = motionShell?.style.transition ?? '';
+    const prevWillChange = motionShell?.style.willChange ?? '';
+
+    if (motionShell) {
+      motionShell.style.transition = 'none';
+      motionShell.style.willChange = 'auto';
+      motionShell.style.setProperty('transform', 'none', 'important');
+    }
+
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    });
+
+    try {
+      const canvas = await html2canvas(el, {
+        scale: 2,
+        backgroundColor: '#111827',
+        useCORS: true,
+        allowTaint: false,
+        logging: false,
+        foreignObjectRendering: false,
+        ignoreElements: (node) =>
+          node instanceof HTMLElement && node.dataset.exportSkip === 'true',
+        onclone: (clonedDoc) => {
+          injectArchetypeSummaryPngExportStyles(clonedDoc, {
+            rootId: COLUMN_SUMMARY_PNG_CAPTURE_ID,
+            styleElementId: 'column-summary-export-snapshot-css',
+            cssOptions: {
+              tagWrapMaxWidth: '100%',
+              columnModalCapture: true,
+            },
+          });
+          sanitizeHtml2CanvasCaptureSubtree(clonedDoc, COLUMN_SUMMARY_PNG_CAPTURE_ID);
+          applyColumnSummaryCloneLayoutFixes(clonedDoc, COLUMN_SUMMARY_PNG_CAPTURE_ID);
+        },
+      });
+
+      if (canvas.width < 2 || canvas.height < 2) {
+        throw new Error('Captura vacía');
+      }
+
+      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+      const fileName = `chromatica-resumen-seleccion-${columnKey}-${stamp}.png`;
+
+      const blob: Blob | null = await new Promise((resolve) => {
+        canvas.toBlob((b) => resolve(b), 'image/png', 1);
+      });
+      if (!blob || blob.size < 24) {
+        throw new Error('PNG inválido');
+      }
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => {
+        link.remove();
+        URL.revokeObjectURL(url);
+      }, 2500);
+    } catch (e) {
+      console.error('Export PNG resumen columna:', e);
+      const detail = e instanceof Error ? e.message : String(e);
+      setDownloadError(
+        `No se pudo generar el PNG (${detail}). Vuelve a intentarlo; si persiste, prueba con Chrome o Edge actualizado.`
+      );
+    } finally {
+      if (motionShell) {
+        motionShell.style.removeProperty('transform');
+        motionShell.style.transition = prevTransition;
+        motionShell.style.willChange = prevWillChange;
+      }
+      downloadInFlightRef.current = false;
+      setIsDownloadingPng(false);
+    }
+  }, [columnKey]);
+
   if (!selectedCard) {
     // Fallback: sin tarjetas con match, ofrecer ir a editar (fase 2) en vez de pantalla vacía
     return createPortal(
@@ -431,25 +533,51 @@ export function ColumnSummaryModal({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.98, y: 8 }}
           transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-          className="relative z-10 w-full max-w-4xl max-h-[95vh] min-h-[85vh] overflow-hidden rounded-2xl border border-gray-600/60 bg-gradient-to-b from-gray-900 via-gray-900/98 to-gray-900 shadow-2xl shadow-black/50 flex flex-col ring-2 ring-white/5"
+          className="relative z-10 w-full max-w-4xl max-h-[95vh] min-h-[85vh] flex flex-col shadow-2xl shadow-black/50"
           onClick={(e) => e.stopPropagation()}
         >
+          <div
+            id={COLUMN_SUMMARY_PNG_CAPTURE_ID}
+            ref={captureRef}
+            className="column-summary-png-capture-root flex flex-col flex-1 min-h-0 w-full h-full overflow-hidden rounded-2xl border border-gray-600/60 bg-gradient-to-b from-gray-900 via-gray-900/98 to-gray-900 ring-2 ring-white/5"
+          >
+          {downloadError && (
+            <div className="shrink-0 mx-4 mt-3 rounded-xl border border-red-500/35 bg-red-950/50 px-4 py-3 flex items-start justify-between gap-3">
+              <p className="text-xs text-red-100 leading-relaxed">{downloadError}</p>
+              <button
+                type="button"
+                onClick={() => setDownloadError(null)}
+                className="shrink-0 text-xs font-medium text-red-200 hover:text-white underline-offset-2 hover:underline"
+              >
+                Cerrar aviso
+              </button>
+            </div>
+          )}
           {/* Header */}
-          <div className="shrink-0 flex items-center justify-between gap-4 px-6 py-4 border-b border-gray-700/60 bg-gray-800/30">
-            <div className="flex items-center gap-3 min-w-0">
+          <div className="archetypes-png-header shrink-0 flex items-center justify-between gap-4 px-6 py-4 border-b border-gray-700/60 bg-gray-800/30">
+            <div className="flex items-center gap-3 min-w-0 flex-1 pr-4">
               <span
                 className={`flex shrink-0 w-10 h-10 rounded-xl items-center justify-center ${config.iconBg}`}
               >
                 <span className={config.iconColor}>{config.icon}</span>
               </span>
-              <div>
+              <div className="min-w-0 archetypes-png-header-title">
                 <h2 className="text-lg font-semibold text-white truncate">
                   Resumen de tu selección
                 </h2>
                 <p className="text-sm text-gray-400">{config.title}</p>
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-2 shrink-0" data-export-skip="true">
+              <button
+                type="button"
+                onClick={handleDownloadPng}
+                disabled={isDownloadingPng}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-600 text-sm text-gray-200 hover:bg-gray-800 hover:border-gray-500 font-medium transition-colors disabled:opacity-50 disabled:pointer-events-none"
+              >
+                <Download className="w-4 h-4 shrink-0" aria-hidden />
+                {isDownloadingPng ? 'Generando…' : 'PNG'}
+              </button>
               <button
                 type="button"
                 onClick={onEditar}
@@ -457,6 +585,14 @@ export function ColumnSummaryModal({
               >
                 <Pencil className="w-4 h-4" />
                 Editar
+              </button>
+              <button
+                type="button"
+                onClick={onBorrar}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl border border-red-500/45 text-red-300 hover:bg-red-500/10 text-sm font-medium transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+                Borrar
               </button>
               <button
                 type="button"
@@ -473,13 +609,18 @@ export function ColumnSummaryModal({
           <div className="flex-1 flex flex-col md:flex-row min-h-0">
             {/* Columna izquierda: Tarjeta */}
             <div className="shrink-0 md:w-[380px] md:min-w-[320px] flex flex-col items-center justify-center p-6 md:border-r border-b md:border-b-0 border-gray-700/60 bg-gray-800/20">
-              <div className="flex flex-col items-center w-full -translate-y-4">
-                <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-4 self-start">
+              <div className="column-summary-png-no-lift flex flex-col items-center w-full -translate-y-4">
+                <h3 className="column-summary-png-section-h3 text-xs font-medium text-gray-500 uppercase tracking-wider mb-4 self-start">
                   Tu tarjeta
                 </h3>
                 <QuienTinderErrorBoundary fallback={<p className="text-gray-500 text-sm p-4">Error al cargar</p>}>
                 <div className="flex flex-col items-center gap-4 w-full">
-                  <div className={cn('w-full aspect-[3/4] rounded-2xl overflow-hidden border-2 border-indigo-500/30 shadow-xl shadow-indigo-500/10', LEFT_COLUMN_MAX_WIDTH)}>
+                  <div
+                    className={cn(
+                      'column-summary-png-card-frame w-full aspect-[3/4] rounded-2xl overflow-hidden border-2 border-indigo-500/30 shadow-xl shadow-indigo-500/10',
+                      LEFT_COLUMN_MAX_WIDTH
+                    )}
+                  >
                     <TinderCardPreview
                       card={selectedCard.card}
                       axesState={flowState.axesByCard[selectedCard.card.id] ?? []}
@@ -518,14 +659,24 @@ export function ColumnSummaryModal({
                       />
                     )}
                   {axisVariants.length > 0 && (
-                    <div className={cn('flex flex-wrap gap-2 justify-center w-full', LEFT_COLUMN_MAX_WIDTH)}>
+                    <div
+                      className={cn(
+                        'archetypes-png-tag-wrap flex flex-wrap gap-2 justify-center w-full',
+                        LEFT_COLUMN_MAX_WIDTH
+                      )}
+                    >
                       {axisVariants.map(({ label, color }) => (
                         <ColorTag key={label} label={label} color={color} />
                       ))}
                     </div>
                   )}
                   {paletteSlice.length >= 4 && (
-                    <div className={cn('flex flex-wrap gap-2 justify-center w-full', LEFT_COLUMN_MAX_WIDTH)}>
+                    <div
+                      className={cn(
+                        'archetypes-png-tag-wrap flex flex-wrap gap-2 justify-center w-full',
+                        LEFT_COLUMN_MAX_WIDTH
+                      )}
+                    >
                       {paletteSlice.map((color, i) => (
                         <ColorTag
                           key={`palette-${i}`}
@@ -546,7 +697,7 @@ export function ColumnSummaryModal({
               {/* Ejes personalizados */}
               {axesForCard.some(({ state }) => state.hasBeenConfigured) && (
                 <section>
-                  <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">
+                  <h3 className="column-summary-png-section-h3 text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">
                     Ejes configurados
                   </h3>
                   <div className="grid grid-cols-1 gap-3">
@@ -560,7 +711,7 @@ export function ColumnSummaryModal({
               {/* Etiquetas de selección (Match/SuperMatch) */}
               {sortedMatched.length > 1 && (
                 <section>
-                  <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">
+                  <h3 className="column-summary-png-section-h3 text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">
                     Tus selecciones
                   </h3>
                   <div className="flex flex-wrap gap-2">
@@ -582,18 +733,21 @@ export function ColumnSummaryModal({
 
               {/* Paleta final (mismo formato que paleta vinculada a los ejes) */}
               {paletteSlice.length >= 4 && (
-                <section className="pt-4 border-t border-gray-600/50">
-                  <p className="text-xs text-gray-500 mb-2">
+                <section className="column-summary-png-palette-block pt-4 border-t border-gray-600/50">
+                  <p className="text-xs text-gray-500 mb-2 text-center">
                     Paleta vinculada a los Arquetipos{!isPaletteActive ? ' (inactiva)' : ''}
                   </p>
-                  <PaletteBar
-                    colors={paletteSlice}
-                    labels={paletteLabelsSlice}
-                    className="h-10"
-                  />
+                  <div className="palette-bar-png-export w-full">
+                    <PaletteBar
+                      colors={paletteSlice}
+                      labels={paletteLabelsSlice}
+                      className="h-10"
+                    />
+                  </div>
                 </section>
               )}
             </div>
+          </div>
           </div>
         </motion.div>
         </QuienTinderErrorBoundary>

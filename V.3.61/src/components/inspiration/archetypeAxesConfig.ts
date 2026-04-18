@@ -359,13 +359,13 @@ export function getPhase1AxisState(): ArchetypeAxisState[] {
 
 /**
  * Estado inicial para Fase 2 cuando se transiciona desde Fase 1.
- * Mantiene Firmamento como fondo predeterminado (color #48106a).
+ * Mantiene el fondo predeterminado Fase 1 (background-1, tonos pizarra neutros).
  */
 export function getPhase2InitialAxisState(): ArchetypeAxisState[] {
   return ARCHETYPE_AXES_CONFIG.map((c) => {
     let selectedOptionIndex: number;
     if (c.id === AXIS_BACKGROUND_ID) {
-      selectedOptionIndex = 0; // Firmamento
+      selectedOptionIndex = 0; // background-1 (Penumbra)
     } else {
       const customIdx = getCustomOptionIndex(c);
       selectedOptionIndex = customIdx >= 0 ? customIdx : 0;

@@ -53,7 +53,8 @@ Deno.serve(async (req) => {
   } catch {
     return Response.json({ error: 'Invalid JSON body' }, { status: 400, headers: corsHeaders });
   }
-  const jwt = (body?.accessToken ?? req.headers.get('Authorization')?.replace('Bearer ', '')).trim();
+  const fromAuthHeader = req.headers.get('Authorization')?.replace('Bearer ', '') ?? '';
+  const jwt = (body?.accessToken ?? fromAuthHeader).trim();
   if (!jwt) {
     return Response.json({ error: 'Falta accessToken en el body o Authorization' }, { status: 401, headers: corsHeaders });
   }

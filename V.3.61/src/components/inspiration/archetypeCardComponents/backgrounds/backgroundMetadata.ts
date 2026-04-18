@@ -19,13 +19,14 @@ export interface BackgroundMetadata {
 /** Metadata de fondos configurados. Las no listadas usan valores por defecto. */
 export const BACKGROUND_METADATA: Partial<Record<BackgroundId, BackgroundMetadata>> = {
   'background-1': {
-    name: 'Firmamento',
-    description: 'Lugar donde la visión se encuentra con el horizonte: el umbral entre lo que se imagina y lo que se persigue.',
+    name: 'Penumbra',
+    description:
+      'Superficie oscura con luces suaves y sin motivo figurativo: deja que el arquetipo y el color del eje lleven el peso visual.',
     subtitle: 'Exploración',
     axis: {
       axisLabel: 'Visión–Misión',
-      defaultColorLeft: '#48106a',
-      defaultColorRight: '#1565c0',
+      defaultColorLeft: '#1e293b',
+      defaultColorRight: '#64748b',
       defaultSliderValue: 0,
     },
   },

@@ -56,7 +56,56 @@ export function InspirationDetailPhase({
   onStateChange,
   onGeneratedPaletteChange,
 }: InspirationDetailPhaseProps) {
-  const [showShapesComingSoon, setShowShapesComingSoon] = useState(false);
+  const [comingSoonMode, setComingSoonMode] = useState<'shapes' | 'aquarium' | 'design' | null>(null);
+  const COMING_SOON_CONTENT = {
+    shapes: {
+      title: 'Formas llegará muy pronto',
+      message:
+        'Estamos diseñando esta sección para que puedas crear paletas a partir de formas abstractas y composiciones visuales.',
+      accent: 'fuchsia',
+    },
+    aquarium: {
+      title: 'Pecera está en construcción',
+      message:
+        'Aquí podrás crear peces con distintos rasgos para que naden en una pecera y generar una nube de palabras que describa su personalidad cromática.',
+      accent: 'cyan',
+    },
+    design: {
+      title: 'Diseño de espacios estará disponible pronto',
+      message:
+        'Esta sección te permitirá crear y amueblar espacios de forma interactiva para definir la personalidad visual del ambiente y derivar paletas.',
+      accent: 'teal',
+    },
+  } as const;
+
+  const modalConfig = comingSoonMode ? COMING_SOON_CONTENT[comingSoonMode] : null;
+  const accentClass =
+    modalConfig?.accent === 'cyan'
+      ? {
+          border: 'border-cyan-500/40',
+          glow: 'shadow-[0_0_40px_rgba(34,211,238,0.45)]',
+          iconBg: 'bg-cyan-500/15 border-cyan-400/40',
+          iconColor: 'text-cyan-300',
+          cta: 'bg-cyan-600 hover:bg-cyan-500 shadow-cyan-900/40',
+          highlight: 'text-cyan-300',
+        }
+      : modalConfig?.accent === 'teal'
+        ? {
+            border: 'border-teal-500/40',
+            glow: 'shadow-[0_0_40px_rgba(45,212,191,0.45)]',
+            iconBg: 'bg-teal-500/15 border-teal-400/40',
+            iconColor: 'text-teal-300',
+            cta: 'bg-teal-600 hover:bg-teal-500 shadow-teal-900/40',
+            highlight: 'text-teal-300',
+          }
+        : {
+            border: 'border-fuchsia-500/40',
+            glow: 'shadow-[0_0_40px_rgba(217,70,239,0.45)]',
+            iconBg: 'bg-fuchsia-500/15 border-fuchsia-400/40',
+            iconColor: 'text-fuchsia-300',
+            cta: 'bg-fuchsia-600 hover:bg-fuchsia-500 shadow-fuchsia-900/40',
+            highlight: 'text-fuchsia-300',
+          };
 
   return (
     <motion.div
@@ -94,7 +143,7 @@ export function InspirationDetailPhase({
       {inspirationMode === 'archetypes-menu' && (
         <PhaseLayout
           phaseKey="archetypes-menu"
-          className="flex flex-col gap-6 min-h-0 max-w-2xl mx-auto w-full"
+          className="flex flex-col gap-6 min-h-0 max-w-3xl mx-auto w-full"
           header={
             <SectionBanner
               onBack={onBack}
@@ -107,7 +156,9 @@ export function InspirationDetailPhase({
         >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <ArchetypeOrShapeButton type="archetypes" onClick={() => onSetInspirationMode('archetypes')} />
-            <ArchetypeOrShapeButton type="shapes" onClick={() => setShowShapesComingSoon(true)} />
+            <ArchetypeOrShapeButton type="shapes" onClick={() => setComingSoonMode('shapes')} />
+            <ArchetypeOrShapeButton type="aquarium" onClick={() => setComingSoonMode('aquarium')} />
+            <ArchetypeOrShapeButton type="design" onClick={() => setComingSoonMode('design')} />
           </div>
         </PhaseLayout>
       )}
@@ -134,9 +185,9 @@ export function InspirationDetailPhase({
       )}
 
       <AnimatePresence>
-        {showShapesComingSoon && (
+        {comingSoonMode && modalConfig && (
           <motion.div
-            key="shapes-coming-soon"
+            key={`${comingSoonMode}-coming-soon`}
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -147,14 +198,14 @@ export function InspirationDetailPhase({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 16, scale: 0.98 }}
               transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-              className="relative w-full max-w-md rounded-2xl border border-fuchsia-500/40 bg-gradient-to-b from-slate-900 via-slate-900/98 to-slate-950 shadow-2xl shadow-black/60 px-6 py-6"
+              className={`relative w-full max-w-md rounded-2xl border bg-gradient-to-b from-slate-900 via-slate-900/98 to-slate-950 shadow-2xl shadow-black/60 px-6 py-6 ${accentClass.border}`}
               role="dialog"
               aria-modal="true"
-              aria-labelledby="shapes-coming-soon-title"
+              aria-labelledby={`${comingSoonMode}-coming-soon-title`}
             >
               <button
                 type="button"
-                onClick={() => setShowShapesComingSoon(false)}
+                onClick={() => setComingSoonMode(null)}
                 className="absolute right-3 top-3 inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-900/80 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors text-sm"
                 aria-label="Cerrar aviso"
               >
@@ -162,9 +213,9 @@ export function InspirationDetailPhase({
               </button>
 
               <div className="flex flex-col items-center text-center gap-4 pt-1">
-                <div className="relative inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-fuchsia-500/15 border border-fuchsia-400/40 shadow-[0_0_40px_rgba(217,70,239,0.45)]">
+                <div className={`relative inline-flex h-16 w-16 items-center justify-center rounded-2xl border ${accentClass.iconBg} ${accentClass.glow}`}>
                   <svg
-                    className="w-9 h-9 text-fuchsia-300"
+                    className={`w-9 h-9 ${accentClass.iconColor}`}
                     viewBox="0 0 40 40"
                     fill="none"
                     stroke="currentColor"
@@ -178,22 +229,21 @@ export function InspirationDetailPhase({
 
                 <div className="space-y-1">
                   <h2
-                    id="shapes-coming-soon-title"
+                    id={`${comingSoonMode}-coming-soon-title`}
                     className="text-lg font-semibold text-white"
                   >
-                    Formas llegará muy pronto
+                    {modalConfig.title}
                   </h2>
                   <p className="text-sm text-slate-300/90">
-                    Estamos diseñando esta sección para que puedas crear paletas a partir de formas
-                    abstractas y composiciones visuales.{" "}
-                    <span className="text-fuchsia-300 font-medium">Próximamente</span>.
+                    {modalConfig.message}{' '}
+                    <span className={`${accentClass.highlight} font-medium`}>Próximamente</span>.
                   </p>
                 </div>
 
                 <button
                   type="button"
-                  onClick={() => setShowShapesComingSoon(false)}
-                  className="mt-2 inline-flex items-center justify-center rounded-xl bg-fuchsia-600 hover:bg-fuchsia-500 text-white text-sm font-medium px-5 py-2.5 shadow-md shadow-fuchsia-900/40 transition-colors"
+                  onClick={() => setComingSoonMode(null)}
+                  className={`mt-2 inline-flex items-center justify-center rounded-xl text-white text-sm font-medium px-5 py-2.5 shadow-md transition-colors ${accentClass.cta}`}
                 >
                   Entendido
                 </button>
