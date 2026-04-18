@@ -3,6 +3,7 @@ import type { ColorItem, Phase, InspirationMode, SavedPalette, SavedFromSection 
 import { useAuth } from '../../../contexts/AuthContext';
 import { fetchPalettes, insertPalette, deletePalette } from '../../../lib/supabasePalettes';
 import { invalidatePalettes } from '../../../hooks/usePalettesQuery';
+import type { AnalysisTypeId } from '../config/analysisTypeTabsConfig';
 
 /** Estado guardado por modo de inspiración para restaurar al volver desde Refinar. */
 export type InspirationDetailSavedState = Partial<Record<InspirationMode, unknown>>;
@@ -171,7 +172,7 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
   const [savedPalettes, setSavedPalettes] = useState<SavedPalette[]>([]);
   const [notification, setNotification] = useState<string | null>(null);
   const [showMyPalettes, setShowMyPalettes] = useState(false);
-  const [analysisType, setAnalysisType] = useState<'basic' | 'scientific'>('basic');
+  const [analysisType, setAnalysisType] = useState<AnalysisTypeId>('basic');
   const [refinementMode, setRefinementMode] = useState<'color' | 'general'>('color');
   /** Historial por estados: [0] = Estado inicial, luego cada cambio. Siempre se puede retroceder al 0. */
   const [stateHistory, setStateHistory] = useState<StateHistoryEntry[]>([]);

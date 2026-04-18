@@ -422,8 +422,8 @@ export const ScientificAnalysis: React.FC<ScientificAnalysisProps> = ({
     
     // Check for color blindness issues
     const colorBlindTypes: Array<{ type: 'deuteranopia' | 'protanopia' | 'tritanopia'; name: string; prevalence: string }> = [
-      { type: 'deuteranopia', name: 'Deuteranopía (verde)', prevalence: '6% hombres' },
-      { type: 'protanopia', name: 'Protanopía (rojo)', prevalence: '2% hombres' },
+      { type: 'deuteranopia', name: 'Deuteranopía (verde)', prevalence: '6% personas' },
+      { type: 'protanopia', name: 'Protanopía (rojo)', prevalence: '2% personas' },
       { type: 'tritanopia', name: 'Tritanopía (azul)', prevalence: '0.01% población' }
     ];
     

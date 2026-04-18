@@ -1,5 +1,4 @@
 import React from 'react';
-import { createPortal } from 'react-dom';
 import { SectionBanner, SECTION_ICON_ACCENTS } from './SectionBanner';
 import { COPY } from './config/copy';
 import { PhaseLayout } from './PhaseLayout';
@@ -7,7 +6,48 @@ import { FloatingPanel } from './FloatingPanel';
 import { ColorEditPanelBody } from '../ColorEditPanelBody';
 import type { AnalysisTypeId } from './config/analysisTypeTabsConfig';
 import type { ColorItem } from '../../types/guidedPalette';
-import { getContrastColor, getContrastRatioHex, hexToHsl, hslToHex, getLuminanceFromHex } from '../../utils/colorUtils';
+import { getContrastRatioHex } from '../../utils/colorUtils';
+import { ANALYSIS_CENTRAL_HEADER, ANALYSIS_CENTRAL_SECTION } from './analysis/analysisPhaseConvention';
+import { AnalysisContrastLeftAside } from './analysis/AnalysisContrastLeftAside';
+import { AnalysisContrastRightAside } from './analysis/AnalysisContrastRightAside';
+import { AnalysisNonTextMainColumn } from './analysis/AnalysisNonTextMainColumn';
+import { AnalysisNonTextRightAside } from './analysis/AnalysisNonTextRightAside';
+import { AnalysisTemperatureMainColumn } from './analysis/AnalysisTemperatureMainColumn';
+import { AnalysisTemperatureRightAside } from './analysis/AnalysisTemperatureRightAside';
+import { AnalysisVibrancyMainColumn } from './analysis/AnalysisVibrancyMainColumn';
+import { AnalysisVibrancyRightAside } from './analysis/AnalysisVibrancyRightAside';
+import { AnalysisCvdMainColumn } from './analysis/AnalysisCvdMainColumn';
+import { AnalysisCvdRightAside } from './analysis/AnalysisCvdRightAside';
+import { AnalysisScoreCard } from './analysis/AnalysisScoreCard';
+import { AnalysisMainHeader } from './analysis/AnalysisMainHeader';
+import { AnalysisReferenceModal } from './analysis/AnalysisReferenceModal';
+import { useWcagContrastAnalysis } from './analysis/useWcagContrastAnalysis';
+import {
+  augmentRoleMapWithIcon,
+  evaluatePosterPerceptualDeltaE,
+  posterPerceptualBadge,
+  posterPerceptualSidebarTone,
+  posterPerceptualScore,
+} from './analysis/perceptual/posterPerceptualDeltaE';
+import {
+  evaluateTemperatureHarmony,
+  temperatureHarmonyBadge,
+  temperatureHarmonySidebarTone,
+} from './analysis/temperature/temperatureHarmonyAnalysis';
+import {
+  evaluateVibrancy,
+  vibrancyBadge,
+  vibrancySidebarTone,
+} from './analysis/vibrancy/vibrancyAnalysis';
+import {
+  cvdBadge,
+  cvdScoreDesc,
+  cvdSidebarTone,
+  evaluateCvdGlobalScore,
+  type CvdUiType,
+} from './analysis/cvd/cvdAnalysis';
+import type { AnalysisAspectId, EditingColor, ReferenceItem, RoleKey } from './analysis/types';
+import { TOP_COMBOS_ROLE } from './analysis/types';
 
 interface AnalysisPhaseProps {
   colors: ColorItem[];
@@ -48,27 +88,6 @@ const ANALYSIS_ICON = (
   </svg>
 );
 
-type EditingColor =
-  | { type: 'main'; index: number }
-  | { type: 'support'; role: string }
-  | null;
-
-type RoleKey = string;
-const TOP_COMBOS_ROLE = '__TOP_COMBOS__';
-
-type ContrastComboConfig = {
-  fgRole: RoleKey;
-  bgRole: RoleKey;
-  description: string;
-};
-
-const DEFAULT_CONTRAST_COMBOS: ContrastComboConfig[] = [
-  { fgRole: 'T', bgRole: 'F', description: 'Texto sobre fondo' },
-  { fgRole: 'P', bgRole: 'F', description: 'Primario sobre fondo' },
-  { fgRole: 'S', bgRole: 'P', description: 'Secundario sobre primario' },
-  { fgRole: 'A', bgRole: 'P', description: 'Acento sobre primario' },
-];
-
 function AnalysisPhaseInner(props: AnalysisPhaseProps) {
   const {
     colors,
@@ -87,19 +106,37 @@ function AnalysisPhaseInner(props: AnalysisPhaseProps) {
     onOpenHistory,
     updateColorsWithHistory,
     showNotification,
+    analysisType,
+    setAnalysisType,
   } = props;
 
   const [editingColor, setEditingColor] = React.useState<EditingColor>(null);
   const [draftHex, setDraftHex] = React.useState('#000000');
   const [supportResetTooltipRect, setSupportResetTooltipRect] = React.useState<DOMRect | null>(null);
   const supportResetButtonRef = React.useRef<HTMLButtonElement | null>(null);
+  const [activeReference, setActiveReference] = React.useState<ReferenceItem | null>(null);
+  const [cvdSimulationType, setCvdSimulationType] = React.useState<CvdUiType>('protanopia');
 
-  const [comboConfigs, setComboConfigs] = React.useState<ContrastComboConfig[]>(DEFAULT_CONTRAST_COMBOS);
-  const [explorerSelectedRole, setExplorerSelectedRole] = React.useState<RoleKey>(TOP_COMBOS_ROLE);
-  const [adjustingRole, setAdjustingRole] = React.useState<RoleKey | null>(null);
-  const [activeComboIndex, setActiveComboIndex] = React.useState(0);
-  const [selectedCombos, setSelectedCombos] = React.useState<ContrastComboConfig[]>([]);
-  const [isComboEditorOpen] = React.useState(false);
+  const analysisAspect: AnalysisAspectId =
+    analysisType === 'basic'
+      ? 'wcagText'
+      : analysisType === 'temperature'
+        ? 'temperatureHarmony'
+        : analysisType === 'vibrancy'
+          ? 'vibrancyHarmony'
+          : analysisType === 'cvd'
+            ? 'cvdSimulation'
+            : 'perceptualDeltaE';
+  const setAnalysisAspect = React.useCallback(
+    (aspect: AnalysisAspectId) => {
+      if (aspect === 'wcagText') setAnalysisType('basic');
+      else if (aspect === 'temperatureHarmony') setAnalysisType('temperature');
+      else if (aspect === 'vibrancyHarmony') setAnalysisType('vibrancy');
+      else if (aspect === 'cvdSimulation') setAnalysisType('cvd');
+      else setAnalysisType('scientific');
+    },
+    [setAnalysisType]
+  );
 
   // Colores "efectivos" (incluyen vista previa del modal sin tocar el historial global)
   const effectiveColors = React.useMemo(() => {
@@ -127,241 +164,103 @@ function AnalysisPhaseInner(props: AnalysisPhaseProps) {
     );
   }, [supportColorsList, editingColor, draftHex]);
 
-  // --- Mapa de roles para P/S/A/A2/F/T y soporte extra ---
-  const roleHexMap = React.useMemo(() => {
-    const map: Record<string, { hex: string; label: string }> = {};
-    if (effectiveColors[0]) map.P = { hex: effectiveColors[0].hex, label: 'Primario' };
-    if (effectiveColors[1]) map.S = { hex: effectiveColors[1].hex, label: 'Secundario' };
-    if (effectiveColors[2]) map.A = { hex: effectiveColors[2].hex, label: 'Acento' };
-    if (effectiveColors[3]) map.A2 = { hex: effectiveColors[3].hex, label: 'Acento 2' };
+  const wcag = useWcagContrastAnalysis({
+    colors,
+    supportColorsList,
+    updateColorsWithHistory,
+    updateSupportColor,
+    effectiveColors,
+    effectiveSupportColors,
+  });
 
-    if (effectiveSupportColors) {
-      effectiveSupportColors.forEach((s) => {
-        if (s.initial) {
-          map[s.initial] = { hex: s.hex, label: s.label };
-        }
-      });
+  const {
+    roleHexMap,
+    explorerSelectedRole,
+    setExplorerSelectedRole,
+    selectedCombos,
+    setSelectedCombos,
+    displayCombos,
+    contrastScore,
+    badgeLabel,
+    badgeClassName,
+    sidebarScoreClass,
+    sidebarFillClass,
+    openInfoPanels,
+    toggleInfoPanel,
+    handleAutoAdjustContrast,
+    handleAutoAdjustPerceptualDeltaE,
+    handleAutoAdjustTemperatureHarmony,
+    handleAutoAdjustVibrancyHarmony,
+  } = wcag;
 
-      // Asegurar alias F y T si existen entradas equivalentes
-      const fondo =
-        effectiveSupportColors.find((s) => s.initial === 'F') ??
-        effectiveSupportColors.find((s) => s.role === 'fondo') ??
-        effectiveSupportColors[0];
-      const texto =
-        effectiveSupportColors.find((s) => s.initial === 'T') ??
-        effectiveSupportColors.find((s) => s.role === 'texto') ??
-        effectiveSupportColors.find((s) => s.role === 'texto fino');
-
-      if (fondo) map.F = { hex: fondo.hex, label: fondo.label };
-      if (texto) map.T = { hex: texto.hex, label: texto.label };
-    }
-
-    return map;
-  }, [effectiveColors, effectiveSupportColors]);
-
-  const contrastCombos = React.useMemo(() => {
-    return comboConfigs
-      .map((combo) => ({
-        ...combo,
-        fg: roleHexMap[combo.fgRole],
-        bg: roleHexMap[combo.bgRole],
-      }))
-      .filter((c) => c.fg && c.bg) as {
-      fgRole: RoleKey;
-      bgRole: RoleKey;
-      description: string;
-      fg: { hex: string; label: string };
-      bg: { hex: string; label: string };
-    }[];
-  }, [comboConfigs, roleHexMap]);
-
-  const displayCombos = React.useMemo(() => {
-    // Si no hay selección explícita, usamos las combinaciones derivadas de comboConfigs
-    if (!selectedCombos.length) return contrastCombos;
-
-    // Si hay selección, construimos las tarjetas directamente desde selectedCombos + roleHexMap
-    return selectedCombos
-      .map((combo) => {
-        const fg = roleHexMap[combo.fgRole];
-        const bg = roleHexMap[combo.bgRole];
-        if (!fg || !bg) return null;
-        return {
-          fgRole: combo.fgRole,
-          bgRole: combo.bgRole,
-          description: combo.description,
-          fg,
-          bg,
-        };
-      })
-      .filter((c): c is NonNullable<typeof c> => Boolean(c));
-  }, [contrastCombos, roleHexMap, selectedCombos]);
-
-  // Selección inicial: 4 combinaciones más favorables (si no hay selección previa)
-  React.useEffect(() => {
-    if (!Object.keys(roleHexMap).length || selectedCombos.length > 0) return;
-
-    const roles = Object.keys(roleHexMap) as RoleKey[];
-    const all: { fgRole: RoleKey; bgRole: RoleKey; score: number }[] = [];
-    roles.forEach((fg) => {
-      roles.forEach((bg) => {
-        if (fg === bg) return;
-        const fgHex = roleHexMap[fg]?.hex;
-        const bgHex = roleHexMap[bg]?.hex;
-        if (!fgHex || !bgHex) return;
-        const ratio = getContrastRatioHex(fgHex, bgHex);
-        all.push({ fgRole: fg, bgRole: bg, score: ratio });
-      });
-    });
-
-    all.sort((a, b) => b.score - a.score);
-
-    const selected: { fgRole: RoleKey; bgRole: RoleKey }[] = [];
-    const usedBg = new Set<RoleKey>();
-
-    // 1) Priorizar combinaciones "verdes" (AA o superior) con fondos distintos
-    const green = all.filter((c) => c.score >= 4.5);
-    for (const combo of green) {
-      if (selected.length >= 4) break;
-      if (!usedBg.has(combo.bgRole)) {
-        selected.push({ fgRole: combo.fgRole, bgRole: combo.bgRole });
-        usedBg.add(combo.bgRole);
-      }
-    }
-
-    // 2) Si aún faltan, completar con otras verdes (aunque repitan fondo)
-    if (selected.length < 4) {
-      for (const combo of green) {
-        if (selected.length >= 4) break;
-        const key = `${combo.fgRole}->${combo.bgRole}`;
-        if (!selected.some((c) => `${c.fgRole}->${c.bgRole}` === key)) {
-          selected.push({ fgRole: combo.fgRole, bgRole: combo.bgRole });
-        }
-      }
-    }
-
-    // 3) Si siguen faltando, rellenar con las mejores restantes (no verdes)
-    if (selected.length < 4) {
-      for (const combo of all) {
-        if (selected.length >= 4) break;
-        const key = `${combo.fgRole}->${combo.bgRole}`;
-        if (!selected.some((c) => `${c.fgRole}->${c.bgRole}` === key)) {
-          selected.push({ fgRole: combo.fgRole, bgRole: combo.bgRole });
-        }
-      }
-    }
-
-    const top = selected.map(({ fgRole, bgRole }) => ({
-      fgRole,
-      bgRole,
-      description: `${roleHexMap[fgRole]?.label ?? fgRole} sobre ${roleHexMap[bgRole]?.label ?? bgRole}`,
-    }));
-    if (top.length) {
-      setSelectedCombos(top);
-    }
-  }, [roleHexMap, selectedCombos.length]);
-
-  const contrastScore = React.useMemo(() => {
-    // El análisis se basa solo en las combinaciones activas/visibles
-    if (!displayCombos.length) return null;
-    let total = 0;
-    displayCombos.forEach((c) => {
-      const ratio = getContrastRatioHex(c.fg.hex, c.bg.hex);
-      if (ratio >= 7) total += 100;
-      else if (ratio >= 4.5) total += 75;
-      else if (ratio >= 3) total += 40;
-      else total += 10;
-    });
-    return Math.round(total / displayCombos.length);
-  }, [displayCombos]);
-
-  const { badgeLabel, badgeClassName } = React.useMemo(() => {
-    if (contrastScore == null) {
-      return {
-        badgeLabel: '--',
-        badgeClassName: 'bg-slate-700/80 text-slate-200',
-      };
-    }
-    if (contrastScore >= 85) {
-      return {
-        badgeLabel: 'Excelente',
-        badgeClassName: 'bg-emerald-500/15 text-emerald-300',
-      };
-    }
-    if (contrastScore >= 65) {
-      return {
-        badgeLabel: 'Mejorable',
-        badgeClassName: 'bg-amber-500/15 text-amber-300',
-      };
-    }
-    if (contrastScore >= 45) {
-      return {
-        badgeLabel: 'Insuficiente',
-        badgeClassName: 'bg-orange-500/15 text-orange-300',
-      };
-    }
-    return {
-      badgeLabel: 'Crítico',
-      badgeClassName: 'bg-rose-500/15 text-rose-300',
-    };
-  }, [contrastScore]);
-
-  const { sidebarScoreClass, sidebarFillClass } = React.useMemo(() => {
-    if (contrastScore == null) {
-      return {
-        sidebarScoreClass: 'text-slate-500',
-        sidebarFillClass: 'bg-slate-600',
-      };
-    }
-
-    if (contrastScore >= 85) {
-      return {
-        sidebarScoreClass: 'text-emerald-400',
-        sidebarFillClass: 'bg-emerald-400',
-      };
-    }
-
-    if (contrastScore >= 65) {
-      return {
-        sidebarScoreClass: 'text-cyan-400',
-        sidebarFillClass: 'bg-cyan-400',
-      };
-    }
-
-    if (contrastScore >= 45) {
-      return {
-        sidebarScoreClass: 'text-amber-400',
-        sidebarFillClass: 'bg-amber-400',
-      };
-    }
-
-    return {
-      sidebarScoreClass: 'text-rose-400',
-      sidebarFillClass: 'bg-rose-500',
-    };
-  }, [contrastScore]);
-
-  const applyHexToRole = React.useCallback(
-    (role: RoleKey, hex: string) => {
-      if (role === 'P' || role === 'S' || role === 'A' || role === 'A2') {
-        const index = { P: 0, S: 1, A: 2, A2: 3 }[role];
-        if (colors[index]) {
-          const updated = colors.map((c, i) => (i === index ? { ...c, hex } : c));
-          updateColorsWithHistory(updated);
-        }
-        return;
-      }
-
-      if (supportColorsList && updateSupportColor) {
-        const target =
-          supportColorsList.find((s) => s.initial === role) ??
-          supportColorsList.find((s) => s.role === role);
-        if (target) {
-          updateSupportColor(target.role, hex);
-        }
-      }
-    },
-    [colors, supportColorsList, updateColorsWithHistory, updateSupportColor]
+  const posterPerceptualEvaluated = React.useMemo(() => evaluatePosterPerceptualDeltaE(roleHexMap), [roleHexMap]);
+  const posterPerceptualScoreValue = React.useMemo(
+    () => posterPerceptualScore(posterPerceptualEvaluated),
+    [posterPerceptualEvaluated]
   );
+  const posterPerceptualTone = React.useMemo(
+    () => posterPerceptualSidebarTone(posterPerceptualScoreValue),
+    [posterPerceptualScoreValue]
+  );
+  const posterPerceptualBadgeInfo = React.useMemo(
+    () => posterPerceptualBadge(posterPerceptualScoreValue),
+    [posterPerceptualScoreValue]
+  );
+  const posterColors = React.useMemo(() => {
+    const m = augmentRoleMapWithIcon(roleHexMap);
+    return {
+      P: m.P?.hex ?? '#6366f1',
+      S: m.S?.hex ?? '#a78bfa',
+      A: m.A?.hex ?? '#ec4899',
+      A2: m.A2?.hex ?? m.A?.hex ?? '#c4b5fd',
+      F: m.F?.hex ?? '#0f172a',
+      Sf: m.Sf?.hex ?? m.F?.hex ?? '#faf5ff',
+      I: m.I.hex,
+    };
+  }, [roleHexMap]);
+
+  const temperatureAnalysis = React.useMemo(() => evaluateTemperatureHarmony(roleHexMap), [roleHexMap]);
+  const temperatureHarmonyScoreValue = temperatureAnalysis.score;
+  const temperatureHarmonyTone = React.useMemo(
+    () => temperatureHarmonySidebarTone(temperatureHarmonyScoreValue),
+    [temperatureHarmonyScoreValue]
+  );
+  const temperatureHarmonyBadgeInfo = React.useMemo(
+    () => temperatureHarmonyBadge(temperatureHarmonyScoreValue),
+    [temperatureHarmonyScoreValue]
+  );
+
+  const vibrancyAnalysis = React.useMemo(() => evaluateVibrancy(roleHexMap), [roleHexMap]);
+  const vibrancyHarmonyScoreValue = vibrancyAnalysis.score;
+  const vibrancyHarmonyTone = React.useMemo(
+    () => vibrancySidebarTone(vibrancyHarmonyScoreValue),
+    [vibrancyHarmonyScoreValue]
+  );
+  const vibrancyHarmonyBadgeInfo = React.useMemo(
+    () => vibrancyBadge(vibrancyHarmonyScoreValue),
+    [vibrancyHarmonyScoreValue]
+  );
+
+  const cvdGlobalScoreValue = React.useMemo(() => evaluateCvdGlobalScore(roleHexMap), [roleHexMap]);
+  const cvdTone = React.useMemo(() => cvdSidebarTone(cvdGlobalScoreValue), [cvdGlobalScoreValue]);
+  const cvdBadgeInfo = React.useMemo(() => cvdBadge(cvdGlobalScoreValue), [cvdGlobalScoreValue]);
+  const cvdGlobalScoreDesc = React.useMemo(() => cvdScoreDesc(cvdGlobalScoreValue), [cvdGlobalScoreValue]);
+
+  const headlineScore = React.useMemo(() => {
+    const parts: number[] = [];
+    if (contrastScore != null) parts.push(contrastScore);
+    parts.push(posterPerceptualScoreValue);
+    parts.push(temperatureHarmonyScoreValue);
+    parts.push(vibrancyHarmonyScoreValue);
+    parts.push(cvdGlobalScoreValue);
+    return Math.round(parts.reduce((a, b) => a + b, 0) / parts.length);
+  }, [
+    contrastScore,
+    posterPerceptualScoreValue,
+    temperatureHarmonyScoreValue,
+    vibrancyHarmonyScoreValue,
+    cvdGlobalScoreValue,
+  ]);
 
   return (
     <PhaseLayout
@@ -393,161 +292,80 @@ function AnalysisPhaseInner(props: AnalysisPhaseProps) {
       {/* Layout principal de 3 columnas (inspirado en tu HTML de referencia). */}
       <div className="flex-1 min-h-0 overflow-hidden w-full flex">
         <div className="grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)_280px] gap-4 flex-1 items-stretch min-h-[520px] md:min-h-[580px] lg:min-h-[640px]">
-          {/* Columna izquierda: resumen y aspectos */}
-          <aside className="hidden lg:flex flex-col bg-gray-900/80 border border-gray-700/80 rounded-2xl px-3 py-3 gap-3 overflow-hidden h-full">
-              {/* Puntuación global (por ahora basada solo en contraste) */}
-              <div className="rounded-2xl bg-gradient-to-br from-[#1e2140] via-[#252a63] to-[#3b2f7f] border border-indigo-500/40 px-6 py-3.5 flex flex-col gap-2 shadow-[0_10px_32px_rgba(15,23,42,0.75)]">
-                <span className="text-[10px] font-semibold tracking-[0.18em] uppercase text-indigo-100/85 text-center">
-                  Puntuación global
-                </span>
-                <div className="flex items-baseline justify-center gap-1 mt-1">
-                  <span className="text-[28px] leading-none font-extrabold text-[#8da2ff]">
-                    {contrastScore != null ? contrastScore : '--'}
-                  </span>
-                  <span className="text-xs text-indigo-200/85 font-medium mt-[2px]">/100</span>
-                </div>
-                <div className="mt-2 h-[4px] rounded-full bg-[#151936] overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-[#8fd5ff] via-[#8f7bff] to-[#7a4ff5] transition-all duration-300"
-                    style={{ width: `${contrastScore ?? 0}%` }}
-                  />
-                </div>
-              </div>
+          <AnalysisContrastLeftAside
+            activeAspect={analysisAspect}
+            onSelectAspect={setAnalysisAspect}
+            headlineScore={headlineScore}
+            textScore={contrastScore}
+            posterPerceptualScore={posterPerceptualScoreValue}
+            temperatureHarmonyScore={temperatureHarmonyScoreValue}
+            vibrancyHarmonyScore={vibrancyHarmonyScoreValue}
+            cvdSimulationScore={cvdGlobalScoreValue}
+            textSidebarFillClass={sidebarFillClass}
+            textSidebarScoreClass={sidebarScoreClass}
+            posterPerceptualSidebarFillClass={posterPerceptualTone.fillClass}
+            posterPerceptualSidebarScoreClass={posterPerceptualTone.textClass}
+            temperatureSidebarFillClass={temperatureHarmonyTone.fillClass}
+            temperatureSidebarScoreClass={temperatureHarmonyTone.textClass}
+            vibrancySidebarFillClass={vibrancyHarmonyTone.fillClass}
+            vibrancySidebarScoreClass={vibrancyHarmonyTone.textClass}
+            cvdSidebarFillClass={cvdTone.fillClass}
+            cvdSidebarScoreClass={cvdTone.textClass}
+          />
 
-              {/* Lista de aspectos */}
-              <div className="flex-1 min-h-0 overflow-y-auto space-y-1.5 pr-1">
-                <p className="px-1 text-[10px] font-semibold tracking-[0.16em] uppercase text-gray-500">
-                  Accesibilidad
-                </p>
-
-                <button
-                  type="button"
-                  className="w-full text-left rounded-xl border border-indigo-500/60 bg-slate-900/70 hover:bg-slate-900 hover:border-indigo-400 transition-colors px-3 py-2.5 flex items-center gap-3 shadow-[0_0_0_1px_rgba(129,140,248,0.45)]"
-                >
-                  <div className="w-9 h-9 rounded-md bg-cyan-500/15 text-cyan-300 flex items-center justify-center flex-shrink-0">
-                    <svg
-                      viewBox="0 0 24 24"
-                      className="w-4 h-4"
-                      aria-hidden
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <circle cx="12" cy="12" r="10" />
-                      <path d="M12 2a10 10 0 0 1 0 20V2z" fill="currentColor" stroke="none" />
-                    </svg>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-slate-50 truncate">Contraste WCAG</p>
-                    <div className="mt-1 h-[3px] rounded-full bg-slate-800 overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ${sidebarFillClass}`}
-                        style={{ width: `${contrastScore ?? 0}%` }}
-                      />
-                    </div>
-                  </div>
-                  <span className={`text-xs font-bold min-w-[36px] text-right ${sidebarScoreClass}`}>
-                    {contrastScore != null ? `${contrastScore}%` : '--'}
-                  </span>
-                </button>
-              </div>
-          </aside>
-
-          {/* Columna central: área principal de análisis – Contraste WCAG */}
-          <main className="rounded-2xl bg-slate-950/70 border border-slate-800 overflow-hidden h-full flex flex-col">
+          {/* Columna central: contraste texto WCAG o triple análisis del mockup (CIE + W3C) */}
+          <main className="rounded-2xl border border-gray-700/30 overflow-hidden h-full flex flex-col bg-[#1a1a2e]">
+            {analysisAspect === 'perceptualDeltaE' ? (
+              <AnalysisNonTextMainColumn
+                posterColors={posterColors}
+                evaluatedRows={posterPerceptualEvaluated}
+                badgeLabel={posterPerceptualBadgeInfo.label}
+                badgeClassName={posterPerceptualBadgeInfo.className}
+                onAutoAdjust={handleAutoAdjustPerceptualDeltaE}
+              />
+            ) : analysisAspect === 'temperatureHarmony' ? (
+              <AnalysisTemperatureMainColumn
+                analysis={temperatureAnalysis}
+                badgeLabel={temperatureHarmonyBadgeInfo.label}
+                badgeClassName={temperatureHarmonyBadgeInfo.className}
+                onAutoAdjust={handleAutoAdjustTemperatureHarmony}
+              />
+            ) : analysisAspect === 'vibrancyHarmony' ? (
+              <AnalysisVibrancyMainColumn
+                analysis={vibrancyAnalysis}
+                badgeLabel={vibrancyHarmonyBadgeInfo.label}
+                badgeClassName={vibrancyHarmonyBadgeInfo.className}
+                onAutoAdjust={handleAutoAdjustVibrancyHarmony}
+              />
+            ) : analysisAspect === 'cvdSimulation' ? (
+              <AnalysisCvdMainColumn
+                roleHexMap={roleHexMap}
+                posterColors={{
+                  P: posterColors.P,
+                  S: posterColors.S,
+                  A: posterColors.A,
+                  A2: posterColors.A2,
+                  F: posterColors.F,
+                }}
+                selectedCvd={cvdSimulationType}
+                onSelectedCvdChange={setCvdSimulationType}
+                globalScore={cvdGlobalScoreValue}
+                globalScoreDesc={cvdGlobalScoreDesc}
+                badgeLabel={cvdBadgeInfo.label}
+                badgeClassName={cvdBadgeInfo.className}
+              />
+            ) : (
             <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
               {/* Header del aspecto */}
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-xl bg-cyan-500/15 text-cyan-300 flex items-center justify-center">
-                    <svg
-                      viewBox="0 0 24 24"
-                      className="w-5 h-5"
-                      aria-hidden
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <circle cx="12" cy="12" r="10" />
-                      <path d="M12 2a10 10 0 0 1 0 20V2z" fill="currentColor" stroke="none" />
-                    </svg>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <h2 className="text-lg font-semibold text-slate-50">Contraste WCAG</h2>
-                    <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${badgeClassName}`}
-                    >
-                      {badgeLabel}
-                    </span>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-indigo-500 to-fuchsia-500 px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:shadow-md hover:from-indigo-400 hover:to-fuchsia-400 transition"
-                  onClick={() => {
-                    const roleHex: Record<'P' | 'S' | 'A' | 'A2' | 'F' | 'T', string | undefined> = {
-                      P: roleHexMap.P?.hex,
-                      S: roleHexMap.S?.hex,
-                      A: roleHexMap.A?.hex,
-                      A2: roleHexMap.A2?.hex,
-                      F: roleHexMap.F?.hex,
-                      T: roleHexMap.T?.hex,
-                    };
-
-                    // 1) Aclarar fondo
-                    if (roleHex.F) {
-                      const hsl = hexToHsl(roleHex.F);
-                      roleHex.F = hslToHex(hsl.h, Math.min(hsl.s, 30), Math.max(hsl.l, 93));
-                    }
-
-                    // 2) Oscurecer texto
-                    if (roleHex.T) {
-                      const hsl = hexToHsl(roleHex.T);
-                      roleHex.T = hslToHex(hsl.h, hsl.s, Math.min(hsl.l, 12));
-                    }
-
-                    // 3) Para cada combinación, ajustar fg si no pasa AA
-                    comboConfigs.forEach((combo) => {
-                      const fgHex = roleHex[combo.fgRole];
-                      const bgHex = roleHex[combo.bgRole];
-                      if (!fgHex || !bgHex) return;
-
-                      let ratio = getContrastRatioHex(fgHex, bgHex);
-                      if (ratio >= 4.5) return;
-
-                      const bgLum = getLuminanceFromHex(bgHex);
-                      const baseHsl = hexToHsl(fgHex);
-                      let l = baseHsl.l;
-                      const direction = bgLum > 0.5 ? -2 : 2;
-                      let attempts = 0;
-
-                      while (ratio < 4.5 && attempts < 50) {
-                        l = Math.max(0, Math.min(100, l + direction));
-                        const candidate = hslToHex(baseHsl.h, baseHsl.s, l);
-                        ratio = getContrastRatioHex(candidate, bgHex);
-                        roleHex[combo.fgRole] = candidate;
-                        attempts += 1;
-                      }
-                    });
-
-                    // Aplicar cambios por rol
-                    (Object.keys(roleHex) as (keyof typeof roleHex)[]).forEach((role) => {
-                      const nextHex = roleHex[role];
-                      const currentHex = roleHexMap[role]?.hex;
-                      if (nextHex && currentHex && nextHex.toLowerCase() !== currentHex.toLowerCase()) {
-                        applyHexToRole(role, nextHex);
-                      }
-                    });
-                  }}
-                >
+              <AnalysisMainHeader
+                title={ANALYSIS_CENTRAL_HEADER.titleTextContrast}
+                badgeLabel={badgeLabel}
+                badgeClassName={badgeClassName}
+                iconBoxClassName="bg-indigo-500/15 text-indigo-300"
+                icon={
                   <svg
                     viewBox="0 0 24 24"
-                    className="w-4 h-4"
+                    className="w-5 h-5"
                     aria-hidden
                     fill="none"
                     stroke="currentColor"
@@ -555,16 +373,39 @@ function AnalysisPhaseInner(props: AnalysisPhaseProps) {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                   >
-                    <path d="M12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2z" />
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M12 2a10 10 0 0 1 0 20V2z" fill="currentColor" stroke="none" />
                   </svg>
-                  Auto-ajustar
-                </button>
-              </div>
+                }
+                onAutoAdjust={handleAutoAdjustContrast}
+                autoAdjustClassName="bg-gradient-to-r from-indigo-500 to-fuchsia-500 hover:from-indigo-400 hover:to-fuchsia-400"
+              />
+
+              <AnalysisScoreCard
+                title="Puntuación contraste"
+                score={contrastScore ?? '—'}
+                description={
+                  contrastScore == null
+                    ? 'Añade combinaciones para evaluar'
+                    : contrastScore >= 95
+                      ? 'Contraste excelente'
+                      : contrastScore >= 80
+                        ? 'Buen contraste'
+                        : contrastScore >= 65
+                          ? 'Contraste aceptable'
+                          : contrastScore >= 50
+                            ? 'Mejorable'
+                            : 'Conflictos de legibilidad'
+                }
+                detail="% de combinaciones seleccionadas que cumplen ratio WCAG (AA/AA grande según el tipo de texto mostrado)."
+                cardClassName="border-indigo-500/25 bg-gradient-to-br from-indigo-500/10 to-fuchsia-500/10"
+                scoreClassName="bg-gradient-to-r from-indigo-300 to-fuchsia-300"
+              />
 
               {/* Combinaciones evaluadas */}
               <section className="rounded-2xl bg-slate-900/70 border border-slate-800 overflow-hidden">
                 <div className="px-5 py-3 border-b border-slate-800/80">
-                  <h3 className="text-sm font-semibold text-slate-200">Combinaciones evaluadas</h3>
+                  <h3 className="text-sm font-semibold text-slate-200">{ANALYSIS_CENTRAL_SECTION.textEvaluatedCombos}</h3>
                 </div>
 
                 <div className="px-5 py-4">
@@ -609,137 +450,13 @@ function AnalysisPhaseInner(props: AnalysisPhaseProps) {
                       );
                     })}
                   </div>
-
-                  {/* Editor de combinaciones (inline) */}
-                  {isComboEditorOpen && (
-                    <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-900/80 px-4 py-3.5">
-                      <p className="text-xs font-semibold text-slate-200 mb-3">
-                        Personalizar combinaciones evaluadas
-                      </p>
-                      <div className="space-y-2">
-                        {comboConfigs.map((combo, index) => (
-                          <button
-                            key={`${combo.fgRole}-${combo.bgRole}-${index}`}
-                            type="button"
-                            onClick={() => setActiveComboIndex(index)}
-                            className={`w-full flex items-center gap-2 border-b border-slate-800/70 pb-2 last:border-b-0 last:pb-0 text-left ${
-                              activeComboIndex === index ? 'ring-1 ring-indigo-400/70 rounded-md bg-slate-900' : ''
-                            }`}
-                          >
-                            <span className="w-4 text-[11px] font-semibold text-slate-500">{index + 1}</span>
-                            <select
-                              className="flex-1 min-w-0 rounded-md border border-slate-700 bg-slate-900/80 px-2.5 py-1.5 text-xs font-semibold text-slate-100 focus:outline-none focus:border-indigo-500"
-                              value={combo.fgRole}
-                              onChange={(e) => {
-                                const next = [...comboConfigs];
-                                const fgRole = e.target.value as RoleKey;
-                                next[index] = {
-                                  ...next[index],
-                                  fgRole,
-                                  description: `${roleHexMap[fgRole]?.label ?? fgRole} sobre ${
-                                    roleHexMap[next[index].bgRole]?.label ?? next[index].bgRole
-                                  }`,
-                                };
-                                setComboConfigs(next);
-                              }}
-                            >
-                    {(Object.keys(roleHexMap) as RoleKey[]).map((role) => (
-                      <option key={role} value={role}>
-                        {role} — {roleHexMap[role]?.label ?? ''}
-                      </option>
-                    ))}
-                            </select>
-                            <span className="text-[11px] font-semibold text-slate-500">sobre</span>
-                            <select
-                              className="flex-1 min-w-0 rounded-md border border-slate-700 bg-slate-900/80 px-2.5 py-1.5 text-xs font-semibold text-slate-100 focus:outline-none focus:border-indigo-500"
-                              value={combo.bgRole}
-                              onChange={(e) => {
-                                const next = [...comboConfigs];
-                                const bgRole = e.target.value as RoleKey;
-                                next[index] = {
-                                  ...next[index],
-                                  bgRole,
-                                  description: `${roleHexMap[next[index].fgRole]?.label ?? next[index].fgRole} sobre ${
-                                    roleHexMap[bgRole]?.label ?? bgRole
-                                  }`,
-                                };
-                                setComboConfigs(next);
-                              }}
-                            >
-                              {(Object.keys(roleHexMap) as RoleKey[]).map((role) => (
-                                <option key={role} value={role}>
-                                  {role} — {roleHexMap[role]?.label ?? ''}
-                                </option>
-                              ))}
-                            </select>
-                            <button
-                              type="button"
-                              disabled={comboConfigs.length <= 1}
-                              onClick={() => {
-                                if (comboConfigs.length <= 1) return;
-                                setComboConfigs((current) => current.filter((_, i) => i !== index));
-                              }}
-                              className="ml-1 inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 disabled:opacity-40 disabled:cursor-default disabled:hover:bg-transparent disabled:hover:text-slate-500"
-                            >
-                              <svg
-                                viewBox="0 0 24 24"
-                                className="w-3.5 h-3.5"
-                                aria-hidden
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth={2}
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              >
-                                <line x1="18" y1="6" x2="6" y2="18" />
-                                <line x1="6" y1="6" x2="18" y2="18" />
-                              </svg>
-                            </button>
-                          </button>
-                        ))}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const nextFg: ContrastComboConfig['fgRole'] = 'P';
-                          const nextBg: ContrastComboConfig['bgRole'] = 'F';
-                          setComboConfigs((current) => [
-                            ...current,
-                            {
-                              fgRole: nextFg,
-                              bgRole: nextBg,
-                              description: `${roleHexMap[nextFg]?.label ?? nextFg} sobre ${
-                                roleHexMap[nextBg]?.label ?? nextBg
-                              }`,
-                            },
-                          ]);
-                        }}
-                        className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-indigo-500/50 bg-indigo-500/5 px-3 py-1.5 text-xs font-semibold text-indigo-300 hover:bg-indigo-500/10"
-                      >
-                        <svg
-                          viewBox="0 0 24 24"
-                          className="w-3.5 h-3.5"
-                          aria-hidden
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth={2}
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <line x1="12" y1="5" x2="12" y2="19" />
-                          <line x1="5" y1="12" x2="19" y2="12" />
-                        </svg>
-                        Añadir combinación
-                      </button>
-                    </div>
-                  )}
                 </div>
               </section>
 
               {/* Explorador de ratios */}
               <section className="rounded-2xl bg-slate-900/70 border border-slate-800 overflow-hidden">
                 <div className="px-5 py-3 border-b border-slate-800/80">
-                  <h3 className="text-sm font-semibold text-slate-200">Explorador de ratios</h3>
+                  <h3 className="text-sm font-semibold text-slate-200">{ANALYSIS_CENTRAL_SECTION.textRatioExplorer}</h3>
                 </div>
                 <div className="px-5 py-4 space-y-3">
                   {/* Selector de color */}
@@ -1008,283 +725,80 @@ function AnalysisPhaseInner(props: AnalysisPhaseProps) {
               </section>
 
             </div>
+            )}
           </main>
 
-          {/* Columna derecha: info contextual y paleta */}
-          <aside className="hidden md:flex flex-col rounded-2xl bg-gray-900/80 border border-gray-700/80 px-3.5 py-3 gap-3 overflow-hidden h-full">
-            <div className="flex-1 min-h-0 overflow-y-auto space-y-3 pr-1">
-              {/* Paleta actual en formato “pastillas” */}
-              <section>
-                <h3 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400 mb-2">
-                  <span className="inline-flex w-5 h-5 items-center justify-center rounded-md bg-gray-900/80 border border-gray-700/80 text-[10px]">
-                    ◦
-                  </span>
-                  Tu paleta
-                </h3>
-                <div className="flex gap-1.5">
-                  {effectiveColors.map((c, index) => {
-                    const ROLE_LABELS = ['P', 'S', 'A', 'A2'] as const;
-                    const label = ROLE_LABELS[index] ?? `${index + 1}`;
-                    const textColor = getContrastColor(c.hex);
-                    return (
-                      <button
-                        key={`${c.hex}-${index}`}
-                        type="button"
-                        className="flex-1 h-8 rounded-md border border-white/10 flex items-end justify-center pb-0.5 cursor-pointer"
-                        style={{ backgroundColor: c.hex }}
-                        onClick={() => {
-                          setEditingColor({ type: 'main', index });
-                          setDraftHex(c.hex);
-                        }}
-                      >
-                        <span
-                          className="text-[9px] font-semibold mix-blend-normal drop-shadow-[0_0_4px_rgba(0,0,0,0.7)]"
-                          style={{ color: textColor }}
-                        >
-                          {label}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </section>
-
-              {/* Paleta de apoyo (mismo layout que la paleta principal) */}
-              {effectiveSupportColors != null && effectiveSupportColors.length > 0 && (
-                <section className="mt-2">
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <h3 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">
-                      Tu paleta de apoyo
-                    </h3>
-                    {resetSupportPalette && (
-                      <div
-                        className="relative"
-                        onMouseEnter={() => {
-                          const rect = supportResetButtonRef.current?.getBoundingClientRect();
-                          if (rect) setSupportResetTooltipRect(rect);
-                        }}
-                        onMouseLeave={() => setSupportResetTooltipRect(null)}
-                      >
-                        {typeof document !== 'undefined' &&
-                          supportResetTooltipRect &&
-                          createPortal(
-                            <span
-                              role="tooltip"
-                              className="fixed px-3 py-2 text-sm text-gray-100 bg-gray-900 border border-gray-600 rounded-lg shadow-xl whitespace-normal text-center pointer-events-none z-[200]"
-                              style={{
-                                left: supportResetTooltipRect.left + supportResetTooltipRect.width / 2,
-                                top: supportResetTooltipRect.top,
-                                transform: 'translate(-50%, calc(-100% - 8px))',
-                                maxWidth: 'min(360px, 90vw)',
-                                width: 'max-content',
-                              }}
-                            >
-                              Restaurar paleta de apoyo al valor predeterminado
-                            </span>,
-                            document.body
-                          )}
-                        <button
-                          ref={supportResetButtonRef}
-                          type="button"
-                          onClick={resetSupportPalette}
-                          className="p-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-gray-100 border border-gray-700 transition-colors"
-                          aria-label="Restaurar paleta de apoyo al valor predeterminado"
-                        >
-                          <svg
-                            className="w-3.5 h-3.5"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            strokeWidth={1.5}
-                            aria-hidden
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
-                            />
-                          </svg>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex gap-1.5">
-                    {effectiveSupportColors.map((item) => (
-                      <button
-                        key={item.initial}
-                        type="button"
-                        className="flex-1 h-8 rounded-md border border-white/10 flex items-end justify-center pb-0.5 cursor-pointer"
-                        style={{ backgroundColor: item.hex }}
-                        onClick={() => {
-                          setEditingColor({ type: 'support', role: item.role });
-                          setDraftHex(item.hex);
-                        }}
-                      >
-                        <span
-                          className="text-[9px] font-semibold mix-blend-normal drop-shadow-[0_0_4px_rgba(0,0,0,0.7)]"
-                          style={{ color: getContrastColor(item.hex) }}
-                        >
-                          {item.initial}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {/* Info: Contraste WCAG */}
-              <section className="mt-3 space-y-3">
-                <div className="rounded-2xl bg-slate-900/80 border border-slate-800 px-3 py-3">
-                  <h4 className="mb-2 flex items-center gap-2 text-[12px] font-semibold text-slate-100">
-                    <svg
-                      viewBox="0 0 24 24"
-                      className="w-3.5 h-3.5 text-cyan-400"
-                      aria-hidden
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-                      <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-                    </svg>
-                    ¿Qué es el ratio de contraste?
-                  </h4>
-                  <p className="text-[12px] leading-relaxed text-slate-300">
-                    El <span className="text-cyan-300 font-semibold">ratio de contraste</span> mide la diferencia de
-                    luminancia relativa entre dos colores superpuestos (texto / fondo). Se expresa como N:1, donde 21:1
-                    es el máximo (blanco sobre negro).
-                  </p>
-                  <div className="mt-3 flex gap-1.5">
-                    <div className="flex-1 rounded-md bg-slate-950/70 border border-slate-800 px-2.5 py-1.5 text-center">
-                      <p className="text-[11px] font-semibold text-slate-100">AA</p>
-                      <p className="mt-0.5 text-[10px] text-slate-400">≥ 4.5:1</p>
-                    </div>
-                    <div className="flex-1 rounded-md bg-slate-950/70 border border-slate-800 px-2.5 py-1.5 text-center">
-                      <p className="text-[11px] font-semibold text-slate-100">AA grande</p>
-                      <p className="mt-0.5 text-[10px] text-slate-400">≥ 3:1</p>
-                    </div>
-                    <div className="flex-1 rounded-md bg-slate-950/70 border border-slate-800 px-2.5 py-1.5 text-center">
-                      <p className="text-[11px] font-semibold text-slate-100">AAA</p>
-                      <p className="mt-0.5 text-[10px] text-slate-400">≥ 7:1</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="rounded-2xl bg-slate-900/80 border border-slate-800 px-3 py-3">
-                  <h4 className="mb-2 flex items-center gap-2 text-[12px] font-semibold text-slate-100">
-                    <svg
-                      viewBox="0 0 24 24"
-                      className="w-3.5 h-3.5 text-cyan-400"
-                      aria-hidden
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <circle cx="12" cy="12" r="10" />
-                      <line x1="12" y1="16" x2="12" y2="12" />
-                      <line x1="12" y1="8" x2="12.01" y2="8" />
-                    </svg>
-                    ¿Por qué importa?
-                  </h4>
-                  <p className="text-[12px] leading-relaxed text-slate-300">
-                    Cerca del <span className="text-cyan-300 font-semibold">15% de la población mundial</span>{' '}
-                    experimenta algún tipo de discapacidad, y las deficiencias visuales son las más prevalentes. Un
-                    contraste suficiente garantiza legibilidad en condiciones adversas: pantallas con brillo bajo, luz
-                    solar directa o usuarios con baja visión.
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 px-3 py-3">
-                  <h5 className="mb-1.5 flex items-center gap-2 text-[11px] font-semibold text-emerald-300">
-                    <svg
-                      viewBox="0 0 24 24"
-                      className="w-3.5 h-3.5"
-                      aria-hidden
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M9 18h6" />
-                      <path d="M10 22h4" />
-                      <path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z" />
-                    </svg>
-                    Consejo rápido
-                  </h5>
-                  <p className="text-[11px] leading-relaxed text-emerald-50/90">
-                    Ajustar la <span className="font-semibold">luminosidad</span> entre un 5‑15% suele ser suficiente
-                    para pasar WCAG AA sin alterar la identidad cromática de tu paleta.
-                  </p>
-                </div>
-
-                <div className="rounded-2xl bg-slate-900/80 border border-slate-800 px-3 py-3 space-y-2">
-                  <h4 className="flex items-center gap-2 text-[12px] font-semibold text-slate-100">
-                    <svg
-                      viewBox="0 0 24 24"
-                      className="w-3.5 h-3.5 text-indigo-400"
-                      aria-hidden
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-                      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-                    </svg>
-                    Referencias
-                  </h4>
-
-                  <div className="rounded-xl border border-indigo-500/25 bg-indigo-500/5 px-3 py-2">
-                    <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-indigo-300">
-                      Estándar internacional
-                    </p>
-                    <p className="mt-1 text-[12px] font-semibold text-slate-50">
-                      Web Content Accessibility Guidelines (WCAG) 2.1
-                    </p>
-                    <p className="text-[11px] text-slate-400">
-                      Kirkpatrick, A., Connor, J. O., Campbell, A., &amp; Cooper, M. (2018) — W3C Recommendation.
-                    </p>
-                  </div>
-
-                  <div className="rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2">
-                    <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-indigo-200">
-                      Artículo científico
-                    </p>
-                    <p className="mt-1 text-[12px] font-semibold text-slate-50">
-                      Adjustable typography: an approach to enhancing low vision text accessibility
-                    </p>
-                    <p className="text-[11px] text-slate-400">Arditi, A. (2004).</p>
-                    <p className="mt-0.5 text-[10px] font-mono text-indigo-300/80">
-                      doi:10.1080/00140130410001695555
-                    </p>
-                  </div>
-
-                  <div className="rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2">
-                    <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-indigo-200">
-                      Artículo científico
-                    </p>
-                    <p className="mt-1 text-[12px] font-semibold text-slate-50">
-                      Psychophysics of reading—II. Low vision
-                    </p>
-                    <p className="text-[11px] text-slate-400">
-                      Legge, G. E., Rubin, G. S., &amp; Luebker, A. (1987).
-                    </p>
-                    <p className="mt-0.5 text-[10px] font-mono text-indigo-300/80">
-                      doi:10.1016/0042-6989(87)90174-7
-                    </p>
-                  </div>
-                </div>
-              </section>
-            </div>
-          </aside>
+          {analysisAspect === 'wcagText' ? (
+            <AnalysisContrastRightAside
+              effectiveColors={effectiveColors}
+              effectiveSupportColors={effectiveSupportColors}
+              resetSupportPalette={resetSupportPalette}
+              supportResetButtonRef={supportResetButtonRef}
+              supportResetTooltipRect={supportResetTooltipRect}
+              setSupportResetTooltipRect={setSupportResetTooltipRect}
+              setEditingColor={setEditingColor}
+              setDraftHex={setDraftHex}
+              openInfoPanels={openInfoPanels}
+              toggleInfoPanel={toggleInfoPanel}
+              onOpenReference={setActiveReference}
+            />
+          ) : analysisAspect === 'perceptualDeltaE' ? (
+            <AnalysisNonTextRightAside
+              effectiveColors={effectiveColors}
+              effectiveSupportColors={effectiveSupportColors}
+              resetSupportPalette={resetSupportPalette}
+              supportResetButtonRef={supportResetButtonRef}
+              supportResetTooltipRect={supportResetTooltipRect}
+              setSupportResetTooltipRect={setSupportResetTooltipRect}
+              setEditingColor={setEditingColor}
+              setDraftHex={setDraftHex}
+              onOpenReference={setActiveReference}
+            />
+          ) : analysisAspect === 'temperatureHarmony' ? (
+            <AnalysisTemperatureRightAside
+              effectiveColors={effectiveColors}
+              effectiveSupportColors={effectiveSupportColors}
+              resetSupportPalette={resetSupportPalette}
+              supportResetButtonRef={supportResetButtonRef}
+              supportResetTooltipRect={supportResetTooltipRect}
+              setSupportResetTooltipRect={setSupportResetTooltipRect}
+              setEditingColor={setEditingColor}
+              setDraftHex={setDraftHex}
+              onOpenReference={setActiveReference}
+            />
+          ) : analysisAspect === 'vibrancyHarmony' ? (
+            <AnalysisVibrancyRightAside
+              effectiveColors={effectiveColors}
+              effectiveSupportColors={effectiveSupportColors}
+              resetSupportPalette={resetSupportPalette}
+              supportResetButtonRef={supportResetButtonRef}
+              supportResetTooltipRect={supportResetTooltipRect}
+              setSupportResetTooltipRect={setSupportResetTooltipRect}
+              setEditingColor={setEditingColor}
+              setDraftHex={setDraftHex}
+              onOpenReference={setActiveReference}
+            />
+          ) : (
+            <AnalysisCvdRightAside
+              effectiveColors={effectiveColors}
+              effectiveSupportColors={effectiveSupportColors}
+              resetSupportPalette={resetSupportPalette}
+              supportResetButtonRef={supportResetButtonRef}
+              supportResetTooltipRect={supportResetTooltipRect}
+              setSupportResetTooltipRect={setSupportResetTooltipRect}
+              setEditingColor={setEditingColor}
+              setDraftHex={setDraftHex}
+              onOpenReference={setActiveReference}
+              selectedCvd={cvdSimulationType}
+              onSelectedCvdChange={setCvdSimulationType}
+            />
+          )}
         </div>
       </div>
+
+      {activeReference && (
+        <AnalysisReferenceModal reference={activeReference} onClose={() => setActiveReference(null)} />
+      )}
 
       {/* Modal de edición de color (similar al de Aplicar, flotante y redimensionable) */}
       {editingColor && (
