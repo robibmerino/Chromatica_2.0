@@ -1,5 +1,22 @@
+import {
+  AnalysisAspectIconContrast,
+  AnalysisAspectIconCvd,
+  AnalysisAspectIconFocus,
+  AnalysisAspectIconHarmony,
+  AnalysisAspectIconLightness,
+  AnalysisAspectIconProximity,
+  AnalysisAspectIconTemperature,
+} from './analysisAspectHeaderIcons';
+import { ANALYSIS_ASPECT_UI } from './analysisAspectUiTokens';
 import { ANALYSIS_LEFT_ASIDE } from './analysisPhaseConvention';
 import type { AnalysisAspectId } from './types';
+
+function asideNavRow(isActive: boolean, aspect: AnalysisAspectId): string {
+  const u = ANALYSIS_ASPECT_UI[aspect];
+  return isActive
+    ? u.asideActive
+    : `border-gray-600/70 bg-gray-800/70 hover:bg-gray-700/70 ${u.asideHover}`;
+}
 
 type AnalysisContrastLeftAsideProps = {
   activeAspect: AnalysisAspectId;
@@ -9,6 +26,7 @@ type AnalysisContrastLeftAsideProps = {
   textScore: number | null;
   posterPerceptualScore: number;
   temperatureHarmonyScore: number;
+  lightnessScore: number;
   vibrancyHarmonyScore: number;
   cvdSimulationScore: number;
   harmonyScore: number;
@@ -18,6 +36,8 @@ type AnalysisContrastLeftAsideProps = {
   posterPerceptualSidebarScoreClass: string;
   temperatureSidebarFillClass: string;
   temperatureSidebarScoreClass: string;
+  lightnessSidebarFillClass: string;
+  lightnessSidebarScoreClass: string;
   vibrancySidebarFillClass: string;
   vibrancySidebarScoreClass: string;
   cvdSidebarFillClass: string;
@@ -33,6 +53,7 @@ export function AnalysisContrastLeftAside({
   textScore,
   posterPerceptualScore,
   temperatureHarmonyScore,
+  lightnessScore,
   vibrancyHarmonyScore,
   cvdSimulationScore,
   harmonyScore,
@@ -42,6 +63,8 @@ export function AnalysisContrastLeftAside({
   posterPerceptualSidebarScoreClass,
   temperatureSidebarFillClass,
   temperatureSidebarScoreClass,
+  lightnessSidebarFillClass,
+  lightnessSidebarScoreClass,
   vibrancySidebarFillClass,
   vibrancySidebarScoreClass,
   cvdSidebarFillClass,
@@ -58,11 +81,8 @@ export function AnalysisContrastLeftAside({
         <span className="text-[10px] font-semibold tracking-[0.16em] uppercase text-gray-300 text-center">
           {ANALYSIS_LEFT_ASIDE.globalScoreCaption}
         </span>
-        <p className="text-[10px] text-center text-gray-500 -mt-1 leading-snug px-1">
-          {ANALYSIS_LEFT_ASIDE.globalScoreCombinedHint}
-        </p>
-        <div className="flex items-baseline justify-center gap-1 mt-1">
-          <span className="text-[28px] leading-none font-extrabold text-indigo-300">{headline}</span>
+        <div className="flex items-baseline justify-center gap-1 mt-2">
+          <span className="text-[28px] leading-none font-extrabold text-slate-100">{headline}</span>
           <span className="text-xs text-gray-400 font-medium mt-[2px]">/100</span>
         </div>
         <div className="mt-2 h-[4px] rounded-full bg-gray-900/90 overflow-hidden">
@@ -75,36 +95,26 @@ export function AnalysisContrastLeftAside({
 
       <div className="flex-1 min-h-0 overflow-y-auto space-y-1.5 pr-1">
         <p className="px-1 text-[10px] font-semibold tracking-[0.14em] uppercase text-gray-400">
-          {ANALYSIS_LEFT_ASIDE.accessibilityHeading}
+          {ANALYSIS_LEFT_ASIDE.aspectListHeading}
         </p>
 
         <button
           type="button"
           onClick={() => onSelectAspect('wcagText')}
           aria-pressed={activeAspect === 'wcagText'}
-          className={`w-full text-left rounded-xl border px-3 py-2.5 flex items-center gap-3 transition-colors ${
-            activeAspect === 'wcagText'
-              ? 'border-cyan-400/70 bg-gray-800/90 ring-1 ring-cyan-500/30'
-              : 'border-gray-600/70 bg-gray-800/70 hover:bg-gray-700/70 hover:border-indigo-400/70'
-          }`}
+          className={`w-full text-left rounded-xl border px-3 py-2.5 flex items-center gap-3 transition-colors ${asideNavRow(
+            activeAspect === 'wcagText',
+            'wcagText'
+          )}`}
         >
-          <div className="w-9 h-9 rounded-md bg-indigo-500/15 text-indigo-300 flex items-center justify-center flex-shrink-0">
-            <svg
-              viewBox="0 0 24 24"
-              className="w-4 h-4"
-              aria-hidden
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 2a10 10 0 0 1 0 20V2z" fill="currentColor" stroke="none" />
-            </svg>
+          <div
+            className={`w-9 h-9 rounded-md flex items-center justify-center flex-shrink-0 ${ANALYSIS_ASPECT_UI.wcagText.iconBox}`}
+          >
+            <AnalysisAspectIconContrast className="w-4 h-4" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-gray-100 truncate">{ANALYSIS_LEFT_ASIDE.navButtonTextMode}</p>
+            <p className="text-[10px] text-gray-500 truncate">{ANALYSIS_LEFT_ASIDE.navButtonTextHint}</p>
             <div className="mt-1 h-[3px] rounded-full bg-gray-900/90 overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all duration-500 ${textSidebarFillClass}`}
@@ -121,27 +131,15 @@ export function AnalysisContrastLeftAside({
           type="button"
           onClick={() => onSelectAspect('perceptualDeltaE')}
           aria-pressed={activeAspect === 'perceptualDeltaE'}
-          className={`w-full text-left rounded-xl border px-3 py-2.5 flex items-center gap-3 transition-colors ${
-            activeAspect === 'perceptualDeltaE'
-              ? 'border-cyan-400/70 bg-gray-800/90 ring-1 ring-cyan-500/30'
-              : 'border-gray-600/70 bg-gray-800/70 hover:bg-gray-700/70 hover:border-indigo-400/70'
-          }`}
+          className={`w-full text-left rounded-xl border px-3 py-2.5 flex items-center gap-3 transition-colors ${asideNavRow(
+            activeAspect === 'perceptualDeltaE',
+            'perceptualDeltaE'
+          )}`}
         >
-          <div className="w-9 h-9 rounded-md bg-cyan-500/15 text-cyan-300 flex items-center justify-center flex-shrink-0">
-            <svg
-              viewBox="0 0 24 24"
-              className="w-4 h-4"
-              aria-hidden
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <rect x="3" y="3" width="18" height="18" rx="2" />
-              <line x1="9" y1="3" x2="9" y2="21" />
-              <line x1="15" y1="3" x2="15" y2="21" />
-            </svg>
+          <div
+            className={`w-9 h-9 rounded-md flex items-center justify-center flex-shrink-0 ${ANALYSIS_ASPECT_UI.perceptualDeltaE.iconBox}`}
+          >
+            <AnalysisAspectIconProximity className="w-4 h-4" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-gray-100 truncate">{ANALYSIS_LEFT_ASIDE.shortLabelPerceptualMode}</p>
@@ -162,25 +160,15 @@ export function AnalysisContrastLeftAside({
           type="button"
           onClick={() => onSelectAspect('temperatureHarmony')}
           aria-pressed={activeAspect === 'temperatureHarmony'}
-          className={`w-full text-left rounded-xl border px-3 py-2.5 flex items-center gap-3 transition-colors ${
-            activeAspect === 'temperatureHarmony'
-              ? 'border-orange-400/70 bg-gray-800/90 ring-1 ring-orange-500/30'
-              : 'border-gray-600/70 bg-gray-800/70 hover:bg-gray-700/70 hover:border-orange-400/45'
-          }`}
+          className={`w-full text-left rounded-xl border px-3 py-2.5 flex items-center gap-3 transition-colors ${asideNavRow(
+            activeAspect === 'temperatureHarmony',
+            'temperatureHarmony'
+          )}`}
         >
-          <div className="w-9 h-9 rounded-md bg-orange-500/15 text-orange-300 flex items-center justify-center flex-shrink-0">
-            <svg
-              viewBox="0 0 24 24"
-              className="w-4 h-4"
-              aria-hidden
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z" />
-            </svg>
+          <div
+            className={`w-9 h-9 rounded-md flex items-center justify-center flex-shrink-0 ${ANALYSIS_ASPECT_UI.temperatureHarmony.iconBox}`}
+          >
+            <AnalysisAspectIconTemperature className="w-4 h-4" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-gray-100 truncate">
@@ -201,27 +189,46 @@ export function AnalysisContrastLeftAside({
 
         <button
           type="button"
+          onClick={() => onSelectAspect('lightnessBalance')}
+          aria-pressed={activeAspect === 'lightnessBalance'}
+          className={`w-full text-left rounded-xl border px-3 py-2.5 flex items-center gap-3 transition-colors ${asideNavRow(
+            activeAspect === 'lightnessBalance',
+            'lightnessBalance'
+          )}`}
+        >
+          <div
+            className={`w-9 h-9 rounded-md flex items-center justify-center flex-shrink-0 ${ANALYSIS_ASPECT_UI.lightnessBalance.iconBox}`}
+          >
+            <AnalysisAspectIconLightness className="w-4 h-4" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-gray-100 truncate">{ANALYSIS_LEFT_ASIDE.navButtonLightnessMode}</p>
+            <p className="text-[10px] text-gray-500 truncate">{ANALYSIS_LEFT_ASIDE.navButtonLightnessHint}</p>
+            <div className="mt-1 h-[3px] rounded-full bg-gray-900/90 overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${lightnessSidebarFillClass}`}
+                style={{ width: `${lightnessScore}%` }}
+              />
+            </div>
+          </div>
+          <span className={`text-xs font-bold min-w-[36px] text-right ${lightnessSidebarScoreClass}`}>
+            {lightnessScore}%
+          </span>
+        </button>
+
+        <button
+          type="button"
           onClick={() => onSelectAspect('vibrancyHarmony')}
           aria-pressed={activeAspect === 'vibrancyHarmony'}
-          className={`w-full text-left rounded-xl border px-3 py-2.5 flex items-center gap-3 transition-colors ${
-            activeAspect === 'vibrancyHarmony'
-              ? 'border-fuchsia-400/70 bg-gray-800/90 ring-1 ring-fuchsia-500/30'
-              : 'border-gray-600/70 bg-gray-800/70 hover:bg-gray-700/70 hover:border-fuchsia-400/45'
-          }`}
+          className={`w-full text-left rounded-xl border px-3 py-2.5 flex items-center gap-3 transition-colors ${asideNavRow(
+            activeAspect === 'vibrancyHarmony',
+            'vibrancyHarmony'
+          )}`}
         >
-          <div className="w-9 h-9 rounded-md bg-fuchsia-500/15 text-fuchsia-300 flex items-center justify-center flex-shrink-0">
-            <svg
-              viewBox="0 0 24 24"
-              className="w-4 h-4"
-              aria-hidden
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-            </svg>
+          <div
+            className={`w-9 h-9 rounded-md flex items-center justify-center flex-shrink-0 ${ANALYSIS_ASPECT_UI.vibrancyHarmony.iconBox}`}
+          >
+            <AnalysisAspectIconFocus className="w-4 h-4" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-gray-100 truncate">{ANALYSIS_LEFT_ASIDE.navButtonVibrancyMode}</p>
@@ -242,26 +249,15 @@ export function AnalysisContrastLeftAside({
           type="button"
           onClick={() => onSelectAspect('cvdSimulation')}
           aria-pressed={activeAspect === 'cvdSimulation'}
-          className={`w-full text-left rounded-xl border px-3 py-2.5 flex items-center gap-3 transition-colors ${
-            activeAspect === 'cvdSimulation'
-              ? 'border-pink-400/70 bg-gray-800/90 ring-1 ring-pink-500/30'
-              : 'border-gray-600/70 bg-gray-800/70 hover:bg-gray-700/70 hover:border-pink-400/45'
-          }`}
+          className={`w-full text-left rounded-xl border px-3 py-2.5 flex items-center gap-3 transition-colors ${asideNavRow(
+            activeAspect === 'cvdSimulation',
+            'cvdSimulation'
+          )}`}
         >
-          <div className="w-9 h-9 rounded-md bg-pink-500/15 text-pink-300 flex items-center justify-center flex-shrink-0">
-            <svg
-              viewBox="0 0 24 24"
-              className="w-4 h-4"
-              aria-hidden
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
+          <div
+            className={`w-9 h-9 rounded-md flex items-center justify-center flex-shrink-0 ${ANALYSIS_ASPECT_UI.cvdSimulation.iconBox}`}
+          >
+            <AnalysisAspectIconCvd className="w-4 h-4" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-gray-100 truncate">{ANALYSIS_LEFT_ASIDE.navButtonCvdMode}</p>
@@ -282,27 +278,15 @@ export function AnalysisContrastLeftAside({
           type="button"
           onClick={() => onSelectAspect('chromaticHarmony')}
           aria-pressed={activeAspect === 'chromaticHarmony'}
-          className={`w-full text-left rounded-xl border px-3 py-2.5 flex items-center gap-3 transition-colors ${
-            activeAspect === 'chromaticHarmony'
-              ? 'border-violet-400/70 bg-gray-800/90 ring-1 ring-violet-500/30'
-              : 'border-gray-600/70 bg-gray-800/70 hover:bg-gray-700/70 hover:border-violet-400/45'
-          }`}
+          className={`w-full text-left rounded-xl border px-3 py-2.5 flex items-center gap-3 transition-colors ${asideNavRow(
+            activeAspect === 'chromaticHarmony',
+            'chromaticHarmony'
+          )}`}
         >
-          <div className="w-9 h-9 rounded-md bg-violet-500/15 text-violet-300 flex items-center justify-center flex-shrink-0">
-            <svg
-              viewBox="0 0 24 24"
-              className="w-4 h-4"
-              aria-hidden
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <path d="M2 12h20" />
-              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-            </svg>
+          <div
+            className={`w-9 h-9 rounded-md flex items-center justify-center flex-shrink-0 ${ANALYSIS_ASPECT_UI.chromaticHarmony.iconBox}`}
+          >
+            <AnalysisAspectIconHarmony className="w-4 h-4" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-gray-100 truncate">{ANALYSIS_LEFT_ASIDE.navButtonHarmonyMode}</p>

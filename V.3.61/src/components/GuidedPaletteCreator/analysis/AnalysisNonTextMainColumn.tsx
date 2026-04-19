@@ -5,6 +5,8 @@ import {
   posterPerceptualDimensionScores,
 } from './perceptual/posterPerceptualDeltaE';
 import { AnalysisScoreCard } from './AnalysisScoreCard';
+import { AnalysisAspectIconProximity } from './analysisAspectHeaderIcons';
+import { ANALYSIS_ASPECT_UI } from './analysisAspectUiTokens';
 import { AnalysisMainHeader } from './AnalysisMainHeader';
 import { AnalysisSectionBlock } from './AnalysisSectionBlock';
 
@@ -34,6 +36,7 @@ export function AnalysisNonTextMainColumn({
   badgeClassName,
   onAutoAdjust,
 }: AnalysisNonTextMainColumnProps) {
+  const aspectUi = ANALYSIS_ASPECT_UI.perceptualDeltaE;
   const { P, S, A, A2 } = posterColors;
   const dim = React.useMemo(() => posterPerceptualDimensionScores(evaluatedRows), [evaluatedRows]);
   const scoreDesc = React.useMemo(() => {
@@ -63,27 +66,10 @@ export function AnalysisNonTextMainColumn({
         title={ANALYSIS_CENTRAL_HEADER.titlePosterTriAnalysis}
         badgeLabel={badgeLabel}
         badgeClassName={badgeClassName}
-        iconBoxClassName="bg-cyan-500/15 text-cyan-300"
-        icon={
-          <svg
-            viewBox="0 0 24 24"
-            className="w-5 h-5"
-            aria-hidden
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <rect x="3" y="3" width="18" height="18" rx="2" />
-            <line x1="9" y1="3" x2="9" y2="21" />
-            <line x1="15" y1="3" x2="15" y2="21" />
-            <line x1="3" y1="9" x2="21" y2="9" />
-            <line x1="3" y1="15" x2="21" y2="15" />
-          </svg>
-        }
+        iconBoxClassName={aspectUi.iconBox}
+        icon={<AnalysisAspectIconProximity className="w-5 h-5" />}
         onAutoAdjust={onAutoAdjust}
-        autoAdjustClassName="bg-gradient-to-r from-indigo-500 to-fuchsia-500 hover:from-indigo-400 hover:to-fuchsia-400"
+        autoAdjustClassName={aspectUi.autoAdjust!}
       />
 
       <AnalysisScoreCard
@@ -91,8 +77,8 @@ export function AnalysisNonTextMainColumn({
         score={dim.overallPercent}
         description={scoreDesc}
         detail="Promedio de % de cumplimiento en ΔE₀₀, ratio Y y |ΔL*| sobre pares evaluados."
-        cardClassName="border-cyan-500/25 bg-gradient-to-br from-cyan-500/10 to-fuchsia-500/10"
-        scoreClassName="bg-gradient-to-r from-cyan-300 to-fuchsia-300"
+        cardClassName={aspectUi.scoreCard}
+        scoreClassName={aspectUi.scoreValueGradient}
       >
         <p className="text-[10px] font-medium text-slate-500 mb-1.5">
           {ANALYSIS_CENTRAL_SECTION.posterDimensionSummaryCaption}

@@ -235,7 +235,7 @@ export function AnalysisContrastRightAside({
                     key={reference.id}
                     type="button"
                     onClick={() => onOpenReference(reference)}
-                    className="w-full text-left rounded-xl border border-gray-700/70 bg-gray-900/80 px-3 py-2 hover:border-indigo-400/60 hover:bg-gray-800/80 transition-colors"
+                    className="w-full text-left rounded-xl border border-gray-700/70 bg-gray-900/80 px-3 py-2 hover:border-blue-400/60 hover:bg-gray-800/80 transition-colors"
                   >
                     <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-indigo-200">
                       {reference.category}

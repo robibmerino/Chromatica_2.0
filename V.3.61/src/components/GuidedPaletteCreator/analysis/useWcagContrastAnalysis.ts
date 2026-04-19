@@ -7,8 +7,12 @@ import { computeAutoAdjustedTemperatureHexes } from './temperature/autoAdjustTem
 import { computeAutoAdjustedVibrancyHexes } from './vibrancy/autoAdjustVibrancyHarmony';
 import { computeAutoAdjustedCvdHexes } from './cvd/autoAdjustCvd';
 import { computeAutoAdjustedHarmonyHexes } from './harmony/autoAdjustHarmony';
+import { computeAutoAdjustedLightnessHexes } from './lightness/autoAdjustLightness';
+import { toggleExclusivePanel } from './analysisAsideAccordionToggle';
 import type { ContrastComboConfig, InfoPanelKey, RoleKey, SupportSwatch } from './types';
 import { DEFAULT_CONTRAST_COMBOS, TOP_COMBOS_ROLE } from './types';
+
+const INFO_PANEL_KEYS: readonly InfoPanelKey[] = ['ratio', 'importance', 'tip', 'references'];
 
 type UseWcagContrastAnalysisParams = {
   colors: ColorItem[];
@@ -19,6 +23,9 @@ type UseWcagContrastAnalysisParams = {
   effectiveSupportColors: SupportSwatch[] | null | undefined;
 };
 
+const MAIN_PALETTE_ROLE_SET = new Set(['P', 'S', 'A', 'A2']);
+const MAIN_ROLE_TO_INDEX: Record<string, number> = { P: 0, S: 1, A: 2, A2: 3 };
+
 export function useWcagContrastAnalysis({
   colors,
   supportColorsList,
@@ -27,7 +34,7 @@ export function useWcagContrastAnalysis({
   effectiveColors,
   effectiveSupportColors,
 }: UseWcagContrastAnalysisParams) {
-  const [comboConfigs, setComboConfigs] = React.useState<ContrastComboConfig[]>(DEFAULT_CONTRAST_COMBOS);
+  const [comboConfigs] = React.useState<ContrastComboConfig[]>(DEFAULT_CONTRAST_COMBOS);
   const [explorerSelectedRole, setExplorerSelectedRole] = React.useState<RoleKey>(TOP_COMBOS_ROLE);
   const [selectedCombos, setSelectedCombos] = React.useState<ContrastComboConfig[]>([]);
   const [openInfoPanels, setOpenInfoPanels] = React.useState<Record<InfoPanelKey, boolean>>({
@@ -38,7 +45,7 @@ export function useWcagContrastAnalysis({
   });
 
   const toggleInfoPanel = React.useCallback((panel: InfoPanelKey) => {
-    setOpenInfoPanels((current) => ({ ...current, [panel]: !current[panel] }));
+    setOpenInfoPanels((current) => toggleExclusivePanel(panel, current, INFO_PANEL_KEYS));
   }, []);
 
   const roleHexMap = React.useMemo(
@@ -242,6 +249,35 @@ export function useWcagContrastAnalysis({
     [colors, supportColorsList, updateColorsWithHistory, updateSupportColor]
   );
 
+  /** Una sola entrada en historial para P/S/A/A2; apoyo sigue con `applyHexToRole` (sin historial de paleta principal). */
+  const applyRoleHexUpdatesBatched = React.useCallback(
+    (updates: Record<string, string>) => {
+      let newColors = colors;
+      let mainChanged = false;
+      for (const role of MAIN_PALETTE_ROLE_SET) {
+        const nextHex = updates[role];
+        if (!nextHex) continue;
+        const currentHex = roleHexMap[role]?.hex;
+        if (!currentHex || nextHex.toLowerCase() === currentHex.toLowerCase()) continue;
+        const index = MAIN_ROLE_TO_INDEX[role];
+        if (index === undefined || !newColors[index]) continue;
+        newColors = newColors.map((c, i) => (i === index ? { ...c, hex: nextHex } : c));
+        mainChanged = true;
+      }
+      if (mainChanged) {
+        updateColorsWithHistory(newColors);
+      }
+      for (const [role, nextHex] of Object.entries(updates)) {
+        if (MAIN_PALETTE_ROLE_SET.has(role)) continue;
+        const currentHex = roleHexMap[role]?.hex;
+        if (currentHex && nextHex && nextHex.toLowerCase() !== currentHex.toLowerCase()) {
+          applyHexToRole(role as RoleKey, nextHex);
+        }
+      }
+    },
+    [applyHexToRole, colors, roleHexMap, updateColorsWithHistory]
+  );
+
   const handleAutoAdjustContrast = React.useCallback(() => {
     const roleHex: Record<'P' | 'S' | 'A' | 'A2' | 'F' | 'T', string | undefined> = {
       P: roleHexMap.P?.hex,
@@ -286,49 +322,40 @@ export function useWcagContrastAnalysis({
       }
     });
 
-    (Object.keys(roleHex) as (keyof typeof roleHex)[]).forEach((role) => {
+    const contrastUpdates: Record<string, string> = {};
+    for (const role of Object.keys(roleHex) as (keyof typeof roleHex)[]) {
       const nextHex = roleHex[role];
       const currentHex = roleHexMap[role]?.hex;
       if (nextHex && currentHex && nextHex.toLowerCase() !== currentHex.toLowerCase()) {
-        applyHexToRole(role, nextHex);
+        contrastUpdates[role] = nextHex;
       }
-    });
-  }, [applyHexToRole, comboConfigs, roleHexMap]);
+    }
+    applyRoleHexUpdatesBatched(contrastUpdates);
+  }, [applyRoleHexUpdatesBatched, comboConfigs, roleHexMap]);
 
   const handleAutoAdjustPerceptualDeltaE = React.useCallback(() => {
-    const updates = computeAutoAdjustedPerceptualHexes(roleHexMap);
-    Object.entries(updates).forEach(([role, hex]) => {
-      applyHexToRole(role, hex);
-    });
-  }, [applyHexToRole, roleHexMap]);
+    applyRoleHexUpdatesBatched(computeAutoAdjustedPerceptualHexes(roleHexMap));
+  }, [applyRoleHexUpdatesBatched, roleHexMap]);
 
   const handleAutoAdjustTemperatureHarmony = React.useCallback(() => {
-    const updates = computeAutoAdjustedTemperatureHexes(roleHexMap);
-    Object.entries(updates).forEach(([role, hex]) => {
-      applyHexToRole(role, hex);
-    });
-  }, [applyHexToRole, roleHexMap]);
+    applyRoleHexUpdatesBatched(computeAutoAdjustedTemperatureHexes(roleHexMap));
+  }, [applyRoleHexUpdatesBatched, roleHexMap]);
 
   const handleAutoAdjustVibrancyHarmony = React.useCallback(() => {
-    const updates = computeAutoAdjustedVibrancyHexes(roleHexMap);
-    Object.entries(updates).forEach(([role, hex]) => {
-      applyHexToRole(role, hex);
-    });
-  }, [applyHexToRole, roleHexMap]);
+    applyRoleHexUpdatesBatched(computeAutoAdjustedVibrancyHexes(roleHexMap));
+  }, [applyRoleHexUpdatesBatched, roleHexMap]);
 
   const handleAutoAdjustCvd = React.useCallback(() => {
-    const updates = computeAutoAdjustedCvdHexes(roleHexMap);
-    Object.entries(updates).forEach(([role, hex]) => {
-      applyHexToRole(role, hex);
-    });
-  }, [applyHexToRole, roleHexMap]);
+    applyRoleHexUpdatesBatched(computeAutoAdjustedCvdHexes(roleHexMap));
+  }, [applyRoleHexUpdatesBatched, roleHexMap]);
 
   const handleAutoAdjustHarmony = React.useCallback(() => {
-    const updates = computeAutoAdjustedHarmonyHexes(roleHexMap);
-    Object.entries(updates).forEach(([role, hex]) => {
-      applyHexToRole(role, hex);
-    });
-  }, [applyHexToRole, roleHexMap]);
+    applyRoleHexUpdatesBatched(computeAutoAdjustedHarmonyHexes(roleHexMap));
+  }, [applyRoleHexUpdatesBatched, roleHexMap]);
+
+  const handleAutoAdjustLightness = React.useCallback(() => {
+    applyRoleHexUpdatesBatched(computeAutoAdjustedLightnessHexes(roleHexMap));
+  }, [applyRoleHexUpdatesBatched, roleHexMap]);
 
   return {
     roleHexMap,
@@ -350,5 +377,6 @@ export function useWcagContrastAnalysis({
     handleAutoAdjustVibrancyHarmony,
     handleAutoAdjustCvd,
     handleAutoAdjustHarmony,
+    handleAutoAdjustLightness,
   };
 }

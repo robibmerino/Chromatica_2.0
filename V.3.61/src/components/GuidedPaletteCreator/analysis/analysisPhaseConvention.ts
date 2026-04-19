@@ -8,7 +8,7 @@
  * - Acción principal de ajuste automático: mismo rótulo en todos los tipos de análisis.
  *
  * Columna izquierda
- * - Puntuación global = promedio de los subanálisis (WCAG texto + póster + temperatura + vibración + CVD); botones para alternar vista.
+ * - Puntuación global = promedio de los subanálisis (WCAG texto + póster + temperatura + luminosidad + vibración + CVD + armonía); botones para alternar vista.
  *
  * Aside derecho (debajo de «Tu paleta»)
  * - Orden recomendado para nuevos análisis:
@@ -25,6 +25,7 @@ export const ANALYSIS_CENTRAL_HEADER = {
   titleVibrancyHarmony: 'Saturación y vibración',
   titleCvdSimulation: 'Simulación de daltonismo (CVD)',
   titleChromaticHarmony: 'Armonía cromática',
+  titleLightnessBalance: 'Balance de luminosidad',
   primaryActionAutoAdjust: 'Auto-ajustar',
 } as const;
 
@@ -45,31 +46,32 @@ export const ANALYSIS_CENTRAL_SECTION = {
 /** Columna izquierda: leyendas compartidas con el resto de la fase cuando aplica. */
 export const ANALYSIS_LEFT_ASIDE = {
   globalScoreCaption: 'Puntuación global',
-  /** Subtítulo bajo la nota grande: promedio de contraste texto + modo póster. */
-  globalScoreCombinedHint:
-    'Promedio: WCAG texto + póster (ΔE+Y+L*) + temperatura + vibración + simulación CVD + armonía cromática',
-  navButtonTemperatureMode: 'Temperatura cálido / frío',
+  navButtonTemperatureMode: 'Temperatura',
   navButtonTemperatureHint: 'Ou et al. · balance térmico',
-  navButtonVibrancyMode: 'Saturación y vibración',
+  navButtonVibrancyMode: 'Focus',
   navButtonVibrancyHint: 'LCh croma + colorfulness (Hasler & Süsstrunk)',
-  navButtonCvdMode: 'Daltonismo (CVD)',
+  navButtonCvdMode: 'Daltonismo',
   navButtonCvdHint: 'Viénot–Brettel–Mollon (1999) · ΔE en simulado',
-  navButtonHarmonyMode: 'Armonía cromática',
+  navButtonHarmonyMode: 'Armonía',
   navButtonHarmonyHint: 'Patrones en rueda tonal (análogo, triádico, etc.)',
-  accessibilityHeading: 'Accesibilidad',
+  navButtonLightnessMode: 'Luminosidad',
+  navButtonLightnessHint: 'L* CIELAB · rango y zonas claras/oscuras',
+  aspectListHeading: 'Análisis',
   /** Misma etiqueta corta en modo interfaz (navegación, chip de puntuación, `analysisType` científico). */
-  shortLabelPerceptualMode: 'Póster · ΔE+Y+L*',
-  navButtonTextMode: 'Contraste WCAG (texto)',
+  shortLabelPerceptualMode: 'Proximidad',
+  navButtonTextMode: 'Contraste',
+  navButtonTextHint: 'WCAG 2.x · luminancia relativa · ratio sRGB',
   navButtonPerceptualHint: 'CIE ΔE₀₀ + luminancia W3C + L* CIELAB',
 } as const;
 
 /** Etiquetas legibles del estado global `analysisType` (p. ej. pestañas o persistencia). */
 export const ANALYSIS_GLOBAL_MODE_LABEL = {
-  basicMode: 'Contraste texto (WCAG)',
-  temperatureMode: 'Temperatura (warm / cool)',
-  vibrancyMode: 'Vibración / saturación',
-  cvdMode: 'Simulación CVD',
-  harmonyMode: 'Armonía cromática',
+  basicMode: 'Contraste',
+  temperatureMode: 'Temperatura',
+  vibrancyMode: 'Focus',
+  cvdMode: 'Daltonismo',
+  harmonyMode: 'Armonía',
+  lightnessMode: 'Luminosidad',
 } as const;
 
 export const ANALYSIS_RIGHT_ASIDE = {
@@ -82,6 +84,7 @@ export const ANALYSIS_RIGHT_ASIDE = {
     vibrancyHarmony: '¿Qué mide la saturación y vibración?',
     cvdSimulation: '¿Qué es la simulación de daltonismo aquí?',
     chromaticHarmony: '¿Qué mide la armonía cromática?',
+    lightnessBalance: '¿Qué mide el balance de luminosidad?',
   },
   whyItMatters: '¿Por qué importa?',
   quickTip: 'Consejo rápido',

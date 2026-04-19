@@ -1,14 +1,9 @@
 import React from 'react';
-import { ANALYSIS_RIGHT_ASIDE } from './analysisPhaseConvention';
-import { PERCEPTUAL_ANALYSIS_REFERENCES } from './perceptual/perceptualReferences';
-import {
-  POSTER_DELTA_E00_MIN,
-  POSTER_DESIGN_LUMINANCE_RATIO_MIN,
-  POSTER_MIN_ABS_DELTA_L_STAR,
-} from './perceptual/posterPerceptualDeltaE';
+import type { ColorItem } from '../../../types/guidedPalette';
 import { AnalysisPaletteAsideSection } from './AnalysisPaletteAsideSection';
 import { toggleExclusivePanel } from './analysisAsideAccordionToggle';
-import type { ColorItem } from '../../../types/guidedPalette';
+import { ANALYSIS_RIGHT_ASIDE } from './analysisPhaseConvention';
+import { LIGHTNESS_REFERENCES } from './lightness/lightnessReferences';
 import {
   ANALYSIS_ASIDE_INFO_KEYS,
   createAsideInfoPanelsClosed,
@@ -18,7 +13,7 @@ import {
   type SupportSwatch,
 } from './types';
 
-type AnalysisNonTextRightAsideProps = {
+type AnalysisLightnessRightAsideProps = {
   effectiveColors: ColorItem[];
   effectiveSupportColors: SupportSwatch[] | null | undefined;
   resetSupportPalette: (() => void) | undefined;
@@ -30,7 +25,7 @@ type AnalysisNonTextRightAsideProps = {
   onOpenReference: (r: ReferenceItem) => void;
 };
 
-export function AnalysisNonTextRightAside({
+export function AnalysisLightnessRightAside({
   effectiveColors,
   effectiveSupportColors,
   resetSupportPalette,
@@ -40,11 +35,11 @@ export function AnalysisNonTextRightAside({
   setEditingColor,
   setDraftHex,
   onOpenReference,
-}: AnalysisNonTextRightAsideProps) {
+}: AnalysisLightnessRightAsideProps) {
   const [openPanels, setOpenPanels] = React.useState<Record<AnalysisAsideInfoKey, boolean>>(createAsideInfoPanelsClosed);
 
   const toggle = React.useCallback((key: AnalysisAsideInfoKey) => {
-    setOpenPanels((c) => toggleExclusivePanel(key, c, ANALYSIS_ASIDE_INFO_KEYS));
+    setOpenPanels((current) => toggleExclusivePanel(key, current, ANALYSIS_ASIDE_INFO_KEYS));
   }, []);
 
   return (
@@ -69,10 +64,10 @@ export function AnalysisNonTextRightAside({
               className="w-full flex items-center justify-between gap-3 text-left"
               aria-expanded={openPanels.criterion}
             >
-              <h4 className="flex items-center gap-2 text-[12px] font-semibold text-gray-100">
+              <h4 className="flex min-w-0 items-center gap-2 text-[12px] font-semibold text-gray-100">
                 <svg
                   viewBox="0 0 24 24"
-                  className="w-3.5 h-3.5 text-cyan-400"
+                  className="h-3.5 w-3.5 shrink-0 text-cyan-400"
                   aria-hidden
                   fill="none"
                   stroke="currentColor"
@@ -83,7 +78,7 @@ export function AnalysisNonTextRightAside({
                   <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
                   <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
                 </svg>
-                {ANALYSIS_RIGHT_ASIDE.firstPanelTitle.posterTriAnalysis}
+                <span className="min-w-0">{ANALYSIS_RIGHT_ASIDE.firstPanelTitle.lightnessBalance}</span>
               </h4>
               <svg
                 viewBox="0 0 20 20"
@@ -98,16 +93,11 @@ export function AnalysisNonTextRightAside({
             </button>
             {openPanels.criterion && (
               <p className="mt-2 text-[12px] leading-relaxed text-gray-300">
-                Tres métricas estándar, cada una con su referencia:{' '}
-                <span className="text-cyan-300 font-semibold">ΔE₀₀</span> (CIEDE2000, CIE),{' '}
-                <span className="text-cyan-300 font-semibold">ratio de luminancia</span> entre sRGB según definición{' '}
-                <span className="text-cyan-300 font-semibold">W3C</span> (misma fórmula que en WCAG 2.x, aquí solo como
-                criterio de diseño, no como 1.4.11), y{' '}
-                <span className="text-cyan-300 font-semibold">|ΔL*|</span> en{' '}
-                <span className="text-cyan-300 font-semibold">CIELAB</span> (eje L* de la CIE). Umbrales actuales: ΔE₀₀
-                ≥ {POSTER_DELTA_E00_MIN}, Y ≥ {POSTER_DESIGN_LUMINANCE_RATIO_MIN}:1, |L*| ≥ {POSTER_MIN_ABS_DELTA_L_STAR}
-                . La puntuación global del modo es el <span className="font-semibold text-cyan-200">promedio</span> del % de
-                aciertos en cada dimensión.
+                La <span className="font-semibold text-cyan-200">luminosidad perceptual (L*)</span> indica cuán claro
+                u oscuro se percibe un color (0 = negro, 100 = blanco de referencia). Evaluamos P, S, A, A2, F, T y
+                demás roles salvo <span className="font-semibold text-cyan-200">Ts</span> (texto secundario) y{' '}
+                <span className="font-semibold text-cyan-200">Sf</span> (superficie), que suelen actuar como capas
+                auxiliares aparte del bloque cromático principal.
               </p>
             )}
           </div>
@@ -119,10 +109,10 @@ export function AnalysisNonTextRightAside({
               className="w-full flex items-center justify-between gap-3 text-left"
               aria-expanded={openPanels.why}
             >
-              <h4 className="flex items-center gap-2 text-[12px] font-semibold text-gray-100">
+              <h4 className="flex min-w-0 items-center gap-2 text-[12px] font-semibold text-gray-100">
                 <svg
                   viewBox="0 0 24 24"
-                  className="w-3.5 h-3.5 text-cyan-400"
+                  className="h-3.5 w-3.5 shrink-0 text-cyan-400"
                   aria-hidden
                   fill="none"
                   stroke="currentColor"
@@ -134,7 +124,7 @@ export function AnalysisNonTextRightAside({
                   <line x1="12" y1="16" x2="12" y2="12" />
                   <line x1="12" y1="8" x2="12.01" y2="8" />
                 </svg>
-                {ANALYSIS_RIGHT_ASIDE.whyItMatters}
+                <span className="min-w-0">{ANALYSIS_RIGHT_ASIDE.whyItMatters}</span>
               </h4>
               <svg
                 viewBox="0 0 20 20"
@@ -149,8 +139,10 @@ export function AnalysisNonTextRightAside({
             </button>
             {openPanels.why && (
               <p className="mt-2 text-[12px] leading-relaxed text-gray-300">
-                Combinar diferencia de color (CIE), separación de claridad (L*) y contraste de luminancia (W3C) reduce
-                el caso “ΔE alto pero todo se ve pastel”: cada dimensión cubre un fallo que la otra no detecta bien sola.
+                La L de HSL <span className="font-semibold text-cyan-200">no es perceptualmente uniforme</span>: un
+                amarillo con L 50 puede verse mucho más claro que un azul con L 50. L* de CIELAB corrige esto: cada
+                unidad de L* representa un cambio similar de claridad percibida, coherente con el resto de análisis de la
+                app (ΔE₀₀, póster).
               </p>
             )}
           </div>
@@ -162,10 +154,10 @@ export function AnalysisNonTextRightAside({
               className="w-full flex items-center justify-between gap-3 text-left"
               aria-expanded={openPanels.tip}
             >
-              <h5 className="flex items-center gap-2 text-[11px] font-semibold text-emerald-300">
+              <h5 className="flex min-w-0 items-center gap-2 text-[11px] font-semibold text-emerald-300">
                 <svg
                   viewBox="0 0 24 24"
-                  className="w-3.5 h-3.5"
+                  className="h-3.5 w-3.5 shrink-0"
                   aria-hidden
                   fill="none"
                   stroke="currentColor"
@@ -173,9 +165,11 @@ export function AnalysisNonTextRightAside({
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 >
-                  <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  <path d="M9 18h6" />
+                  <path d="M10 22h4" />
+                  <path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z" />
                 </svg>
-                {ANALYSIS_RIGHT_ASIDE.quickTip}
+                <span className="min-w-0">{ANALYSIS_RIGHT_ASIDE.quickTip}</span>
               </h5>
               <svg
                 viewBox="0 0 20 20"
@@ -190,8 +184,9 @@ export function AnalysisNonTextRightAside({
             </button>
             {openPanels.tip && (
               <p className="mt-1.5 text-[11px] leading-relaxed text-emerald-50/90">
-                Mira qué tick marca ✗ (ΔE, Y o L*). El auto-ajuste alterna empujes en Lab, en L* y en luminancia del rol
-                de primer plano según el déficit mayor del par más flojo.
+                Prioriza que existan <span className="font-semibold text-emerald-200">anclas claras y oscuras</span>{' '}
+                (F/T o roles equivalentes) antes de afinar acentos: sin contraste de L* la interfaz pierde jerarquía
+                aunque el matiz sea rico.
               </p>
             )}
           </div>
@@ -203,10 +198,10 @@ export function AnalysisNonTextRightAside({
               className="w-full flex items-center justify-between gap-3 text-left"
               aria-expanded={openPanels.references}
             >
-              <h4 className="flex items-center gap-2 text-[12px] font-semibold text-gray-100">
+              <h4 className="flex min-w-0 items-center gap-2 text-[12px] font-semibold text-gray-100">
                 <svg
                   viewBox="0 0 24 24"
-                  className="w-3.5 h-3.5 text-indigo-400"
+                  className="h-3.5 w-3.5 shrink-0 text-sky-400"
                   aria-hidden
                   fill="none"
                   stroke="currentColor"
@@ -217,7 +212,7 @@ export function AnalysisNonTextRightAside({
                   <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
                   <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
                 </svg>
-                {ANALYSIS_RIGHT_ASIDE.references}
+                <span className="min-w-0">{ANALYSIS_RIGHT_ASIDE.references}</span>
               </h4>
               <svg
                 viewBox="0 0 20 20"
@@ -231,22 +226,23 @@ export function AnalysisNonTextRightAside({
               </svg>
             </button>
             {openPanels.references && (
-              <div className="space-y-2 mt-2">
-                {PERCEPTUAL_ANALYSIS_REFERENCES.map((reference) => (
-                  <button
-                    key={reference.id}
-                    type="button"
-                    onClick={() => onOpenReference(reference)}
-                    className="w-full text-left rounded-xl border border-gray-700/70 bg-gray-900/80 px-3 py-2 hover:border-teal-400/60 hover:bg-gray-800/80 transition-colors"
-                  >
-                    <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-indigo-200">
-                      {reference.category}
-                    </p>
-                    <p className="mt-1 text-[12px] font-semibold text-gray-50">{reference.title}</p>
-                    <p className="text-[11px] text-gray-400">{reference.authors}</p>
-                  </button>
+              <ul className="mt-2 list-none space-y-2 p-0">
+                {LIGHTNESS_REFERENCES.map((reference) => (
+                  <li key={reference.id}>
+                    <button
+                      type="button"
+                      onClick={() => onOpenReference(reference)}
+                      className="w-full text-left rounded-xl border border-gray-700/70 bg-gray-900/80 px-3 py-2 hover:border-sky-400/55 hover:bg-gray-800/80 transition-colors"
+                    >
+                      <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-sky-200/95">
+                        {reference.category}
+                      </p>
+                      <p className="mt-1 text-[12px] font-semibold text-gray-50">{reference.title}</p>
+                      <p className="text-[11px] text-gray-400">{reference.authors}</p>
+                    </button>
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
           </div>
         </section>

@@ -1,6 +1,8 @@
 import React from 'react';
 import { ANALYSIS_CENTRAL_HEADER } from './analysisPhaseConvention';
 import { AnalysisDiagnosticList } from './AnalysisDiagnosticList';
+import { AnalysisAspectIconHarmony } from './analysisAspectHeaderIcons';
+import { ANALYSIS_ASPECT_UI } from './analysisAspectUiTokens';
 import { AnalysisMainHeader } from './AnalysisMainHeader';
 import { AnalysisQuickTipCard } from './AnalysisQuickTipCard';
 import { AnalysisScoreCard } from './AnalysisScoreCard';
@@ -29,6 +31,7 @@ export function AnalysisHarmonyMainColumn({
   badgeClassName,
   onAutoAdjust,
 }: AnalysisHarmonyMainColumnProps) {
+  const aspectUi = ANALYSIS_ASPECT_UI.chromaticHarmony;
   const diagnostics = React.useMemo(() => buildHarmonyDiagnostics(analysis), [analysis]);
 
   return (
@@ -38,24 +41,9 @@ export function AnalysisHarmonyMainColumn({
         badgeLabel={badgeLabel}
         badgeClassName={badgeClassName}
         onAutoAdjust={onAutoAdjust}
-        autoAdjustClassName="bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-400 hover:to-fuchsia-400"
-        iconBoxClassName="bg-violet-500/15 text-violet-300"
-        icon={
-          <svg
-            viewBox="0 0 24 24"
-            className="w-5 h-5"
-            aria-hidden
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <circle cx="12" cy="12" r="10" />
-            <path d="M2 12h20" />
-            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-          </svg>
-        }
+        autoAdjustClassName={aspectUi.autoAdjust!}
+        iconBoxClassName={aspectUi.iconBox}
+        icon={<AnalysisAspectIconHarmony className="w-5 h-5" />}
       />
 
       <AnalysisScoreCard
@@ -63,8 +51,8 @@ export function AnalysisHarmonyMainColumn({
         score={analysis.swatches.length ? analysis.score : '—'}
         description={analysis.swatches.length ? analysis.scoreDesc : 'Añade roles P…A2'}
         detail="Ocho patrones (como en Armonía de color). Por patrón: se prueba cada rotación de la plantilla; cada tono se asigna al ancla más cercana. Nota base = 100 − 50·(distancia media° / tolerancia). Solo si faltan tonos para el mínimo del patrón se restan 5 puntos por tono que falta."
-        cardClassName="border-violet-500/25 bg-gradient-to-br from-violet-500/10 to-fuchsia-500/10"
-        scoreClassName="bg-gradient-to-r from-violet-400 to-fuchsia-300"
+        cardClassName={aspectUi.scoreCard}
+        scoreClassName={aspectUi.scoreValueGradient}
       >
         <div className="grid grid-cols-3 gap-2 text-center">
           <div>

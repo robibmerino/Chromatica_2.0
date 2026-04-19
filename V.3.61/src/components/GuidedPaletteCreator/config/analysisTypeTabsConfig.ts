@@ -1,6 +1,13 @@
 import { ANALYSIS_GLOBAL_MODE_LABEL, ANALYSIS_LEFT_ASIDE } from '../analysis/analysisPhaseConvention';
 
-export type AnalysisTypeId = 'basic' | 'scientific' | 'temperature' | 'vibrancy' | 'cvd' | 'harmony';
+export type AnalysisTypeId =
+  | 'basic'
+  | 'scientific'
+  | 'temperature'
+  | 'vibrancy'
+  | 'cvd'
+  | 'harmony'
+  | 'lightness';
 
 export interface AnalysisTypeTab {
   id: AnalysisTypeId;
@@ -16,4 +23,5 @@ export const ANALYSIS_TYPE_TABS: AnalysisTypeTab[] = [
   { id: 'vibrancy', label: ANALYSIS_GLOBAL_MODE_LABEL.vibrancyMode, icon: 'vibrancy' },
   { id: 'cvd', label: ANALYSIS_GLOBAL_MODE_LABEL.cvdMode, icon: 'cvd' },
   { id: 'harmony', label: ANALYSIS_GLOBAL_MODE_LABEL.harmonyMode, icon: 'harmony' },
+  { id: 'lightness', label: ANALYSIS_GLOBAL_MODE_LABEL.lightnessMode, icon: 'lightness' },
 ];

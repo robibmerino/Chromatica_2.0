@@ -1,11 +1,17 @@
 import React from 'react';
 import { ANALYSIS_RIGHT_ASIDE } from './analysisPhaseConvention';
 import { AnalysisPaletteAsideSection } from './AnalysisPaletteAsideSection';
+import { toggleExclusivePanel } from './analysisAsideAccordionToggle';
 import { TEMPERATURE_HARMONY_REFERENCES } from './temperature/temperatureHarmonyReferences';
 import type { ColorItem } from '../../../types/guidedPalette';
-import type { EditingColor, ReferenceItem, SupportSwatch } from './types';
-
-type TemperatureInfoKey = 'criterion' | 'why' | 'tip' | 'references';
+import {
+  ANALYSIS_ASIDE_INFO_KEYS,
+  createAsideInfoPanelsClosed,
+  type AnalysisAsideInfoKey,
+  type EditingColor,
+  type ReferenceItem,
+  type SupportSwatch,
+} from './types';
 
 type AnalysisTemperatureRightAsideProps = {
   effectiveColors: ColorItem[];
@@ -30,15 +36,10 @@ export function AnalysisTemperatureRightAside({
   setDraftHex,
   onOpenReference,
 }: AnalysisTemperatureRightAsideProps) {
-  const [openPanels, setOpenPanels] = React.useState<Record<TemperatureInfoKey, boolean>>({
-    criterion: false,
-    why: false,
-    tip: false,
-    references: false,
-  });
+  const [openPanels, setOpenPanels] = React.useState<Record<AnalysisAsideInfoKey, boolean>>(createAsideInfoPanelsClosed);
 
-  const toggle = React.useCallback((key: TemperatureInfoKey) => {
-    setOpenPanels((c) => ({ ...c, [key]: !c[key] }));
+  const toggle = React.useCallback((key: AnalysisAsideInfoKey) => {
+    setOpenPanels((c) => toggleExclusivePanel(key, c, ANALYSIS_ASIDE_INFO_KEYS));
   }, []);
 
   return (
@@ -229,7 +230,7 @@ export function AnalysisTemperatureRightAside({
                     key={reference.id}
                     type="button"
                     onClick={() => onOpenReference(reference)}
-                    className="w-full text-left rounded-xl border border-gray-700/70 bg-gray-900/80 px-3 py-2 hover:border-indigo-400/60 hover:bg-gray-800/80 transition-colors"
+                    className="w-full text-left rounded-xl border border-gray-700/70 bg-gray-900/80 px-3 py-2 hover:border-amber-400/60 hover:bg-gray-800/80 transition-colors"
                   >
                     <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-indigo-200">
                       {reference.category}

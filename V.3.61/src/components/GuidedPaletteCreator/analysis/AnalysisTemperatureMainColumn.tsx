@@ -8,6 +8,8 @@ import {
   wcToSpectrumPercent,
 } from './temperature/temperatureHarmonyAnalysis';
 import { AnalysisScoreCard } from './AnalysisScoreCard';
+import { AnalysisAspectIconTemperature } from './analysisAspectHeaderIcons';
+import { ANALYSIS_ASPECT_UI } from './analysisAspectUiTokens';
 import { AnalysisMainHeader } from './AnalysisMainHeader';
 import { AnalysisDiagnosticList } from './AnalysisDiagnosticList';
 import { AnalysisQuickTipCard } from './AnalysisQuickTipCard';
@@ -117,6 +119,7 @@ export function AnalysisTemperatureMainColumn({
   badgeClassName,
   onAutoAdjust,
 }: AnalysisTemperatureMainColumnProps) {
+  const aspectUi = ANALYSIS_ASPECT_UI.temperatureHarmony;
   const diagnostics = React.useMemo(() => buildTemperatureDiagnostics(analysis), [analysis]);
   const atm = React.useMemo(() => atmosphereFromAnalysis(analysis), [analysis]);
   const darkest = React.useMemo(
@@ -145,23 +148,10 @@ export function AnalysisTemperatureMainColumn({
         title={ANALYSIS_CENTRAL_HEADER.titleTemperatureHarmony}
         badgeLabel={badgeLabel}
         badgeClassName={badgeClassName}
-        iconBoxClassName="bg-orange-500/15 text-orange-300"
-        icon={
-          <svg
-            viewBox="0 0 24 24"
-            className="w-5 h-5"
-            aria-hidden
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z" />
-          </svg>
-        }
+        iconBoxClassName={aspectUi.iconBox}
+        icon={<AnalysisAspectIconTemperature className="w-5 h-5" />}
         onAutoAdjust={onAutoAdjust}
-        autoAdjustClassName="bg-gradient-to-r from-orange-500 to-sky-500 hover:from-orange-400 hover:to-sky-400"
+        autoAdjustClassName={aspectUi.autoAdjust!}
       />
 
       <AnalysisScoreCard
@@ -169,8 +159,8 @@ export function AnalysisTemperatureMainColumn({
         score={analysis.swatches.length ? analysis.score : '—'}
         description={analysis.swatches.length ? scoreDesc : 'Añade roles P…F'}
         detail="Combina balance cálido/frío, neutralidad y separación térmica entre roles (escala warm-cool en CIELAB)."
-        cardClassName="border-orange-500/25 bg-gradient-to-br from-orange-500/10 to-sky-500/10"
-        scoreClassName="bg-gradient-to-r from-orange-400 to-sky-400"
+        cardClassName={aspectUi.scoreCard}
+        scoreClassName={aspectUi.scoreValueGradient}
       />
 
       <AnalysisSectionBlock title="Atmósfera de la paleta" titleClassName="uppercase tracking-wide">

@@ -1,11 +1,17 @@
 import React from 'react';
 import type { ColorItem } from '../../../types/guidedPalette';
 import { AnalysisPaletteAsideSection } from './AnalysisPaletteAsideSection';
+import { toggleExclusivePanel } from './analysisAsideAccordionToggle';
 import { ANALYSIS_RIGHT_ASIDE } from './analysisPhaseConvention';
 import { HARMONY_REFERENCES } from './harmony/harmonyReferences';
-import type { EditingColor, ReferenceItem, SupportSwatch } from './types';
-
-type HarmonyInfoKey = 'criterion' | 'why' | 'tip' | 'references';
+import {
+  ANALYSIS_ASIDE_INFO_KEYS,
+  createAsideInfoPanelsClosed,
+  type AnalysisAsideInfoKey,
+  type EditingColor,
+  type ReferenceItem,
+  type SupportSwatch,
+} from './types';
 
 type AnalysisHarmonyRightAsideProps = {
   effectiveColors: ColorItem[];
@@ -30,15 +36,10 @@ export function AnalysisHarmonyRightAside({
   setDraftHex,
   onOpenReference,
 }: AnalysisHarmonyRightAsideProps) {
-  const [openPanels, setOpenPanels] = React.useState<Record<HarmonyInfoKey, boolean>>({
-    criterion: false,
-    why: false,
-    tip: false,
-    references: false,
-  });
+  const [openPanels, setOpenPanels] = React.useState<Record<AnalysisAsideInfoKey, boolean>>(createAsideInfoPanelsClosed);
 
-  const toggle = React.useCallback((key: HarmonyInfoKey) => {
-    setOpenPanels((current) => ({ ...current, [key]: !current[key] }));
+  const toggle = React.useCallback((key: AnalysisAsideInfoKey) => {
+    setOpenPanels((current) => toggleExclusivePanel(key, current, ANALYSIS_ASIDE_INFO_KEYS));
   }, []);
 
   return (

@@ -2,6 +2,8 @@ import React from 'react';
 import { ANALYSIS_CENTRAL_HEADER } from './analysisPhaseConvention';
 import { buildVibrancyDiagnostics, type VibrancyAnalysisResult } from './vibrancy/vibrancyAnalysis';
 import { AnalysisScoreCard } from './AnalysisScoreCard';
+import { AnalysisAspectIconFocus } from './analysisAspectHeaderIcons';
+import { ANALYSIS_ASPECT_UI } from './analysisAspectUiTokens';
 import { AnalysisMainHeader } from './AnalysisMainHeader';
 import { AnalysisDiagnosticList } from './AnalysisDiagnosticList';
 import { AnalysisQuickTipCard } from './AnalysisQuickTipCard';
@@ -28,6 +30,7 @@ export function AnalysisVibrancyMainColumn({
   badgeClassName,
   onAutoAdjust,
 }: AnalysisVibrancyMainColumnProps) {
+  const aspectUi = ANALYSIS_ASPECT_UI.vibrancyHarmony;
   const diagnostics = React.useMemo(() => buildVibrancyDiagnostics(analysis), [analysis]);
 
   const distSegments = React.useMemo(
@@ -48,23 +51,10 @@ export function AnalysisVibrancyMainColumn({
         title={ANALYSIS_CENTRAL_HEADER.titleVibrancyHarmony}
         badgeLabel={badgeLabel}
         badgeClassName={badgeClassName}
-        iconBoxClassName="bg-fuchsia-500/15 text-fuchsia-300"
-        icon={
-          <svg
-            viewBox="0 0 24 24"
-            className="w-5 h-5"
-            aria-hidden
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-          </svg>
-        }
+        iconBoxClassName={aspectUi.iconBox}
+        icon={<AnalysisAspectIconFocus className="w-5 h-5" />}
         onAutoAdjust={onAutoAdjust}
-        autoAdjustClassName="bg-gradient-to-r from-fuchsia-500 to-amber-400 hover:from-fuchsia-400 hover:to-amber-300"
+        autoAdjustClassName={aspectUi.autoAdjust!}
       />
 
       <AnalysisScoreCard
@@ -72,8 +62,8 @@ export function AnalysisVibrancyMainColumn({
         score={analysis.swatches.length ? analysis.score : '—'}
         description={analysis.swatches.length ? scoreDesc : 'Añade roles P…F'}
         detail="Equilibra patrón cromático global y foco visual de A/A2 frente a P/S."
-        cardClassName="border-fuchsia-500/25 bg-gradient-to-br from-fuchsia-500/10 to-amber-400/10"
-        scoreClassName="bg-gradient-to-r from-fuchsia-400 to-amber-300"
+        cardClassName={aspectUi.scoreCard}
+        scoreClassName={aspectUi.scoreValueGradient}
       >
         <div className="grid grid-cols-3 gap-2 text-center">
           <div>
@@ -202,7 +192,7 @@ export function AnalysisVibrancyMainColumn({
         </div>
       </section>
 
-      <section className="rounded-xl border border-cyan-500/25 bg-slate-900/45 p-4 space-y-3">
+      <section className={`rounded-xl border ${aspectUi.sectionBorder ?? 'border-fuchsia-500/25'} bg-slate-900/45 p-4 space-y-3`}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">Foco visual (A / A2)</h3>
           <span

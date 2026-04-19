@@ -8,7 +8,7 @@ type AnalysisReferenceModalProps = {
 
 /** `**negrita**` y `^^énfasis cian^^` en textos de referencia (solo estos patrones). */
 function renderReferenceSummaryInline(text: string): React.ReactNode {
-  const segments = text.split(/(\*\*[^*]+\*\*|\^\^[^\^]+\^\^)/g).filter(Boolean);
+  const segments = text.split(/(\*\*[^*]+\*\*|\^\^[^^]+\^\^)/g).filter(Boolean);
   return segments.map((seg, i) => {
     if (seg.startsWith('**') && seg.endsWith('**')) {
       return (

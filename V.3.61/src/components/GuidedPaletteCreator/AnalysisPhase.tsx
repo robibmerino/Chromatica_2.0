@@ -7,6 +7,8 @@ import { ColorEditPanelBody } from '../ColorEditPanelBody';
 import type { AnalysisTypeId } from './config/analysisTypeTabsConfig';
 import type { ColorItem } from '../../types/guidedPalette';
 import { getContrastRatioHex } from '../../utils/colorUtils';
+import { AnalysisAspectIconContrast } from './analysis/analysisAspectHeaderIcons';
+import { ANALYSIS_ASPECT_UI, ANALYSIS_CONTRAST_EXPLORER_ACCENT } from './analysis/analysisAspectUiTokens';
 import { ANALYSIS_CENTRAL_HEADER, ANALYSIS_CENTRAL_SECTION } from './analysis/analysisPhaseConvention';
 import { AnalysisContrastLeftAside } from './analysis/AnalysisContrastLeftAside';
 import { AnalysisContrastRightAside } from './analysis/AnalysisContrastRightAside';
@@ -20,6 +22,8 @@ import { AnalysisCvdMainColumn } from './analysis/AnalysisCvdMainColumn';
 import { AnalysisCvdRightAside } from './analysis/AnalysisCvdRightAside';
 import { AnalysisHarmonyMainColumn } from './analysis/AnalysisHarmonyMainColumn';
 import { AnalysisHarmonyRightAside } from './analysis/AnalysisHarmonyRightAside';
+import { AnalysisLightnessMainColumn } from './analysis/AnalysisLightnessMainColumn';
+import { AnalysisLightnessRightAside } from './analysis/AnalysisLightnessRightAside';
 import { AnalysisScoreCard } from './analysis/AnalysisScoreCard';
 import { AnalysisMainHeader } from './analysis/AnalysisMainHeader';
 import { AnalysisReferenceModal } from './analysis/AnalysisReferenceModal';
@@ -53,6 +57,11 @@ import {
   harmonyBadge,
   harmonySidebarTone,
 } from './analysis/harmony/harmonyAnalysis';
+import {
+  evaluateLightnessBalance,
+  lightnessBadge,
+  lightnessSidebarTone,
+} from './analysis/lightness/lightnessBalanceAnalysis';
 import type { AnalysisAspectId, EditingColor, ReferenceItem, RoleKey } from './analysis/types';
 import { TOP_COMBOS_ROLE } from './analysis/types';
 
@@ -135,7 +144,9 @@ function AnalysisPhaseInner(props: AnalysisPhaseProps) {
           ? 'cvdSimulation'
           : analysisType === 'harmony'
             ? 'chromaticHarmony'
-            : 'perceptualDeltaE';
+            : analysisType === 'lightness'
+              ? 'lightnessBalance'
+              : 'perceptualDeltaE';
   const setAnalysisAspect = React.useCallback(
     (aspect: AnalysisAspectId) => {
       if (aspect === 'wcagText') setAnalysisType('basic');
@@ -143,6 +154,7 @@ function AnalysisPhaseInner(props: AnalysisPhaseProps) {
       else if (aspect === 'vibrancyHarmony') setAnalysisType('vibrancy');
       else if (aspect === 'cvdSimulation') setAnalysisType('cvd');
       else if (aspect === 'chromaticHarmony') setAnalysisType('harmony');
+      else if (aspect === 'lightnessBalance') setAnalysisType('lightness');
       else setAnalysisType('scientific');
     },
     [setAnalysisType]
@@ -203,6 +215,7 @@ function AnalysisPhaseInner(props: AnalysisPhaseProps) {
     handleAutoAdjustVibrancyHarmony,
     handleAutoAdjustCvd,
     handleAutoAdjustHarmony,
+    handleAutoAdjustLightness,
   } = wcag;
 
   const posterPerceptualEvaluated = React.useMemo(() => evaluatePosterPerceptualDeltaE(roleHexMap), [roleHexMap]);
@@ -263,11 +276,17 @@ function AnalysisPhaseInner(props: AnalysisPhaseProps) {
   const harmonyTone = React.useMemo(() => harmonySidebarTone(harmonyScoreValue), [harmonyScoreValue]);
   const harmonyBadgeInfo = React.useMemo(() => harmonyBadge(harmonyScoreValue), [harmonyScoreValue]);
 
+  const lightnessAnalysis = React.useMemo(() => evaluateLightnessBalance(roleHexMap), [roleHexMap]);
+  const lightnessScoreValue = lightnessAnalysis.score;
+  const lightnessTone = React.useMemo(() => lightnessSidebarTone(lightnessScoreValue), [lightnessScoreValue]);
+  const lightnessBadgeInfo = React.useMemo(() => lightnessBadge(lightnessScoreValue), [lightnessScoreValue]);
+
   const headlineScore = React.useMemo(() => {
     const parts: number[] = [];
     if (contrastScore != null) parts.push(contrastScore);
     parts.push(posterPerceptualScoreValue);
     parts.push(temperatureHarmonyScoreValue);
+    parts.push(lightnessScoreValue);
     parts.push(vibrancyHarmonyScoreValue);
     parts.push(cvdGlobalScoreValue);
     parts.push(harmonyScoreValue);
@@ -276,6 +295,7 @@ function AnalysisPhaseInner(props: AnalysisPhaseProps) {
     contrastScore,
     posterPerceptualScoreValue,
     temperatureHarmonyScoreValue,
+    lightnessScoreValue,
     vibrancyHarmonyScoreValue,
     cvdGlobalScoreValue,
     harmonyScoreValue,
@@ -318,6 +338,7 @@ function AnalysisPhaseInner(props: AnalysisPhaseProps) {
             textScore={contrastScore}
             posterPerceptualScore={posterPerceptualScoreValue}
             temperatureHarmonyScore={temperatureHarmonyScoreValue}
+            lightnessScore={lightnessScoreValue}
             vibrancyHarmonyScore={vibrancyHarmonyScoreValue}
             cvdSimulationScore={cvdGlobalScoreValue}
             harmonyScore={harmonyScoreValue}
@@ -327,6 +348,8 @@ function AnalysisPhaseInner(props: AnalysisPhaseProps) {
             posterPerceptualSidebarScoreClass={posterPerceptualTone.textClass}
             temperatureSidebarFillClass={temperatureHarmonyTone.fillClass}
             temperatureSidebarScoreClass={temperatureHarmonyTone.textClass}
+            lightnessSidebarFillClass={lightnessTone.fillClass}
+            lightnessSidebarScoreClass={lightnessTone.textClass}
             vibrancySidebarFillClass={vibrancyHarmonyTone.fillClass}
             vibrancySidebarScoreClass={vibrancyHarmonyTone.textClass}
             cvdSidebarFillClass={cvdTone.fillClass}
@@ -384,6 +407,13 @@ function AnalysisPhaseInner(props: AnalysisPhaseProps) {
                 badgeClassName={harmonyBadgeInfo.className}
                 onAutoAdjust={handleAutoAdjustHarmony}
               />
+            ) : analysisAspect === 'lightnessBalance' ? (
+              <AnalysisLightnessMainColumn
+                analysis={lightnessAnalysis}
+                badgeLabel={lightnessBadgeInfo.label}
+                badgeClassName={lightnessBadgeInfo.className}
+                onAutoAdjust={handleAutoAdjustLightness}
+              />
             ) : (
             <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
               {/* Header del aspecto */}
@@ -391,24 +421,10 @@ function AnalysisPhaseInner(props: AnalysisPhaseProps) {
                 title={ANALYSIS_CENTRAL_HEADER.titleTextContrast}
                 badgeLabel={badgeLabel}
                 badgeClassName={badgeClassName}
-                iconBoxClassName="bg-indigo-500/15 text-indigo-300"
-                icon={
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="w-5 h-5"
-                    aria-hidden
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <circle cx="12" cy="12" r="10" />
-                    <path d="M12 2a10 10 0 0 1 0 20V2z" fill="currentColor" stroke="none" />
-                  </svg>
-                }
+                iconBoxClassName={ANALYSIS_ASPECT_UI.wcagText.iconBox}
+                icon={<AnalysisAspectIconContrast className="w-5 h-5" />}
                 onAutoAdjust={handleAutoAdjustContrast}
-                autoAdjustClassName="bg-gradient-to-r from-indigo-500 to-fuchsia-500 hover:from-indigo-400 hover:to-fuchsia-400"
+                autoAdjustClassName={ANALYSIS_ASPECT_UI.wcagText.autoAdjust!}
               />
 
               <AnalysisScoreCard
@@ -428,8 +444,8 @@ function AnalysisPhaseInner(props: AnalysisPhaseProps) {
                             : 'Conflictos de legibilidad'
                 }
                 detail="% de combinaciones seleccionadas que cumplen ratio WCAG (AA/AA grande según el tipo de texto mostrado)."
-                cardClassName="border-indigo-500/25 bg-gradient-to-br from-indigo-500/10 to-fuchsia-500/10"
-                scoreClassName="bg-gradient-to-r from-indigo-300 to-fuchsia-300"
+                cardClassName={ANALYSIS_ASPECT_UI.wcagText.scoreCard}
+                scoreClassName={ANALYSIS_ASPECT_UI.wcagText.scoreValueGradient}
               />
 
               {/* Combinaciones evaluadas */}
@@ -497,7 +513,7 @@ function AnalysisPhaseInner(props: AnalysisPhaseProps) {
                       onClick={() => setExplorerSelectedRole(TOP_COMBOS_ROLE)}
                       className={`inline-flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-xs font-semibold transition ${
                         explorerSelectedRole === TOP_COMBOS_ROLE
-                          ? 'border-cyan-400 bg-cyan-500/10 text-slate-50'
+                          ? ANALYSIS_CONTRAST_EXPLORER_ACCENT.chipActive
                           : 'border-slate-700 bg-slate-900/80 text-slate-200 hover:border-slate-500'
                       }`}
                     >
@@ -530,7 +546,7 @@ function AnalysisPhaseInner(props: AnalysisPhaseProps) {
                             onClick={() => setExplorerSelectedRole(role)}
                             className={`inline-flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-xs font-semibold transition ${
                               isActive
-                                ? 'border-cyan-400 bg-cyan-500/10 text-slate-50'
+                                ? ANALYSIS_CONTRAST_EXPLORER_ACCENT.chipActive
                                 : 'border-slate-700 bg-slate-900/80 text-slate-200 hover:border-slate-500'
                             }`}
                           >
@@ -576,7 +592,7 @@ function AnalysisPhaseInner(props: AnalysisPhaseProps) {
 
                           let valueColor = 'text-rose-400';
                           if (passAAA) valueColor = 'text-emerald-400';
-                          else if (passAA) valueColor = 'text-cyan-400';
+                          else if (passAA) valueColor = ANALYSIS_CONTRAST_EXPLORER_ACCENT.textPassAa;
                           else if (passLarge) valueColor = 'text-amber-300';
 
                           const isSelected = selectedCombos.some(
@@ -611,7 +627,7 @@ function AnalysisPhaseInner(props: AnalysisPhaseProps) {
                               }}
                               className={`rounded-xl px-3.5 py-3 text-center transition border ${
                                 isSelected
-                                  ? 'bg-slate-900 border-cyan-400/80 shadow-[0_0_0_1px_rgba(34,211,238,0.5)]'
+                                  ? ANALYSIS_CONTRAST_EXPLORER_ACCENT.gridSelected
                                   : 'bg-slate-950/60 border-slate-800 hover:border-slate-600'
                               }`}
                             >
@@ -630,14 +646,16 @@ function AnalysisPhaseInner(props: AnalysisPhaseProps) {
                               <div className="mt-1.5 flex justify-center gap-1">
                                 <span
                                   className={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${
-                                    passLarge ? 'bg-cyan-500/15 text-cyan-300' : 'bg-rose-500/10 text-rose-300'
+                                    passLarge
+                                      ? ANALYSIS_CONTRAST_EXPLORER_ACCENT.pillPass
+                                      : 'bg-rose-500/10 text-rose-300'
                                   }`}
                                 >
                                   AA lg
                                 </span>
                                 <span
                                   className={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${
-                                    passAA ? 'bg-cyan-500/15 text-cyan-300' : 'bg-rose-500/10 text-rose-300'
+                                    passAA ? ANALYSIS_CONTRAST_EXPLORER_ACCENT.pillPass : 'bg-rose-500/10 text-rose-300'
                                   }`}
                                 >
                                   AA
@@ -672,7 +690,7 @@ function AnalysisPhaseInner(props: AnalysisPhaseProps) {
 
                           let valueColor = 'text-rose-400';
                           if (passAAA) valueColor = 'text-emerald-400';
-                          else if (passAA) valueColor = 'text-cyan-400';
+                          else if (passAA) valueColor = ANALYSIS_CONTRAST_EXPLORER_ACCENT.textPassAa;
                           else if (passLarge) valueColor = 'text-amber-300';
 
                           const isSelected = selectedCombos.some(
@@ -707,7 +725,7 @@ function AnalysisPhaseInner(props: AnalysisPhaseProps) {
                               }}
                               className={`rounded-xl px-3.5 py-3 text-center transition border ${
                                 isSelected
-                                  ? 'bg-slate-900 border-cyan-400/80 shadow-[0_0_0_1px_rgba(34,211,238,0.5)]'
+                                  ? ANALYSIS_CONTRAST_EXPLORER_ACCENT.gridSelected
                                   : 'bg-slate-950/60 border-slate-800 hover:border-slate-600'
                               }`}
                             >
@@ -726,14 +744,16 @@ function AnalysisPhaseInner(props: AnalysisPhaseProps) {
                               <div className="mt-1.5 flex justify-center gap-1">
                                 <span
                                   className={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${
-                                    passLarge ? 'bg-cyan-500/15 text-cyan-300' : 'bg-rose-500/10 text-rose-300'
+                                    passLarge
+                                      ? ANALYSIS_CONTRAST_EXPLORER_ACCENT.pillPass
+                                      : 'bg-rose-500/10 text-rose-300'
                                   }`}
                                 >
                                   AA lg
                                 </span>
                                 <span
                                   className={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${
-                                    passAA ? 'bg-cyan-500/15 text-cyan-300' : 'bg-rose-500/10 text-rose-300'
+                                    passAA ? ANALYSIS_CONTRAST_EXPLORER_ACCENT.pillPass : 'bg-rose-500/10 text-rose-300'
                                   }`}
                                 >
                                   AA
@@ -810,6 +830,18 @@ function AnalysisPhaseInner(props: AnalysisPhaseProps) {
             />
           ) : analysisAspect === 'chromaticHarmony' ? (
             <AnalysisHarmonyRightAside
+              effectiveColors={effectiveColors}
+              effectiveSupportColors={effectiveSupportColors}
+              resetSupportPalette={resetSupportPalette}
+              supportResetButtonRef={supportResetButtonRef}
+              supportResetTooltipRect={supportResetTooltipRect}
+              setSupportResetTooltipRect={setSupportResetTooltipRect}
+              setEditingColor={setEditingColor}
+              setDraftHex={setDraftHex}
+              onOpenReference={setActiveReference}
+            />
+          ) : analysisAspect === 'lightnessBalance' ? (
+            <AnalysisLightnessRightAside
               effectiveColors={effectiveColors}
               effectiveSupportColors={effectiveSupportColors}
               resetSupportPalette={resetSupportPalette}

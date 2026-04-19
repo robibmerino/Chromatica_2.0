@@ -26,7 +26,7 @@ function scaleLightness(hex: string, delta: number): string {
 
 /** Candidatos de un solo paso a partir del estado de armonía actual. */
 function candidateHexes(baseHex: string, analysis: TemperatureHarmonyResult, role: string): string[] {
-  const { warmCount, coolCount, warmPct, coolPct, neutralCount, swatches } = analysis;
+  const { warmCount, coolCount, neutralCount, swatches } = analysis;
   const n = swatches.length || 1;
   const warmRatio = warmCount / n;
   const coolRatio = coolCount / n;

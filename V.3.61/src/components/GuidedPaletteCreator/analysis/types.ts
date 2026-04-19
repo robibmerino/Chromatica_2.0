@@ -30,11 +30,26 @@ export type ReferenceItem = {
 
 export type InfoPanelKey = 'ratio' | 'importance' | 'tip' | 'references';
 
+/** Paneles informativos del aside derecho (criterio, por qué importa, consejo, referencias). */
+export type AnalysisAsideInfoKey = 'criterion' | 'why' | 'tip' | 'references';
+
+export const ANALYSIS_ASIDE_INFO_KEYS: readonly AnalysisAsideInfoKey[] = [
+  'criterion',
+  'why',
+  'tip',
+  'references',
+];
+
+export function createAsideInfoPanelsClosed(): Record<AnalysisAsideInfoKey, boolean> {
+  return { criterion: false, why: false, tip: false, references: false };
+}
+
 /** Aspecto activo dentro de la fase Análisis (más tipos se pueden añadir después). */
 export type AnalysisAspectId =
   | 'wcagText'
   | 'perceptualDeltaE'
   | 'temperatureHarmony'
+  | 'lightnessBalance'
   | 'vibrancyHarmony'
   | 'cvdSimulation'
   | 'chromaticHarmony';

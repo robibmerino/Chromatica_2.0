@@ -9,6 +9,8 @@ import {
   simulateCvdHex,
 } from './cvd/cvdAnalysis';
 import { AnalysisScoreCard } from './AnalysisScoreCard';
+import { AnalysisAspectIconCvd } from './analysisAspectHeaderIcons';
+import { ANALYSIS_ASPECT_UI } from './analysisAspectUiTokens';
 import { AnalysisMainHeader } from './AnalysisMainHeader';
 import { AnalysisQuickTipCard } from './AnalysisQuickTipCard';
 import { AnalysisSectionBlock } from './AnalysisSectionBlock';
@@ -69,6 +71,7 @@ export function AnalysisCvdMainColumn({
   badgeClassName,
   onAutoAdjust,
 }: AnalysisCvdMainColumnProps) {
+  const aspectUi = ANALYSIS_ASPECT_UI.cvdSimulation;
   const conflicts = React.useMemo(
     () => detectCvdConflicts(roleHexMap, selectedCvd),
     [roleHexMap, selectedCvd]
@@ -84,23 +87,9 @@ export function AnalysisCvdMainColumn({
         badgeLabel={badgeLabel}
         badgeClassName={badgeClassName}
         onAutoAdjust={onAutoAdjust}
-        autoAdjustClassName="bg-gradient-to-r from-fuchsia-500 to-cyan-400 hover:from-fuchsia-400 hover:to-cyan-300"
-        iconBoxClassName="bg-pink-500/15 text-pink-300"
-        icon={
-          <svg
-            viewBox="0 0 24 24"
-            className="w-5 h-5"
-            aria-hidden
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-            <circle cx="12" cy="12" r="3" />
-          </svg>
-        }
+        autoAdjustClassName={aspectUi.autoAdjust!}
+        iconBoxClassName={aspectUi.iconBox}
+        icon={<AnalysisAspectIconCvd className="w-5 h-5" />}
       />
 
       <AnalysisScoreCard
@@ -108,8 +97,8 @@ export function AnalysisCvdMainColumn({
         score={globalScore}
         description={globalScoreDesc}
         detail="Por cada par P–F se usa el menor ΔE Lab entre protanopia, deuteranopia y tritanopia (peor caso); si es < 10, no cuenta como distinguible."
-        cardClassName="border-cyan-500/25 bg-gradient-to-br from-fuchsia-500/10 to-cyan-500/10"
-        scoreClassName="bg-gradient-to-r from-fuchsia-400 to-cyan-300"
+        cardClassName={aspectUi.scoreCard}
+        scoreClassName={aspectUi.scoreValueGradient}
         className="-mt-1"
       />
 
@@ -125,7 +114,7 @@ export function AnalysisCvdMainColumn({
               aria-pressed={active}
               className={`min-w-0 rounded-lg border px-1.5 sm:px-2 py-2 text-center transition ${
                 active
-                  ? 'border-cyan-400/80 bg-cyan-500/10 ring-1 ring-cyan-500/25'
+                  ? 'border-rose-400/80 bg-rose-500/10 ring-1 ring-rose-500/25'
                   : 'border-slate-700 bg-slate-950/50 hover:border-slate-500'
               }`}
             >
@@ -138,7 +127,7 @@ export function AnalysisCvdMainColumn({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div className="rounded-xl border border-slate-800 bg-slate-900/60 overflow-hidden">
-          <div className="px-3 py-2 border-b border-slate-800 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-cyan-400">
+          <div className="px-3 py-2 border-b border-slate-800 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-rose-400">
             <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" aria-hidden fill="none" stroke="currentColor" strokeWidth={2}>
               <circle cx="12" cy="12" r="10" />
               <path d="M12 6v6l4 2" />
