@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import {
-  Sparkles,
+  Cog,
   SlidersHorizontal,
   Layout,
   BarChart2,
@@ -8,7 +8,7 @@ import {
   Check,
   type LucideIcon,
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import ButtonParticles from '../ButtonParticles';
 import { ChromaticaSymbolLogo } from '../ChromaticaSymbolLogo';
 import {
@@ -21,13 +21,16 @@ import type { Phase } from '../../types/guidedPalette';
 import type { InspirationMode } from '../../types/guidedPalette';
 
 const PHASE_ICONS: Record<string, LucideIcon> = {
-  'inspiration-menu': Sparkles,
-  'inspiration-detail': Sparkles,
+  'inspiration-menu': Cog,
+  'inspiration-detail': Cog,
   refinement: SlidersHorizontal,
   application: Layout,
   analysis: BarChart2,
   save: Save,
 };
+
+/** Duración de una vuelta completa del engranaje Fábrica (solo paso actual; más lento que `animate-spin`). */
+const FABRICA_GEAR_SPIN_DURATION_S = 3.5;
 
 /** Colores del cuadradito origen Chromática (verde, azul, magenta, naranja = los 4 flujos) */
 const QUAD_COLORS = ['#059669', '#2563eb', '#c026d3', '#ea580c'] as const;
@@ -71,6 +74,7 @@ export function FlowProgress({
 }: FlowProgressProps) {
   const progressPercent = (currentStepperIndex / (TOTAL_STEPS - 1)) * 100;
   const flowAccent = getFlowAccent(inspirationMode) ?? DEFAULT_ACCENT;
+  const prefersReducedMotion = useReducedMotion();
 
   const canGoToStep = (index: number) => {
     if (currentStepperIndex === 0) return index === 0;
@@ -134,7 +138,7 @@ export function FlowProgress({
         </p>
       </div>
 
-      {/* Escritorio: cuadradito | Inspiración | separador | [Refinar–Aplicar–Análisis] grupo | Guardar */}
+      {/* Escritorio: cuadradito | Fábrica | separador | [Refinar–Aplicar–Análisis] grupo | Guardar */}
       <div className="hidden md:flex items-center w-full">
         {STEPPER_STEPS.map((step, index) => {
           const completed = isCompleted(index);
@@ -143,7 +147,7 @@ export function FlowProgress({
           const targetPhase = step.id as Phase;
           const label = getStepLabel(index);
           const isHovered = hoveredIndex === index;
-          const Icon = PHASE_ICONS[step.id] ?? Sparkles;
+          const Icon = PHASE_ICONS[step.id] ?? Cog;
           const isInspirationStep = index === 1;
           const isInRefineApplyAnalysis = index >= 2 && index <= 4;
           /** En el eje Refinar-Aplicar-Análisis, si hay ediciones guardadas, mostrar como completado (color del flujo + check) aunque no se haya pasado por ese paso. */
@@ -151,7 +155,7 @@ export function FlowProgress({
           const showCompleted = completed || effectiveCompletedInGroup;
           const connectorColor = showCompleted ? flowAccent.completedBorder : 'rgba(75, 85, 99, 0.5)';
 
-          /** Ancho fijo del paso Inspiración (compacto; cabe "Paletas en tendencia"). */
+          /** Ancho fijo del paso Fábrica (compacto; cabe "Fabrica de Arquetipos"). */
           const inspirationStepWidth = 'w-[11rem]';
           /** Check verde solo si el paso está completado O si esa sección del eje tiene ediciones. */
           const showCheckForIndex = (idx: number) =>
@@ -165,6 +169,8 @@ export function FlowProgress({
             const showCheck = showCheckForIndex(index);
             /** En Refinar/Aplicar/Análisis el recuadro verde (fondo) solo si esa sección tiene ediciones o está completada; fuera del grupo igual que antes. */
             const showStyleCompleted = isInRefineApplyAnalysis ? showCheck : showAsCompleted;
+            const spinFabricaGear =
+              isInspirationStep && current && !prefersReducedMotion;
             return (
               <motion.button
                 key={step.id + index}
@@ -203,9 +209,9 @@ export function FlowProgress({
                   <ButtonParticles isHovered={current} color={current ? flowAccent.particle : showStyleCompleted ? flowAccent.completed : getParticleColor(index)} count={10} intensity="light" />
                 </div>
                 <span
-                  className={`relative z-10 flex shrink-0 items-center justify-center rounded-md w-7 h-7 transition-colors ${
-                    current ? 'bg-white/10' : showCheck ? 'bg-white/10' : 'bg-gray-700/50'
-                  }`}
+                  className={`relative z-10 flex shrink-0 items-center justify-center rounded-md transition-colors ${
+                    isInspirationStep ? 'w-8 h-8' : 'w-7 h-7'
+                  } ${current ? 'bg-white/10' : showCheck ? 'bg-white/10' : 'bg-gray-700/50'}`}
                 >
                   {step.showQuadOnly ? (
                     <span className="w-4 h-4 rounded overflow-hidden grid grid-cols-2 grid-rows-2" aria-hidden>
@@ -213,8 +219,24 @@ export function FlowProgress({
                         <span key={i} style={{ backgroundColor: fill }} />
                       ))}
                     </span>
-                  ) : showCheck ? (
+                  ) : showCheck && !isInspirationStep ? (
                     <Check className="w-3.5 h-3.5" strokeWidth={2.5} style={{ color: flowAccent.completed }} />
+                  ) : isInspirationStep ? (
+                    <motion.span
+                      className="inline-flex items-center justify-center"
+                      animate={spinFabricaGear ? { rotate: 360 } : { rotate: 0 }}
+                      transition={
+                        spinFabricaGear
+                          ? { duration: FABRICA_GEAR_SPIN_DURATION_S, repeat: Infinity, ease: 'linear' }
+                          : { duration: 0.2 }
+                      }
+                    >
+                      <Icon
+                        className="w-[1.125rem] h-[1.125rem]"
+                        strokeWidth={2}
+                        style={isInspirationStep && showCheck ? { color: flowAccent.completed } : undefined}
+                      />
+                    </motion.span>
                   ) : (
                     <Icon className="w-3.5 h-3.5" strokeWidth={2} />
                   )}
@@ -317,7 +339,7 @@ export function FlowProgress({
                   const ph = s.id as Phase;
                   const lbl = getStepLabel(idx);
                   const hov = hoveredIndex === idx;
-                  const Ic = PHASE_ICONS[s.id] ?? Sparkles;
+                  const Ic = PHASE_ICONS[s.id] ?? Cog;
                   return (
                     <div key={s.id + idx} className="flex items-center flex-shrink-0">
                       <motion.button

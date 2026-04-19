@@ -129,6 +129,22 @@ const MENU_SUBFLOW_MODE_MAP: Partial<Record<InspirationMode, InspirationMode[]>>
   'archetypes-menu': ['archetypes', 'shapes', 'aquarium', 'design'],
 };
 
+/** Subflujo de Arquetipos/Formas con estado de cadena guardado; prioriza el más usado recientemente. */
+function pickArchetypesMenuResumeSubflow(
+  flowMap: Partial<Record<InspirationMode, FlowPaletteState>>,
+  useOrder: Partial<Record<InspirationMode, number>>
+): InspirationMode | null {
+  const subflows = MENU_SUBFLOW_MODE_MAP['archetypes-menu'];
+  if (!subflows?.length) return null;
+  const withState = subflows.filter((m) => flowMap[m] != null);
+  if (withState.length === 0) return null;
+  return withState.reduce((best, m) => {
+    const bOrder = useOrder[best] ?? 0;
+    const mOrder = useOrder[m] ?? 0;
+    return mOrder > bOrder ? m : best;
+  }, withState[0]);
+}
+
 /** Roles de la paleta de apoyo editables en Refinar. */
 export const SUPPORT_PALETTE_ROLES: { role: SupportPaletteRole; label: string; initial: string }[] = [
   { role: 'fondo', label: 'Fondo', initial: 'F' },
@@ -1306,11 +1322,30 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
   /** Selección desde el menú de inspiración.
    *  Si el flujo ya tiene paleta individual (estado guardado), abre directamente Refinar.
    *  Si no, entra en el detalle de inspiración como hasta ahora.
+   *  `resumeSubflowFromMenu`: para la tarjeta «Arquetipos o Formas», submodo cuya paleta activa se muestra (‹ ›).
    */
   const handleInspirationSelectFromMenu = useCallback(
-    (mode: InspirationMode) => {
-      const flowState = flowPaletteStateByInspiration[mode];
-      setInspirationMode(mode);
+    (mode: InspirationMode, resumeSubflowFromMenu?: InspirationMode) => {
+      let flowState = flowPaletteStateByInspiration[mode];
+      let targetInspirationMode: InspirationMode = mode;
+
+      if (mode === 'archetypes-menu') {
+        const subflows = MENU_SUBFLOW_MODE_MAP['archetypes-menu'] ?? [];
+        const preferredSub =
+          resumeSubflowFromMenu &&
+          subflows.includes(resumeSubflowFromMenu) &&
+          flowPaletteStateByInspiration[resumeSubflowFromMenu]
+            ? resumeSubflowFromMenu
+            : null;
+        const pickedSub =
+          preferredSub ?? pickArchetypesMenuResumeSubflow(flowPaletteStateByInspiration, inspirationPaletteUseOrderByMode);
+        if (pickedSub) {
+          flowState = flowPaletteStateByInspiration[pickedSub];
+          targetInspirationMode = pickedSub;
+        }
+      }
+
+      setInspirationMode(targetInspirationMode);
 
       if (flowState) {
         const restoredColors = flowState.colors.map((c) => ({ ...c }));
@@ -1362,7 +1397,7 @@ export function useGuidedPalette(options?: UseGuidedPaletteOptions) {
       // Sin flujo previo: seguir el comportamiento estándar (detalle de inspiración).
       setPhase('inspiration-detail');
     },
-    [flowPaletteStateByInspiration]
+    [flowPaletteStateByInspiration, inspirationPaletteUseOrderByMode]
   );
 
   const handleLogoClick = useCallback(() => {

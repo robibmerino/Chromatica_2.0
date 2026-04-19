@@ -7,14 +7,14 @@ export interface PhaseConfig {
 }
 
 export const PHASES: PhaseConfig[] = [
-  { id: 'inspiration-menu', name: 'Inspiración', icon: '✨' },
+  { id: 'inspiration-menu', name: 'Fábrica', icon: '🏭' },
   { id: 'refinement', name: 'Refinamiento', icon: '🔧' },
   { id: 'application', name: 'Aplicación', icon: '👁️' },
   { id: 'analysis', name: 'Análisis', icon: '🔍' },
   { id: 'save', name: 'Guardar', icon: '💾' },
 ];
 
-/** Pasos mostrados en la barra superior: previa (4 colores) + Inspiración (opción elegida) + Refinar, Aplicar, Análisis, Guardar */
+/** Pasos mostrados en la barra superior: previa (4 colores) + Fábrica (opción elegida) + Refinar, Aplicar, Análisis, Guardar */
 export interface StepperStepConfig {
   id: Phase | 'inspiration-detail';
   name: string;
@@ -26,23 +26,23 @@ export interface StepperStepConfig {
 
 export const STEPPER_STEPS: StepperStepConfig[] = [
   { id: 'inspiration-menu', name: '', showQuadOnly: true },
-  { id: 'inspiration-detail', name: 'Inspiración', dynamicLabel: true },
+  { id: 'inspiration-detail', name: 'Fábrica', dynamicLabel: true },
   { id: 'refinement', name: 'Refinar' },
   { id: 'application', name: 'Aplicar' },
   { id: 'analysis', name: 'Análisis' },
   { id: 'save', name: 'Guardar' },
 ];
 
-/** Etiquetas para el paso "Inspiración" según el modo elegido */
+/** Etiquetas del paso Fábrica en la barra superior según el modo elegido */
 export const INSPIRATION_MODE_LABELS: Record<InspirationMode, string> = {
-  harmony: 'Armonía de color',
-  image: 'Extraer de imagen',
-  'archetypes-menu': 'Arquetipos o Formas',
-  archetypes: 'Explora Arquetipos',
-  shapes: 'Formas',
+  harmony: 'Fabrica de Armonía',
+  image: 'Fabrica de Imagen',
+  'archetypes-menu': 'Fabrica de Arquetipos',
+  archetypes: 'Fabrica de Arquetipos',
+  shapes: 'Fabrica de Arquetipos',
   aquarium: 'Pecera',
   design: 'Diseño',
-  trending: 'Paletas en tendencia',
+  trending: 'Fabrica de Tendencias',
   'multi-origin': 'Paleta combinada',
 };
 

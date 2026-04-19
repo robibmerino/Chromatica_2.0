@@ -7,6 +7,7 @@ import { AuthPage } from './components/AuthPage';
 import { SplashScreen } from './components/SplashScreen';
 import { SetNewPasswordOverlay } from './components/SetNewPasswordOverlay';
 import { SyncDemographics } from './components/SyncDemographics';
+import { supabase } from './lib/supabase';
 
 function getInitialShowSplash(): boolean {
   if (typeof window === 'undefined') return true;
@@ -30,11 +31,23 @@ export function App() {
     return () => clearTimeout(timer);
   }, []);
 
-  const handleEnter = useCallback(() => {
+  const handleEnter = useCallback(async () => {
     if (typeof window !== 'undefined') {
       window.localStorage.removeItem('guidedPaletteWorkingState.v1');
     }
     setShowSplash(false);
+
+    if (supabase) {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (session?.user) {
+        setAuthEntry(null);
+        setShowAuthView(false);
+        return;
+      }
+    }
+
     setAuthEntry('first-access');
     setShowAuthView(true);
   }, []);

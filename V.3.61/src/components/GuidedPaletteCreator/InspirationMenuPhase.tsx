@@ -11,7 +11,8 @@ import type { InspirationMenuPaletteOption } from './hooks/useGuidedPalette';
 import { INSPIRATION_MODE_LABELS } from './config/phasesConfig';
 
 interface InspirationMenuPhaseProps {
-  onSelectOption: (mode: InspirationMode) => void;
+  /** Segundo argumento: subflujo cuya paleta activa muestra la tarjeta «Arquetipos o Formas» (restaurar esa cadena). */
+  onSelectOption: (mode: InspirationMode, resumeSubflow?: InspirationMode) => void;
   /** Paletas activas por flujo (cadena Refinar→Aplicar→Análisis→Guardar). */
   activePalettesByMode?: Partial<Record<InspirationMode, string[]>>;
   /** Opciones de paleta por tarjeta (incluye subflujos agrupados). */
@@ -97,7 +98,7 @@ export function InspirationMenuPhase({
       <header
         className="mb-10 rounded-2xl border border-gray-700/40 bg-gradient-to-b from-gray-800/50 to-gray-800/20 px-6 py-7 md:px-10 md:py-9 text-center"
         role="region"
-        aria-label="Inspiración"
+        aria-label="Fábrica"
       >
         <p className="text-[11px] md:text-xs font-medium tracking-[0.2em] uppercase text-gray-500 mb-3">
           {COPY.inspiration.heroTitle}
@@ -117,15 +118,20 @@ export function InspirationMenuPhase({
         role="group"
         aria-label="Opciones de inspiración"
       >
-        {INSPIRATION_MENU_OPTIONS.map((opt, index) => (
+        {INSPIRATION_MENU_OPTIONS.map((opt, index) => {
+          const paletteMeta = getPaletteMetaForMode(opt.id);
+          const archetypesResumeSource =
+            opt.id === 'archetypes-menu' ? paletteMeta?.selectedOption?.sourceMode : undefined;
+
+          return (
           <div key={opt.id} className="flex flex-col gap-3">
             <InspirationCard
               option={opt}
               index={index}
+              resumeSubflowMode={archetypesResumeSource}
               onSelectOption={onSelectOption}
             />
             {(() => {
-              const paletteMeta = getPaletteMetaForMode(opt.id);
               if (!paletteMeta) return null;
               const { colors, selectedOption, options, normalizedIndex } = paletteMeta;
               const canCycleOptions = options.length > 1;
@@ -178,7 +184,8 @@ export function InspirationMenuPhase({
               );
             })()}
           </div>
-        ))}
+          );
+        })}
       </div>
       {hasCombinedPalette && onOpenCombinedPalette && (
         <div className="mt-8 rounded-2xl border border-gray-700/60 bg-gray-800/40 px-5 py-4">
@@ -206,12 +213,15 @@ export function InspirationMenuPhase({
 interface InspirationCardProps {
   option: (typeof INSPIRATION_MENU_OPTIONS)[number];
   index: number;
-  onSelectOption: (mode: InspirationMode) => void;
+  /** Solo tarjeta Arquetipos/Formas: subflujo de la paleta activa visible. */
+  resumeSubflowMode?: InspirationMode;
+  onSelectOption: (mode: InspirationMode, resumeSubflow?: InspirationMode) => void;
 }
 
 const InspirationCard = React.memo(function InspirationCard({
   option,
   index,
+  resumeSubflowMode,
   onSelectOption,
 }: InspirationCardProps) {
   const [isHovered, setIsHovered] = useState(false);
@@ -219,7 +229,7 @@ const InspirationCard = React.memo(function InspirationCard({
   return (
     <motion.button
       type="button"
-      onClick={() => onSelectOption(option.id)}
+      onClick={() => onSelectOption(option.id, resumeSubflowMode)}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       initial={{ opacity: 0, y: 12 }}

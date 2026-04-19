@@ -2,7 +2,7 @@
 
 export const COPY = {
   inspiration: {
-    heroTitle: 'Inspiración',
+    heroTitle: 'Fábrica',
     heroTitleAccent: 'Elige de dónde nace tu paleta',
     heroSubtitle: 'Cuatro caminos para empezar. Teoría, imagen, concepto o tendencia.',
     trendingLabel: 'Paletas en tendencia',

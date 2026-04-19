@@ -5,6 +5,6 @@ test.describe('Chromatica smoke', () => {
     await page.goto('/');
     await expect(page.getByRole('button', { name: /Comenzar/i })).toBeVisible({ timeout: 15000 });
     await page.getByRole('button', { name: /Comenzar/i }).click();
-    await expect(page.getByText(/paleta|Análisis|Inspiración/i)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/paleta|Análisis|Fábrica/i)).toBeVisible({ timeout: 10000 });
   });
 });
