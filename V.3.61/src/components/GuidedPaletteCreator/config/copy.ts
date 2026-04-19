@@ -98,4 +98,17 @@ export const COPY = {
     shuffle: 'Mezclar orden de colores',
     shuffleButton: 'Mezclar',
   },
+  savePhase: {
+    bannerTitle: 'Guardar y exportar',
+    bannerSubtitle: 'Descarga tu paleta o guárdala en tu colección',
+    primaryNewPalette: 'Crear nueva paleta',
+    rightTitle: 'Guardar en Mis Paletas',
+    rightSubtitle: 'Accede más tarde desde tu colección',
+    nameLabel: 'Nombre de la paleta',
+    namePlaceholder: 'Mi paleta increíble',
+    myPalettes: 'Mis Paletas',
+    tipMyPalettes: 'Desde «Mis Paletas» puedes editar o exportar cualquier paleta guardada.',
+    emptyPalettesTitle: 'Sin paletas guardadas',
+    emptyPalettesBody: 'Guarda esta paleta para verla aquí.',
+  },
 } as const;

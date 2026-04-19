@@ -51,9 +51,10 @@ const LOGO_LEAF_PATH =
 
 interface Props {
   posterColors: PosterPalette;
+  sceneOnly?: boolean;
 }
 
-function PackagingInner({ posterColors }: Props) {
+function PackagingInner({ posterColors, sceneOnly }: Props) {
   const c = posterColors;
   const c1 = c.primary;
   const c2 = c.accent;
@@ -65,6 +66,8 @@ function PackagingInner({ posterColors }: Props) {
   const h = POSTER_HEIGHT;
   const px = (p: number) => (p / 100) * w;
   const py = (p: number) => (p / 100) * h;
+  /** Solo banner, pie, texturas de hoja y marco; el resto del arte se muestra en Solo escena. */
+  const posterChrome = !sceneOnly;
 
   const secHeaderStyle = { ...FONT_MONO, fontSize: 8, letterSpacing: '0.3em', textTransform: 'uppercase' as const, color: c6 };
   const heroLabelStyle = { ...FONT_MONO, fontSize: 6, letterSpacing: '0.15em', textTransform: 'uppercase' as const, opacity: 0.7 };
@@ -77,14 +80,23 @@ function PackagingInner({ posterColors }: Props) {
   return (
     <div className="flex items-center justify-center w-full h-full min-h-0" role="img" aria-label="Packaging & Labels — Aura">
       <div style={{ transform: `scale(${POSTER_SCALE})`, transformOrigin: 'center center', flexShrink: 0 }}>
-        <div className="relative overflow-hidden shadow-2xl rounded" style={{ width: w, height: h, background: c5, ...FONT_SANS }}>
-          <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 300, opacity: 0.18, mixBlendMode: 'multiply', backgroundImage: `url("${BRANDING_GRAIN_URL}")`, backgroundSize: '128px' }} />
-          <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 2, opacity: 0.03, backgroundImage: `url("${BRANDING_KRAFT_URL}")`, backgroundSize: '200px' }} />
-          {LAYOUT.dividerTops.map((top) => (
-            <div key={top} className="absolute left-[5%] right-[5%] h-px pointer-events-none" style={{ top: `${top}%`, background: `linear-gradient(90deg, transparent, ${c3} 20%, ${c3} 80%, transparent)`, opacity: 0.15, zIndex: 3 }} />
-          ))}
+        <div
+          className={posterChrome ? 'relative overflow-hidden shadow-2xl rounded' : 'relative overflow-hidden'}
+          style={{ width: w, height: h, background: posterChrome ? c5 : 'transparent', ...FONT_SANS }}
+        >
+          {posterChrome && (
+            <>
+              <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 300, opacity: 0.18, mixBlendMode: 'multiply', backgroundImage: `url("${BRANDING_GRAIN_URL}")`, backgroundSize: '128px' }} />
+              <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 2, opacity: 0.03, backgroundImage: `url("${BRANDING_KRAFT_URL}")`, backgroundSize: '200px' }} />
+              {LAYOUT.dividerTops.map((top) => (
+                <div key={top} className="absolute left-[5%] right-[5%] h-px pointer-events-none" style={{ top: `${top}%`, background: `linear-gradient(90deg, transparent, ${c3} 20%, ${c3} 80%, transparent)`, opacity: 0.15, zIndex: 3 }} />
+              ))}
+            </>
+          )}
 
           {/* Cabecera — mismo formato que Ilustraciones / Papeleria */}
+          {posterChrome && (
+          <>
           <div className="absolute top-0 left-0 right-0 z-[1]" style={{ height: `${LAYOUT.headerHeight}%`, background: c1 }}>
             <div className="absolute bottom-0 left-0 right-0" style={{ height: 2, background: `linear-gradient(90deg, ${c2}, ${c4}, ${c2})`, opacity: 0.5 }} />
           </div>
@@ -117,9 +129,20 @@ function PackagingInner({ posterColors }: Props) {
               </div>
             </div>
           </div>
+          </>
+          )}
 
           {/* Hero — Packaging scene */}
-          <div className="absolute z-[20] rounded-lg overflow-hidden" style={{ top: py(LAYOUT.heroTop), left: px(5), right: px(5), height: py(LAYOUT.heroHeight), background: c1 }}>
+          <div
+            className="absolute z-[20] rounded-lg overflow-hidden"
+            style={{
+              top: posterChrome ? py(LAYOUT.heroTop) : py(4),
+              left: px(5),
+              right: px(5),
+              height: py(LAYOUT.heroHeight),
+              background: c1,
+            }}
+          >
             <div className="absolute inset-0" style={{ background: `linear-gradient(155deg, ${c1} 0%, ${c4} 28%, ${c4} 55%, ${c1} 100%)` }} />
             <div className="absolute inset-0 opacity-[0.05]" style={{ backgroundImage: `repeating-linear-gradient(87deg, transparent, transparent 14px, ${c2} 14px, ${c2} 15px)` }} />
             {/* Orbes de luz suaves para dar profundidad */}
@@ -225,8 +248,12 @@ function PackagingInner({ posterColors }: Props) {
             <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 35% 45% at 35% 45%, transparent 25%, rgba(0,0,0,.2) 100%)' }} />
           </div>
 
-          {/* Anatomy + Specs */}
-          <div className="absolute z-[20]" style={{ top: py(LAYOUT.anatomyTop), left: px(5), right: px(5) }}>
+          {/* Anatomy + Specs + Unboxing (sin cabecera en Solo escena: subimos un poco los bloques) */}
+          <>
+          <div
+            className="absolute z-[20]"
+            style={{ top: posterChrome ? py(LAYOUT.anatomyTop) : py(36.5), left: px(5), right: px(5) }}
+          >
             <div className="flex items-center gap-2 mb-1.5">
               <div style={{ width: 20, height: 2, background: c4, borderRadius: 1 }} />
               <span style={secHeaderStyle}>Packaging Anatomy</span>
@@ -310,8 +337,10 @@ function PackagingInner({ posterColors }: Props) {
             </div>
           </div>
 
-          {/* Unboxing */}
-          <div className="absolute z-[20]" style={{ top: py(LAYOUT.unboxTop), left: px(5), right: px(5) }}>
+          <div
+            className="absolute z-[20]"
+            style={{ top: posterChrome ? py(LAYOUT.unboxTop) : py(63), left: px(5), right: px(5) }}
+          >
             <div className="flex items-center gap-2 mb-1.5">
               <div style={{ width: 20, height: 2, background: c4, borderRadius: 1 }} />
               <span style={secHeaderStyle}>Unboxing Experience</span>
@@ -367,7 +396,10 @@ function PackagingInner({ posterColors }: Props) {
               })}
             </div>
           </div>
+          </>
 
+          {posterChrome && (
+          <>
           <div className="absolute bottom-[2%] right-[-4%] z-[4] pointer-events-none select-none lowercase" style={{ ...FONT_SERIF, fontSize: 140, color: c3, lineHeight: 0.65, opacity: 0.12 }}>a</div>
 
           {/* Footer — mismo formato que Ilustraciones / Papeleria */}
@@ -378,6 +410,8 @@ function PackagingInner({ posterColors }: Props) {
               <div className="rounded-full" style={{ width: 4, height: 4, background: c4 }} />
             </div>
           </div>
+          </>
+          )}
         </div>
       </div>
     </div>

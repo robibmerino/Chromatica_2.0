@@ -198,14 +198,25 @@ function HeroSection({
   c,
   px,
   py,
+  sceneOnly,
 }: {
   c: Colors;
   px: (p: number) => number;
   py: (p: number) => number;
+  sceneOnly?: boolean;
 }) {
   const { c1, c2, c3, c4, c5, c6 } = c;
   return (
-    <div className="absolute z-[20] rounded overflow-hidden" style={{ top: py(12.5), left: px(5), right: px(5), height: py(30), background: c1 }}>
+    <div
+      className="absolute z-[20] rounded overflow-hidden"
+      style={{
+        top: sceneOnly ? py(2) : py(12.5),
+        left: px(5),
+        right: px(5),
+        height: sceneOnly ? py(36) : py(30),
+        background: c1,
+      }}
+    >
       <div className="absolute inset-0" style={{ background: `linear-gradient(160deg, ${c1}, ${c4} 40%, ${c4} 100%)` }} />
       <div className="absolute inset-0 opacity-[0.06]" style={{ backgroundImage: `repeating-linear-gradient(85deg, transparent, transparent 12px, ${c2} 12px, ${c2} 13px)` }} />
       <div className="absolute inset-0 pointer-events-none opacity-[0.1]" style={{ backgroundImage: `repeating-linear-gradient(82deg, transparent 0px, transparent 18px, ${c5} 18px, ${c5} 19px)`, zIndex: 1 }} />
@@ -269,9 +280,10 @@ function HeroSection({
 
 interface Props {
   posterColors: PosterPalette;
+  sceneOnly?: boolean;
 }
 
-export function Mockup({ posterColors }: Props) {
+export function Mockup({ posterColors, sceneOnly }: Props) {
   const c = posterColors;
   const c1 = c.primary;
   const c2 = c.accent;
@@ -284,16 +296,26 @@ export function Mockup({ posterColors }: Props) {
   const px = (p: number) => (p / 100) * w;
   const py = (p: number) => (p / 100) * h;
   const colors: Colors = { c1, c2, c3, c4, c5, c6 };
+  const showChrome = !sceneOnly;
 
   return (
     <div className="flex items-center justify-center w-full h-full min-h-0">
       <div style={{ transform: `scale(${POSTER_SCALE})`, transformOrigin: 'center center', flexShrink: 0 }}>
-        <div className="relative overflow-hidden shadow-2xl rounded" style={{ width: w, height: h, background: c5, ...FONT_SANS }}>
+        <div
+          className={showChrome ? 'relative overflow-hidden shadow-2xl rounded' : 'relative overflow-hidden'}
+          style={{ width: w, height: h, background: showChrome ? c5 : 'transparent', ...FONT_SANS }}
+        >
           {/* Fondos: grano + kraft */}
-          <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 300, opacity: 0.22, mixBlendMode: 'multiply', backgroundImage: `url("${BRANDING_GRAIN_URL}")`, backgroundSize: '128px' }} />
-          <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 2, opacity: 0.03, backgroundImage: `url("${BRANDING_KRAFT_URL}")`, backgroundSize: '200px' }} />
+          {showChrome && (
+            <>
+              <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 300, opacity: 0.22, mixBlendMode: 'multiply', backgroundImage: `url("${BRANDING_GRAIN_URL}")`, backgroundSize: '128px' }} />
+              <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 2, opacity: 0.03, backgroundImage: `url("${BRANDING_KRAFT_URL}")`, backgroundSize: '200px' }} />
+            </>
+          )}
 
           {/* Header + logo */}
+          {showChrome && (
+          <>
           <div className="absolute top-0 left-0 right-0 z-[1]" style={{ height: '8%', background: c1 }}>
             <div className="absolute bottom-0 left-0 right-0" style={{ height: 2, background: `linear-gradient(90deg, ${c2}, ${c4}, ${c2})`, opacity: 0.5 }} />
           </div>
@@ -312,11 +334,13 @@ export function Mockup({ posterColors }: Props) {
               </div>
             </div>
           </div>
+          </>
+          )}
 
-          <HeroSection c={colors} px={px} py={py} />
+          <HeroSection c={colors} px={px} py={py} sceneOnly={sceneOnly} />
 
           {/* Grid 4 mockups */}
-          <div className="absolute z-[20] grid gap-2" style={{ top: py(44.5), left: px(5), right: px(5), gridTemplateColumns: 'repeat(4, 1fr)' }}>
+          <div className="absolute z-[20] grid gap-2" style={{ top: sceneOnly ? py(40) : py(44.5), left: px(5), right: px(5), gridTemplateColumns: 'repeat(4, 1fr)' }}>
             {MOCKUP_GRID_ITEMS.map((item) => (
               <div key={item.type} className="flex flex-col gap-1">
                 <div className="w-full rounded overflow-hidden relative" style={{ aspectRatio: 0.78, background: item.type === 'ceramic' || item.type === 'apron' ? c3 : c1 }}>
@@ -337,6 +361,7 @@ export function Mockup({ posterColors }: Props) {
           </div>
 
           {/* Specs */}
+          {showChrome && (
           <div className="absolute z-[60]" style={{ top: py(76), left: px(5), right: px(5) }}>
             <div className="flex items-center gap-2 mb-2">
               <div style={{ width: 20, height: 2, background: c4, borderRadius: 1 }} />
@@ -348,10 +373,15 @@ export function Mockup({ posterColors }: Props) {
               ))}
             </div>
           </div>
+          )}
 
+          {showChrome && (
+          <>
           <div className="absolute bottom-[2%] right-[-4%] z-[4] font-serif leading-[0.65] opacity-[0.18] pointer-events-none select-none lowercase" style={{ ...FONT_SERIF, fontSize: 160, color: c3 }}>a</div>
 
           <PosterFooter c={colors} />
+          </>
+          )}
         </div>
       </div>
     </div>

@@ -735,6 +735,13 @@ export default function ApplicationShowcase({
             initialHeight={560}
           >
             <ColorEditPanelBody
+              key={
+                editingColorModal.type === 'main'
+                  ? `main-${editingColorModal.index}`
+                  : editingColorModal.type === 'support'
+                    ? `support-${editingColorModal.role}`
+                    : 'custom-bg'
+              }
               draftHex={draftHex}
               setDraftHex={setDraftHex}
               onAccept={() => {

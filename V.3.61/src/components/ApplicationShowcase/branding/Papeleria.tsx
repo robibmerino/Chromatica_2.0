@@ -44,6 +44,7 @@ const SECTION_TOP = { closeUp: 44.2, technicalSpecs: 72.2 } as const;
 
 interface Props {
   posterColors: PosterPalette;
+  sceneOnly?: boolean;
 }
 
 type Colors = { c1: string; c2: string; c3: string; c4: string; c5: string; c6: string };
@@ -71,7 +72,7 @@ function SpecsPanel({
   );
 }
 
-export function Papeleria({ posterColors }: Props) {
+export function Papeleria({ posterColors, sceneOnly }: Props) {
   const c = posterColors;
   const c1 = c.primary;
   const c2 = c.accent;
@@ -84,11 +85,18 @@ export function Papeleria({ posterColors }: Props) {
   const px = (p: number) => (p / 100) * w;
   const py = (p: number) => (p / 100) * h;
   const colors: Colors = { c1, c2, c3, c4, c5, c6 };
+  /** Banner, pie, texturas y marco; líneas decorativas; «Technical Specs» y paneles solo en lámina completa. */
+  const posterChrome = !sceneOnly;
 
   return (
     <div className="flex items-center justify-center w-full h-full min-h-0">
       <div style={{ transform: `scale(${POSTER_SCALE})`, transformOrigin: 'center center', flexShrink: 0 }}>
-        <div className="relative overflow-hidden shadow-2xl rounded" style={{ width: w, height: h, background: c5, ...FONT_SANS }}>
+        <div
+          className={posterChrome ? 'relative overflow-hidden shadow-2xl rounded' : 'relative overflow-hidden'}
+          style={{ width: w, height: h, background: posterChrome ? c5 : 'transparent', ...FONT_SANS }}
+        >
+          {posterChrome && (
+            <>
           {/* Texturas */}
           <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 300, opacity: 0.18, mixBlendMode: 'multiply', backgroundImage: `url("${BRANDING_GRAIN_URL}")`, backgroundSize: '128px' }} />
           <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 2, opacity: 0.03, backgroundImage: `url("${BRANDING_KRAFT_URL}")`, backgroundSize: '200px' }} />
@@ -132,9 +140,20 @@ export function Papeleria({ posterColors }: Props) {
               </div>
             </div>
           </div>
+          </>
+          )}
 
           {/* Hero — escena papelería */}
-          <div className="absolute z-[20] rounded overflow-hidden" style={{ top: py(12.5), left: px(5), right: px(5), height: py(30), background: c1 }}>
+          <div
+            className="absolute z-[20] rounded overflow-hidden"
+            style={{
+              top: posterChrome ? py(12.5) : py(4),
+              left: px(5),
+              right: px(5),
+              height: py(30),
+              background: c1,
+            }}
+          >
             <div className="absolute inset-0" style={{ background: `linear-gradient(155deg, ${c1} 0%, ${c1} 35%, ${c1} 100%)` }} />
             <div className="absolute inset-0 opacity-[0.06]" style={{ backgroundImage: `repeating-linear-gradient(85deg, transparent, transparent 12px, ${c2} 12px, ${c2} 13px)` }} />
             <div className="absolute inset-0 pointer-events-none opacity-[0.1]" style={{ backgroundImage: `repeating-linear-gradient(82deg, transparent 0px, transparent 18px, ${c5} 18px, ${c5} 19px)`, zIndex: 1 }} />
@@ -237,8 +256,8 @@ export function Papeleria({ posterColors }: Props) {
             </div>
           </div>
 
-          {/* Grid detalle — 4 items */}
-          <div className="absolute z-[20]" style={{ top: py(SECTION_TOP.closeUp), left: px(5), right: px(5) }}>
+          {/* Close-up Details — también en Solo escena */}
+          <div className="absolute z-[20]" style={{ top: posterChrome ? py(SECTION_TOP.closeUp) : py(36), left: px(5), right: px(5) }}>
             <div className="flex items-center gap-2 mb-2">
               <div style={{ width: 20, height: 2, background: c4, borderRadius: 1 }} />
               <span style={{ ...FONT_MONO, fontSize: 9, letterSpacing: '0.3em', textTransform: 'uppercase', color: c6 }}>Close-up Details</span>
@@ -330,7 +349,8 @@ export function Papeleria({ posterColors }: Props) {
             </div>
           </div>
 
-          {/* Specs técnicas */}
+          {/* Technical Specs — solo lámina completa */}
+          {posterChrome && (
           <div className="absolute z-[20]" style={{ top: py(SECTION_TOP.technicalSpecs), left: px(5), right: px(5) }}>
             <div className="flex items-center gap-2 mb-2">
               <div style={{ width: 20, height: 2, background: c4, borderRadius: 1 }} />
@@ -364,7 +384,10 @@ export function Papeleria({ posterColors }: Props) {
               </SpecsPanel>
             </div>
           </div>
+          )}
 
+          {posterChrome && (
+          <>
           {/* Watermark */}
           <div className="absolute bottom-[2%] right-[-4%] z-[4] pointer-events-none select-none lowercase" style={{ ...FONT_SERIF, fontSize: 160, color: c3, lineHeight: 0.65, opacity: 0.12 }}>a</div>
 
@@ -376,6 +399,8 @@ export function Papeleria({ posterColors }: Props) {
               <div className="rounded-full" style={{ width: 4, height: 4, background: c4 }} />
             </div>
           </div>
+          </>
+          )}
         </div>
       </div>
     </div>

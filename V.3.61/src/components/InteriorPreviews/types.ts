@@ -10,6 +10,8 @@ export interface InteriorPalette {
 export interface InteriorPreviewProps {
   palette: InteriorPalette;
   variant: string;
+  /** Solo en layout compacto: muestra únicamente la ilustración de la escena (sin cabecera, paleta ni fichas). */
+  sceneOnly?: boolean;
 }
 
 export interface RoomColors {

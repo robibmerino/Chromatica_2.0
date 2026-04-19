@@ -56,9 +56,10 @@ const SENSES = [
 
 interface Props {
   posterColors: PosterPalette;
+  sceneOnly?: boolean;
 }
 
-function StorytellingInner({ posterColors }: Props) {
+function StorytellingInner({ posterColors, sceneOnly }: Props) {
   const c = posterColors;
   const c1 = c.primary;
   const c2 = c.accent;
@@ -82,11 +83,19 @@ function StorytellingInner({ posterColors }: Props) {
     ],
     [c1, c4, c5]
   );
+  /** Banner, pie, texturas de hoja, líneas divisorias, marca de agua y bloque de cita junto al pie (manifesto). */
+  const posterChrome = !sceneOnly;
+  const sceneTop = (pct: number) => py(posterChrome ? pct : pct - LAYOUT.headerHeight);
 
   return (
     <div className="flex items-center justify-center w-full h-full min-h-0" role="img" aria-label="Brand Storytelling — Aura">
       <div style={{ transform: `scale(${POSTER_SCALE})`, transformOrigin: 'center center', flexShrink: 0 }}>
-        <div className="relative overflow-hidden shadow-2xl rounded" style={{ width: POSTER_BASE_WIDTH, height: POSTER_HEIGHT, background: c5, ...FONT_SANS }}>
+        <div
+          className={posterChrome ? 'relative overflow-hidden shadow-2xl rounded' : 'relative overflow-hidden'}
+          style={{ width: POSTER_BASE_WIDTH, height: POSTER_HEIGHT, background: posterChrome ? c5 : 'transparent', ...FONT_SANS }}
+        >
+          {posterChrome && (
+            <>
           <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 300, opacity: 0.18, mixBlendMode: 'multiply', backgroundImage: `url("${BRANDING_GRAIN_URL}")`, backgroundSize: '128px' }} />
           <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 2, opacity: 0.03, backgroundImage: `url("${BRANDING_KRAFT_URL}")`, backgroundSize: '200px' }} />
           {LAYOUT.dividerTops.map((top) => (
@@ -125,9 +134,18 @@ function StorytellingInner({ posterColors }: Props) {
               </div>
             );
           })}
+          </>
+          )}
 
           {/* Hero — Dawn at the farm (referencia: cielo, sol, montañas, colinas, niebla, árboles, pájaros) */}
-          <div className="absolute z-[20] rounded-md overflow-hidden" style={{ top: py(LAYOUT.heroTop), ...SECTION_MARGIN, height: py(LAYOUT.heroHeight) }}>
+          <div
+            className="absolute z-[20] rounded-md overflow-hidden"
+            style={{
+              top: sceneTop(LAYOUT.heroTop),
+              ...SECTION_MARGIN,
+              height: py(LAYOUT.heroHeight),
+            }}
+          >
             <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, ${c1} 0%, ${c1} 25%, ${c4} 50%, ${c4} 60%, ${cA2} 75%, ${c5} 92%, ${cA2} 100%)` }} />
             {/* Montañas — triángulos más grandes y visibles (c1 para contraste con cielo) */}
             <div className="absolute bottom-[18%] left-0 w-0 h-0 pointer-events-none" style={{ borderLeft: '110px solid transparent', borderRight: '110px solid transparent', borderBottom: `72px solid ${c1}`, opacity: 0.82 }} />
@@ -181,7 +199,7 @@ function StorytellingInner({ posterColors }: Props) {
           </div>
 
           {/* Storyboard — 6 vignettes con ilustraciones por momento */}
-          <div className="absolute z-[20]" style={{ top: py(LAYOUT.storyTop), ...SECTION_MARGIN }}>
+          <div className="absolute z-[20]" style={{ top: sceneTop(LAYOUT.storyTop), ...SECTION_MARGIN }}>
             <div className="flex items-center gap-2 mb-1.5">
               <div style={{ width: 20, height: 2, background: c4, borderRadius: 1 }} />
               <span style={secHeaderStyle}>The Journey — Six Moments</span>
@@ -515,7 +533,7 @@ function StorytellingInner({ posterColors }: Props) {
           </div>
 
           {/* Sensory Journey — 5 senses con icono por sentido */}
-          <div className="absolute z-[20]" style={{ top: py(LAYOUT.sensesTop), ...SECTION_MARGIN }}>
+          <div className="absolute z-[20]" style={{ top: sceneTop(LAYOUT.sensesTop), ...SECTION_MARGIN }}>
             <div className="flex items-center gap-2 mb-1.5">
               <div style={{ width: 20, height: 2, background: c4, borderRadius: 1 }} />
               <span style={secHeaderStyle}>The Five Senses</span>
@@ -754,7 +772,7 @@ function StorytellingInner({ posterColors }: Props) {
           </div>
 
           {/* Emotional Map — 2 cards */}
-          <div className="absolute z-[20]" style={{ top: py(LAYOUT.emoTop), ...SECTION_MARGIN }}>
+          <div className="absolute z-[20]" style={{ top: sceneTop(LAYOUT.emoTop), ...SECTION_MARGIN }}>
             <div className="flex items-center gap-2 mb-1.5">
               <div style={{ width: 20, height: 2, background: c4, borderRadius: 1 }} />
               <span style={secHeaderStyle}>Emotional Arc</span>
@@ -799,7 +817,9 @@ function StorytellingInner({ posterColors }: Props) {
             </div>
           </div>
 
-          {/* Quote */}
+          {posterChrome && (
+          <>
+          {/* Quote — solo con cromo de póster (Solo escena lo oculta junto al pie) */}
           <div className="absolute z-[20]" style={{ top: py(LAYOUT.quoteTop), ...SECTION_MARGIN }}>
             <div className="rounded-md overflow-hidden flex items-center gap-3 p-4 relative" style={{ background: c1 }}>
               <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: `linear-gradient(90deg, ${cA2}, ${c4})`, opacity: 0.4 }} />
@@ -813,7 +833,6 @@ function StorytellingInner({ posterColors }: Props) {
               </div>
             </div>
           </div>
-
           <div className="absolute bottom-[2%] right-[-4%] z-[4] pointer-events-none select-none lowercase" style={{ ...FONT_SERIF, fontSize: 140, color: c3, lineHeight: 0.65, opacity: 0.1 }}>a</div>
 
           {/* Footer — mismo formato que Ilustraciones / Packaging / Papeleria */}
@@ -824,6 +843,8 @@ function StorytellingInner({ posterColors }: Props) {
               <div className="rounded-full" style={{ width: 4, height: 4, background: c4 }} />
             </div>
           </div>
+          </>
+          )}
         </div>
       </div>
     </div>

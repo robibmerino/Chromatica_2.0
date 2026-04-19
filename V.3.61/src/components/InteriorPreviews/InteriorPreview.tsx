@@ -2,7 +2,7 @@ import type { InteriorPreviewProps } from './types';
 import { VARIANT_HEADERS, MATERIAL_LABELS, COMPACT_VARIANTS, SCENE_ASPECT_RATIO } from './constants';
 import { COMPACT_SCENE_MAP, RoomSceneEstudio } from './scenes';
 
-export default function InteriorPreview({ palette, variant }: InteriorPreviewProps) {
+export default function InteriorPreview({ palette, variant, sceneOnly }: InteriorPreviewProps) {
   const { primary, secondary, accent, background, surface, muted } = palette;
   const header = VARIANT_HEADERS[variant] ?? VARIANT_HEADERS.estudio;
   const specs = header.specs ?? VARIANT_HEADERS.estudio.specs!;
@@ -12,13 +12,45 @@ export default function InteriorPreview({ palette, variant }: InteriorPreviewPro
 
   if (isCompactLayout) {
     const CompactScene = COMPACT_SCENE_MAP[variant];
+    if (sceneOnly) {
+      return (
+        <div
+          style={{
+            width: 620,
+            maxWidth: '100%',
+            background: 'transparent',
+            borderRadius: 0,
+            overflow: 'visible',
+            position: 'relative',
+            fontFamily: "'Space Grotesk', sans-serif",
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          <div style={{ width: '100%', aspectRatio: sceneAspectRatio }}>
+            {CompactScene && (
+              <CompactScene
+                primary={primary}
+                secondary={secondary}
+                accent={accent}
+                surface={surface}
+                muted={muted}
+                background={background}
+                fillContainer
+              />
+            )}
+          </div>
+        </div>
+      );
+    }
     return (
       <div
+        className="shadow-2xl"
         style={{
           width: 620,
           maxWidth: '100%',
           background: background,
-          borderRadius: 18,
+          borderRadius: 0,
           overflow: 'hidden',
           position: 'relative',
           fontFamily: "'Space Grotesk', sans-serif",
@@ -181,7 +213,7 @@ export default function InteriorPreview({ palette, variant }: InteriorPreviewPro
         minHeight: 826,
         maxWidth: '100%',
         background: background,
-        borderRadius: 18,
+        borderRadius: 0,
         overflow: 'hidden',
         position: 'relative',
         fontFamily: "'Space Grotesk', sans-serif",

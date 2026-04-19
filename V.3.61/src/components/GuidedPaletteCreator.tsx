@@ -16,6 +16,7 @@ import PosterExamples from './PosterExamples';
 import { INSPIRATION_MODE_LABELS } from './GuidedPaletteCreator/config/phasesConfig';
 import { blendColorsVibrant } from './inspiration/archetypePaletteUtils';
 import { hexToHsl, hslToHex } from '../utils/colorUtils';
+import type { ExportPanelProPersistedState } from './export/ExportPanelPro';
 
 const COMBINED_MODES_UI = [
   {
@@ -108,6 +109,7 @@ export default function GuidedPaletteCreator({
     'balanced' | 'flow-first' | 'palette-first' | 'soft-gradient' | 'custom'
   >('balanced');
   const [combinedColorCount, setCombinedColorCount] = useState<number>(4);
+  const [saveExportPanelState, setSaveExportPanelState] = useState<ExportPanelProPersistedState | undefined>(undefined);
 
   const handleSavePaletteClick = useCallback(() => {
     if (!user) {
@@ -497,21 +499,30 @@ export default function GuidedPaletteCreator({
             <Suspense fallback={<PhaseFallback />}>
               <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
                 <SavePhase
-              colors={state.colors}
-              paletteName={state.paletteName}
-              setPaletteName={state.setPaletteName}
-              savePalette={state.savePalette}
-              removePalette={state.removePalette}
-              savedPalettes={state.savedPalettes}
-              showMyPalettes={state.showMyPalettes}
-              setShowMyPalettes={state.setShowMyPalettes}
-              setColors={state.setColors}
-              setPhase={state.setPhase}
-              setSavedPalettes={state.setSavedPalettes}
-              showNotification={state.showNotification}
-              goBack={state.goBack}
-              onStartNewPalette={state.handleStartNewPalette}
-            />
+                  colors={state.colors}
+                  secondaryColors={state.supportColorsList.map((s) => s.hex)}
+                  paletteName={state.paletteName}
+                  setPaletteName={state.setPaletteName}
+                  savePalette={state.savePalette}
+                  removePalette={state.removePalette}
+                  savedPalettes={state.savedPalettes}
+                  showMyPalettes={state.showMyPalettes}
+                  setShowMyPalettes={state.setShowMyPalettes}
+                  setColors={state.setColors}
+                  setPhase={state.setPhase}
+                  setSavedPalettes={state.setSavedPalettes}
+                  showNotification={state.showNotification}
+                  goBack={state.goBack}
+                  onStartNewPalette={state.handleStartNewPalette}
+                  undo={state.undo}
+                  redo={state.redo}
+                  undoDisabled={!state.canUndo}
+                  redoDisabled={!state.canRedo}
+                  onSavePalette={handleSavePaletteClick}
+                  onOpenHistory={() => setShowHistoryModal(true)}
+                  exportPanelState={saveExportPanelState}
+                  onExportPanelStateChange={setSaveExportPanelState}
+                />
               </div>
             </Suspense>
           )}

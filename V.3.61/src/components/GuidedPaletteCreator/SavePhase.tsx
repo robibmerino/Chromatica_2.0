@@ -1,13 +1,31 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ExportPanelPro } from '../export/ExportPanelPro';
-import { getContrastColor, generateId } from '../../utils/colorUtils';
+import type { ExportPanelProPersistedState } from '../export/ExportPanelPro';
+import { generateId } from '../../utils/colorUtils';
 import { COPY } from './config/copy';
 import { PhaseLayout } from './PhaseLayout';
+import { SectionBanner, SECTION_ICON_ACCENTS } from './SectionBanner';
 import type { ColorItem, Phase, SavedPalette } from '../../types/guidedPalette';
+
+const SAVE_PHASE_ICON = (
+  <svg
+    className="w-4 h-4"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={1.5}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden
+  >
+    <path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
+  </svg>
+);
 
 interface SavePhaseProps {
   colors: ColorItem[];
+  secondaryColors?: string[];
   paletteName: string;
   setPaletteName: (name: string) => void;
   savePalette: () => void;
@@ -21,10 +39,19 @@ interface SavePhaseProps {
   showNotification: (msg: string) => void;
   goBack: () => void;
   onStartNewPalette: () => void;
+  undo: () => void;
+  redo: () => void;
+  undoDisabled: boolean;
+  redoDisabled: boolean;
+  onSavePalette?: () => void;
+  onOpenHistory?: () => void;
+  exportPanelState?: ExportPanelProPersistedState;
+  onExportPanelStateChange?: (next: ExportPanelProPersistedState) => void;
 }
 
 function SavePhaseInner({
   colors,
+  secondaryColors = [],
   paletteName,
   setPaletteName,
   savePalette,
@@ -34,278 +61,267 @@ function SavePhaseInner({
   setShowMyPalettes,
   setColors,
   setPhase,
-  setSavedPalettes,
+  setSavedPalettes: _setSavedPalettes,
   showNotification,
   goBack,
   onStartNewPalette,
+  undo,
+  redo,
+  undoDisabled,
+  redoDisabled,
+  onSavePalette,
+  onOpenHistory,
+  exportPanelState,
+  onExportPanelStateChange,
 }: SavePhaseProps) {
   return (
     <PhaseLayout
       phaseKey="save"
-      title="🎉 ¡Tu paleta está lista!"
-      onBack={goBack}
-      className="flex flex-col gap-8 min-h-0 max-h-[calc(100vh-10rem)]"
+      className="flex flex-col gap-4 min-h-0 max-h-[calc(100vh-10rem)]"
+      header={
+        <SectionBanner
+          onBack={goBack}
+          title={COPY.savePhase.bannerTitle}
+          subtitle={COPY.savePhase.bannerSubtitle}
+          icon={SAVE_PHASE_ICON}
+          iconBoxClassName={SECTION_ICON_ACCENTS.emerald}
+          primaryLabel={COPY.savePhase.primaryNewPalette}
+          onPrimaryClick={onStartNewPalette}
+          onUndo={undo}
+          onRedo={redo}
+          undoDisabled={undoDisabled}
+          redoDisabled={redoDisabled}
+          savePaletteLabel={COPY.nav.savePalette}
+          onSavePalette={onSavePalette}
+          lockTooltipSectionName="Guardar"
+          onOpenHistory={onOpenHistory}
+        />
+      }
+      footer={null}
     >
-      <div className="flex-1 min-h-0 overflow-y-auto space-y-8">
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          <div className="xl:col-span-1">
-          <div className="bg-gradient-to-br from-green-900/30 to-emerald-900/20 rounded-2xl p-6 border border-green-500/30 h-full">
-            <div className="flex items-center gap-3 mb-5">
-              <div className="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center">
-                <svg
-                  className="w-6 h-6 text-green-400"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
-                  />
-                </svg>
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-white">Guardar en Mis Paletas</h3>
-                <p className="text-green-300/70 text-sm">Accede más tarde desde tu colección</p>
-              </div>
-            </div>
+      <div className="flex-1 min-h-0 overflow-hidden w-full flex">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(228px,276px)_minmax(0,1fr)_280px] gap-4 flex-1 items-stretch min-h-[520px] md:min-h-[580px] lg:min-h-[640px]">
+          <ExportPanelPro
+            colors={colors.map((c) => c.hex)}
+            secondaryColors={secondaryColors}
+            paletteName={paletteName || 'Mi Paleta'}
+            layout="split"
+            persistedState={exportPanelState}
+            onPersistedStateChange={onExportPanelStateChange}
+            renderSplit={({ renderControls, renderPreview, renderStickyDownload }) => (
+              <>
+                <aside className="order-2 min-w-0 flex flex-col rounded-2xl border border-gray-700/30 bg-gray-800/35 backdrop-blur-sm px-3 pt-3 pb-3 h-full min-h-0 max-h-[min(72vh,720px)] lg:order-none lg:max-h-none">
+                  <div className="sticky top-0 z-20 shrink-0 -mx-1 mb-2 rounded-t-lg border-b border-gray-700/50 bg-gray-800/95 px-1 pb-2 backdrop-blur-md">
+                    {renderStickyDownload()}
+                  </div>
+                  <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden pr-1">{renderControls({ compact: true })}</div>
+                </aside>
+                <main className="order-1 min-w-0 rounded-2xl border border-gray-700/30 overflow-hidden h-full min-h-0 flex flex-col bg-[#1a1a2e] lg:order-none">
+                  <div className="flex-1 min-h-0 overflow-hidden px-4 py-4">{renderPreview()}</div>
+                </main>
+              </>
+            )}
+          />
 
-            <div className="h-20 rounded-xl overflow-hidden flex mb-5 shadow-lg ring-1 ring-white/10">
-              {colors.map((color) => (
-                <div
-                  key={color.id}
-                  className="flex-1 flex items-end justify-center pb-2 relative group"
-                  style={{ backgroundColor: color.hex }}
-                >
-                  <span
-                    className="text-xs font-mono px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                    style={{
-                      color: getContrastColor(color.hex),
-                      backgroundColor: 'rgba(0,0,0,0.3)',
-                    }}
-                  >
-                    {color.hex.toUpperCase()}
-                  </span>
+          <aside className="order-3 flex flex-col rounded-2xl bg-gray-800/45 backdrop-blur-sm border border-gray-700/50 px-3.5 py-3 gap-3 overflow-hidden h-full min-h-0 lg:order-none">
+            <div className="flex-1 min-h-0 overflow-y-auto space-y-3 pr-1">
+              <div className="rounded-xl bg-gray-800/55 border border-gray-700/60 px-3 py-3">
+                <div className="flex items-start gap-2.5">
+                  <div className="w-9 h-9 rounded-lg border border-emerald-500/35 bg-emerald-500/10 flex items-center justify-center shrink-0 text-emerald-300">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} aria-hidden>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                    </svg>
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-semibold text-white leading-tight">{COPY.savePhase.rightTitle}</h3>
+                    <p className="text-[11px] text-gray-500 mt-0.5">{COPY.savePhase.rightSubtitle}</p>
+                  </div>
                 </div>
-              ))}
-            </div>
 
-            <div className="space-y-3">
-              <label className="text-sm text-gray-300 font-medium">Nombre de la paleta</label>
-              <input
-                type="text"
-                value={paletteName}
-                onChange={(e) => setPaletteName(e.target.value)}
-                placeholder="Mi paleta increíble"
-                className="w-full bg-gray-800/80 text-white px-4 py-3 rounded-xl border border-gray-600/50 focus:border-green-500/50 focus:ring-2 focus:ring-green-500/20 outline-none transition-all"
-              />
-              <button
-                onClick={savePalette}
-                className="w-full py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white rounded-xl font-medium transition-all shadow-lg shadow-green-500/25 flex items-center justify-center gap-2"
-              >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
+                <div className="h-14 rounded-lg overflow-hidden flex mt-3 ring-1 ring-white/10">
+                  {colors.map((color) => (
+                    <div key={color.id} className="flex-1" style={{ backgroundColor: color.hex }} title={color.hex} />
+                  ))}
+                </div>
+
+                <div className="mt-3 space-y-2">
+                  <label htmlFor="save-palette-name" className="text-[11px] text-gray-400 font-medium">
+                    {COPY.savePhase.nameLabel}
+                  </label>
+                  <input
+                    id="save-palette-name"
+                    type="text"
+                    value={paletteName}
+                    onChange={(e) => setPaletteName(e.target.value)}
+                    placeholder={COPY.savePhase.namePlaceholder}
+                    className="w-full bg-gray-900/80 text-white text-sm px-3 py-2.5 rounded-xl border border-gray-600/60 focus:border-emerald-500/45 focus:ring-2 focus:ring-emerald-500/15 outline-none transition-all"
                   />
-                </svg>
-                {COPY.nav.savePalette}
-              </button>
-            </div>
+                  <button
+                    type="button"
+                    onClick={savePalette}
+                    className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-medium border border-indigo-500/50 transition-all flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                    </svg>
+                    {COPY.nav.savePalette}
+                  </button>
+                </div>
+              </div>
 
-            <div className="mt-5 pt-5 border-t border-green-500/20">
-              <button
-                type="button"
-                onClick={() => setShowMyPalettes(!showMyPalettes)}
-                className="w-full flex items-center justify-between text-left"
-                aria-expanded={showMyPalettes}
-                aria-controls="save-my-palettes-list"
-              >
-                <div className="flex items-center gap-2">
-                  <span>📚</span>
-                  <span className="text-green-300 font-medium">Mis Paletas</span>
-                  {savedPalettes.length > 0 && (
-                    <span className="text-xs bg-green-500/30 text-green-200 px-2 py-0.5 rounded-full">
-                      {savedPalettes.length}
+              <div className="rounded-xl bg-gray-800/55 border border-gray-700/60 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setShowMyPalettes(!showMyPalettes)}
+                  className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left hover:bg-gray-700/30 transition-colors"
+                  aria-expanded={showMyPalettes}
+                  aria-controls="save-my-palettes-list"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-gray-400 shrink-0">
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} aria-hidden>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 19.5A2.5 2.5 0 016.5 17H20" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" />
+                      </svg>
                     </span>
-                  )}
-                </div>
-                <motion.span
-                  animate={{ rotate: showMyPalettes ? 180 : 0 }}
-                  className="text-green-400 text-sm"
-                >
-                  ▼
-                </motion.span>
-              </button>
-
-              <AnimatePresence>
-                {showMyPalettes && (
-                  <motion.div
-                    id="save-my-palettes-list"
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    className="overflow-hidden"
+                    <span className="text-sm font-medium text-gray-100 truncate">{COPY.savePhase.myPalettes}</span>
+                    {savedPalettes.length > 0 && (
+                      <span className="text-[10px] font-semibold bg-emerald-500/20 text-emerald-200 px-2 py-0.5 rounded-full border border-emerald-500/30 shrink-0">
+                        {savedPalettes.length}
+                      </span>
+                    )}
+                  </div>
+                  <motion.span
+                    animate={{ rotate: showMyPalettes ? 180 : 0 }}
+                    className="text-gray-500 shrink-0"
+                    aria-hidden
                   >
-                    <div className="mt-4 space-y-3 max-h-[300px] overflow-y-auto pr-2">
-                      {savedPalettes.length === 0 ? (
-                        <div className="text-center py-6 text-green-300/50">
-                          <span className="text-2xl block mb-2">📭</span>
-                          <p className="text-sm">Aún no tienes paletas guardadas</p>
-                        </div>
-                      ) : (
-                        savedPalettes.map((palette) => (
-                          <div
-                            key={palette.id}
-                            className="bg-gray-800/50 rounded-xl p-3 border border-gray-700/50 hover:border-green-500/30 transition-colors group"
-                          >
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="flex-1 min-w-0">
-                                <h4 className="text-white text-sm font-medium truncate">
-                                  {palette.name}
-                                </h4>
-                                <p className="text-gray-500 text-xs">
-                                  {new Date(palette.createdAt).toLocaleDateString('es-ES', {
-                                    day: 'numeric',
-                                    month: 'short',
-                                    year: 'numeric',
-                                  })}
-                                </p>
-                              </div>
-                              <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setColors(
-                                      palette.colors.map((hex) => ({
-                                        id: generateId(),
-                                        hex,
-                                        locked: false,
-                                      }))
-                                    );
-                                    setPaletteName(palette.name);
-                                    setPhase('refinement');
-                                    showNotification(COPY.notifications.loaded(palette.name));
-                                  }}
-                                  className="p-1.5 bg-green-600/30 hover:bg-green-600/50 text-green-300 rounded-lg text-xs transition-colors"
-                                  title="Editar paleta"
-                                  aria-label="Editar paleta"
-                                >
-                                  <span aria-hidden>✏️</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setColors(
-                                      palette.colors.map((hex) => ({
-                                        id: generateId(),
-                                        hex,
-                                        locked: false,
-                                      }))
-                                    );
-                                    setPaletteName(palette.name);
-                                    showNotification(COPY.notifications.loadedForExport(palette.name));
-                                  }}
-                                  className="p-1.5 bg-purple-600/30 hover:bg-purple-600/50 text-purple-300 rounded-lg text-xs transition-colors"
-                                  title="Cargar para exportar"
-                                  aria-label="Cargar para exportar"
-                                >
-                                  <span aria-hidden>📤</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    if (confirm(`¿Eliminar "${palette.name}"?`)) {
-                                      removePalette(palette.id);
-                                    }
-                                  }}
-                                  className="p-1.5 bg-red-600/30 hover:bg-red-600/50 text-red-300 rounded-lg text-xs transition-colors"
-                                  title="Eliminar paleta"
-                                  aria-label="Eliminar paleta"
-                                >
-                                  <span aria-hidden>🗑️</span>
-                                </button>
-                              </div>
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </motion.span>
+                </button>
+
+                <AnimatePresence>
+                  {showMyPalettes && (
+                    <motion.div
+                      id="save-my-palettes-list"
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="overflow-hidden border-t border-gray-700/50"
+                    >
+                      <div className="max-h-[min(280px,40vh)] overflow-y-auto px-2 py-2 space-y-2">
+                        {savedPalettes.length === 0 ? (
+                          <div className="text-center py-5 px-2">
+                            <div className="mx-auto w-10 h-10 rounded-full bg-gray-900/80 border border-gray-700/60 flex items-center justify-center text-gray-500 mb-2">
+                              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M20 13V7a2 2 0 00-2-2H6a2 2 0 00-2 2v6m16 0v4a2 2 0 01-2 2H6a2 2 0 01-2-2v-4m16 0H4" />
+                              </svg>
                             </div>
-                            <div className="h-8 rounded-lg overflow-hidden flex">
-                              {palette.colors.map((color, i) => (
-                                <div
-                                  key={i}
-                                  className="flex-1"
-                                  style={{ backgroundColor: color }}
-                                />
-                              ))}
-                            </div>
+                            <p className="text-xs font-medium text-gray-300">{COPY.savePhase.emptyPalettesTitle}</p>
+                            <p className="text-[11px] text-gray-500 mt-1">{COPY.savePhase.emptyPalettesBody}</p>
                           </div>
-                        ))
-                      )}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+                        ) : (
+                          savedPalettes.map((palette) => (
+                            <div
+                              key={palette.id}
+                              className="bg-gray-900/50 rounded-lg p-2.5 border border-gray-700/50 hover:border-gray-600 transition-colors group"
+                            >
+                              <div className="flex items-center justify-between gap-2 mb-2">
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="text-white text-xs font-medium truncate">{palette.name}</h4>
+                                  <p className="text-gray-500 text-[10px]">
+                                    {new Date(palette.createdAt).toLocaleDateString('es-ES', {
+                                      day: 'numeric',
+                                      month: 'short',
+                                      year: 'numeric',
+                                    })}
+                                  </p>
+                                </div>
+                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setColors(
+                                        palette.colors.map((hex) => ({
+                                          id: generateId(),
+                                          hex,
+                                          locked: false,
+                                        }))
+                                      );
+                                      setPaletteName(palette.name);
+                                      setPhase('refinement');
+                                      showNotification(COPY.notifications.loaded(palette.name));
+                                    }}
+                                    className="p-1.5 rounded-md bg-gray-700/80 hover:bg-emerald-600/30 text-gray-300 hover:text-emerald-200 border border-gray-600/60"
+                                    title="Editar paleta"
+                                    aria-label="Editar paleta"
+                                  >
+                                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                    </svg>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setColors(
+                                        palette.colors.map((hex) => ({
+                                          id: generateId(),
+                                          hex,
+                                          locked: false,
+                                        }))
+                                      );
+                                      setPaletteName(palette.name);
+                                      showNotification(COPY.notifications.loadedForExport(palette.name));
+                                    }}
+                                    className="p-1.5 rounded-md bg-gray-700/80 hover:bg-indigo-600/30 text-gray-300 hover:text-indigo-200 border border-gray-600/60"
+                                    title="Cargar para exportar"
+                                    aria-label="Cargar para exportar"
+                                  >
+                                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                    </svg>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (confirm(`¿Eliminar "${palette.name}"?`)) {
+                                        removePalette(palette.id);
+                                      }
+                                    }}
+                                    className="p-1.5 rounded-md bg-gray-700/80 hover:bg-rose-600/30 text-gray-300 hover:text-rose-200 border border-gray-600/60"
+                                    title="Eliminar paleta"
+                                    aria-label="Eliminar paleta"
+                                  >
+                                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                  </button>
+                                </div>
+                              </div>
+                              <div className="h-6 rounded-md overflow-hidden flex">
+                                {palette.colors.map((c, i) => (
+                                  <div key={i} className="flex-1" style={{ backgroundColor: c }} />
+                                ))}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
 
-            <div className="mt-4 p-3 bg-green-500/10 rounded-xl">
-              <p className="text-xs text-green-300/70">
-                💡 Desde &quot;Mis Paletas&quot; puedes editar o exportar cualquier paleta guardada.
-              </p>
-            </div>
-          </div>
-        </div>
-
-          <div className="xl:col-span-2">
-          <div className="bg-gradient-to-br from-purple-900/30 to-indigo-900/20 rounded-2xl p-6 border border-purple-500/30">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center">
-                <svg
-                  className="w-6 h-6 text-purple-400"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
-                  />
+              <div className="rounded-xl border border-emerald-500/20 bg-emerald-950/20 px-3 py-2.5 flex gap-2">
+                <svg className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} aria-hidden>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                 </svg>
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-white">Exportar Paleta</h3>
-                <p className="text-purple-300/70 text-sm">
-                  Descarga en imagen o copia el código para tu proyecto
-                </p>
+                <p className="text-[11px] text-emerald-100/80 leading-snug">{COPY.savePhase.tipMyPalettes}</p>
               </div>
             </div>
-
-            <ExportPanelPro
-              colors={colors.map((c) => c.hex)}
-              paletteName={paletteName || 'Mi Paleta'}
-            />
-          </div>
-        </div>
-        </div>
-
-        <div className="flex flex-col items-center gap-4 pt-6 border-t border-gray-700/50">
-        <p className="text-gray-400 text-sm">¿Listo para crear más?</p>
-        <button
-          onClick={onStartNewPalette}
-          className="px-8 py-3 bg-gradient-to-r from-indigo-600/30 to-purple-600/30 hover:from-indigo-600/50 hover:to-purple-600/50 text-white rounded-xl font-medium transition-all border border-indigo-500/30 flex items-center gap-2"
-        >
-          <span>✨</span>
-          Crear nueva paleta
-          <span>→</span>
-        </button>
+          </aside>
         </div>
       </div>
     </PhaseLayout>

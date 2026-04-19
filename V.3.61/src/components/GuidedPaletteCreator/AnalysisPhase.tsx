@@ -888,6 +888,11 @@ function AnalysisPhaseInner(props: AnalysisPhaseProps) {
           initialHeight={560}
         >
           <ColorEditPanelBody
+            key={
+              editingColor.type === 'main'
+                ? `main-${editingColor.index}`
+                : `support-${editingColor.role}`
+            }
             draftHex={draftHex}
             setDraftHex={setDraftHex}
             onAccept={() => {

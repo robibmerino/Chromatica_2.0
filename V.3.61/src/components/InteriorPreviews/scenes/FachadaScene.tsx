@@ -21,7 +21,7 @@ export function RoomSceneFachada({ primary, secondary, accent, surface, muted, b
           <rect x="80" y="270" width="400" height="230" />
         </clipPath>
       </defs>
-      <rect x="0" y="0" width="560" height="580" fill="url(#facade-sky-grad)" rx="8" />
+      <rect x="0" y="0" width="560" height="580" fill="url(#facade-sky-grad)" />
       <rect x="0" y="80" width="60" height="420" fill={muted} opacity="0.3" />
       <rect x="60" y="120" width="40" height="380" fill={muted} opacity="0.2" />
       <rect x="460" y="60" width="50" height="440" fill={muted} opacity="0.25" />
@@ -195,10 +195,10 @@ export function RoomSceneFachada({ primary, secondary, accent, surface, muted, b
     </>
   );
   const viewBox = '0 50 560 420';
-  const commonProps = { viewBox, style: { borderRadius: 12, overflow: 'hidden' as const } };
+  const commonProps = { viewBox, style: { borderRadius: 0, overflow: 'hidden' as const } };
   if (fillContainer) {
     return (
-      <svg {...commonProps} preserveAspectRatio="xMidYMid meet" style={{ width: '100%', height: '100%', borderRadius: 12, overflow: 'hidden', display: 'block' }}>
+      <svg {...commonProps} preserveAspectRatio="xMidYMid meet" style={{ width: '100%', height: '100%', borderRadius: 0, overflow: 'hidden', display: 'block' }}>
         {svgContent}
       </svg>
     );

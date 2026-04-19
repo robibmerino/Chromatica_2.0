@@ -38,9 +38,10 @@ const WAYFINDING_DIRECTIONS: { arrow: string; label: string }[] = [
 
 interface Props {
   posterColors: PosterPalette;
+  sceneOnly?: boolean;
 }
 
-export function AplicacionEspacio({ posterColors }: Props) {
+export function AplicacionEspacio({ posterColors, sceneOnly }: Props) {
   const c = posterColors;
   const c1 = c.primary;
   const c2 = c.accent;
@@ -52,11 +53,18 @@ export function AplicacionEspacio({ posterColors }: Props) {
   const h = POSTER_HEIGHT;
   const px = (p: number) => (p / 100) * w;
   const py = (p: number) => (p / 100) * h;
+  /** Banner, pie, texturas y marco; «Spatial Guidelines» y bloques inferiores solo en lámina completa. */
+  const posterChrome = !sceneOnly;
 
   return (
     <div className="flex items-center justify-center w-full h-full min-h-0">
       <div style={{ transform: `scale(${POSTER_SCALE})`, transformOrigin: 'center center', flexShrink: 0 }}>
-        <div className="relative overflow-hidden shadow-2xl rounded" style={{ width: w, height: h, background: c5, ...FONT_SANS }}>
+        <div
+          className={posterChrome ? 'relative overflow-hidden shadow-2xl rounded' : 'relative overflow-hidden'}
+          style={{ width: w, height: h, background: posterChrome ? c5 : 'transparent', ...FONT_SANS }}
+        >
+          {posterChrome && (
+            <>
           <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 300, opacity: 0.22, mixBlendMode: 'multiply', backgroundImage: `url("${BRANDING_GRAIN_URL}")`, backgroundSize: '128px' }} />
           <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 2, opacity: 0.03, backgroundImage: `url("${BRANDING_KRAFT_URL}")`, backgroundSize: '200px' }} />
 
@@ -94,9 +102,20 @@ export function AplicacionEspacio({ posterColors }: Props) {
               </div>
             </div>
           </div>
+          </>
+          )}
 
           {/* Hero — Interior perspective */}
-          <div className="absolute z-[20] rounded overflow-hidden" style={{ top: py(12.5), left: px(5), right: px(5), height: py(30), background: c1 }}>
+          <div
+            className="absolute z-[20] rounded overflow-hidden"
+            style={{
+              top: posterChrome ? py(12.5) : py(4),
+              left: px(5),
+              right: px(5),
+              height: py(30),
+              background: c1,
+            }}
+          >
             <div className="absolute inset-0" style={{ background: `linear-gradient(170deg, ${c1}, ${c4})` }} />
             {/* Back wall */}
             <div className="absolute top-0 left-0 right-0" style={{ height: '68%', background: c3, opacity: 0.18 }} />
@@ -187,8 +206,11 @@ export function AplicacionEspacio({ posterColors }: Props) {
             </div>
           </div>
 
-          {/* Grid 4 — spatial details */}
-          <div className="absolute z-[20] grid gap-2" style={{ top: py(44.5), left: px(5), right: px(5), gridTemplateColumns: 'repeat(4, 1fr)' }}>
+          {/* Grid 4 — spatial details (también en Solo escena) */}
+          <div
+            className="absolute z-[20] grid gap-2"
+            style={{ top: posterChrome ? py(44.5) : py(35.5), left: px(5), right: px(5), gridTemplateColumns: 'repeat(4, 1fr)' }}
+          >
             {SPACE_GRID_ITEMS.map((item) => (
               <div key={item.type} className="flex flex-col gap-1">
                 <div className="w-full rounded overflow-hidden relative" style={{ aspectRatio: 0.78 }}>
@@ -295,7 +317,8 @@ export function AplicacionEspacio({ posterColors }: Props) {
             ))}
           </div>
 
-          {/* Specs */}
+          {/* Spatial Guidelines — solo lámina completa */}
+          {posterChrome && (
           <div className="absolute z-[60]" style={{ top: py(78), left: px(5), right: px(5) }}>
             <div className="flex items-center gap-2 mb-2">
               <div style={{ width: 20, height: 2, background: c4, borderRadius: 1 }} />
@@ -319,7 +342,10 @@ export function AplicacionEspacio({ posterColors }: Props) {
               ))}
             </div>
           </div>
+          )}
 
+          {posterChrome && (
+          <>
           <div className="absolute bottom-[2%] right-[-4%] z-[4] font-serif leading-[0.65] opacity-[0.18] pointer-events-none select-none lowercase" style={{ ...FONT_SERIF, fontSize: 160, color: c3 }}>a</div>
 
           {/* Footer */}
@@ -330,6 +356,8 @@ export function AplicacionEspacio({ posterColors }: Props) {
               <div className="rounded-full" style={{ width: 4, height: 4, background: c4 }} />
             </div>
           </div>
+          </>
+          )}
         </div>
       </div>
     </div>

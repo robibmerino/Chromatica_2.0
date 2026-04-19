@@ -5,9 +5,10 @@ import { TerritorioVisual, DireccionFotografica, Mockup, Packaging, RedesSociale
 interface Props {
   posterColors: PosterPalette;
   variant: BrandingVariant | string;
+  sceneOnly?: boolean;
 }
 
-const BRANDING_VARIANTS: Record<string, React.ComponentType<{ posterColors: PosterPalette }>> = {
+const BRANDING_VARIANTS: Record<string, React.ComponentType<{ posterColors: PosterPalette; sceneOnly?: boolean }>> = {
   'territorio-visual': TerritorioVisual,
   'direccion-fotografica': DireccionFotografica,
   mockup: Mockup,
@@ -21,7 +22,7 @@ const BRANDING_VARIANTS: Record<string, React.ComponentType<{ posterColors: Post
   storytelling: Storytelling,
 };
 
-export function BrandingSection({ posterColors, variant }: Props) {
+export function BrandingSection({ posterColors, variant, sceneOnly }: Props) {
   const VariantComponent = BRANDING_VARIANTS[variant] ?? TerritorioVisual;
-  return <VariantComponent posterColors={posterColors} />;
+  return <VariantComponent posterColors={posterColors} sceneOnly={sceneOnly} />;
 }

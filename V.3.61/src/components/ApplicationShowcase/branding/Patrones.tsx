@@ -76,9 +76,10 @@ const BOTANICAL_LEAF_CELLS: { cx: number; cy: number; rot: number }[] = [
 
 interface Props {
   posterColors: PosterPalette;
+  sceneOnly?: boolean;
 }
 
-function PatronesInner({ posterColors }: Props) {
+function PatronesInner({ posterColors, sceneOnly }: Props) {
   const c = posterColors;
   const c1 = c.primary;
   const c2 = c.accent;
@@ -96,20 +97,31 @@ function PatronesInner({ posterColors }: Props) {
   const tileBg = (bg: string): string =>
     ({ deep: c1, c1, c3, c4, c5 }[bg] ?? c6);
 
+  /** Solo banner, pie, texturas de hoja, líneas divisorias y marco; el resto del arte se muestra en Solo escena. */
+  const posterChrome = !sceneOnly;
   const heroLabelStyle = { ...FONT_MONO, fontSize: 6, letterSpacing: '0.15em', textTransform: 'uppercase' as const, opacity: 0.6 };
   const mockupCaptionStyle = { ...FONT_MONO, fontSize: 6.5, color: c6, opacity: 0.5, letterSpacing: '0.08em' as const };
 
   return (
     <div className="flex items-center justify-center w-full h-full min-h-0" role="img" aria-label="Sistema de patrones Aura: biblioteca de patrones, construcción y uso, aplicaciones">
       <div style={{ transform: `scale(${POSTER_SCALE})`, transformOrigin: 'center center', flexShrink: 0 }}>
-        <div className="relative overflow-hidden shadow-2xl rounded" style={{ width: w, height: h, background: c5, ...FONT_SANS }}>
-          <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 300, opacity: 0.18, mixBlendMode: 'multiply', backgroundImage: `url("${BRANDING_GRAIN_URL}")`, backgroundSize: '128px' }} />
-          <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 2, opacity: 0.03, backgroundImage: `url("${BRANDING_KRAFT_URL}")`, backgroundSize: '200px' }} />
-          {LAYOUT.dividerTops.map((top) => (
-            <div key={top} className="absolute left-[5%] right-[5%] h-px pointer-events-none" style={{ top: `${top}%`, background: `linear-gradient(90deg, transparent, ${c3} 20%, ${c3} 80%, transparent)`, opacity: 0.15, zIndex: 3 }} />
-          ))}
+        <div
+          className={posterChrome ? 'relative overflow-hidden shadow-2xl rounded' : 'relative overflow-hidden'}
+          style={{ width: w, height: h, background: posterChrome ? c5 : 'transparent', ...FONT_SANS }}
+        >
+          {posterChrome && (
+            <>
+              <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 300, opacity: 0.18, mixBlendMode: 'multiply', backgroundImage: `url("${BRANDING_GRAIN_URL}")`, backgroundSize: '128px' }} />
+              <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 2, opacity: 0.03, backgroundImage: `url("${BRANDING_KRAFT_URL}")`, backgroundSize: '200px' }} />
+              {LAYOUT.dividerTops.map((top) => (
+                <div key={top} className="absolute left-[5%] right-[5%] h-px pointer-events-none" style={{ top: `${top}%`, background: `linear-gradient(90deg, transparent, ${c3} 20%, ${c3} 80%, transparent)`, opacity: 0.15, zIndex: 3 }} />
+              ))}
+            </>
+          )}
 
           {/* Cabecera — mismo formato que Ilustraciones / Papeleria: barra 8% + logo aura */}
+          {posterChrome && (
+          <>
           <div className="absolute top-0 left-0 right-0 z-[1]" style={{ height: '8%', background: c1 }}>
             <div className="absolute bottom-0 left-0 right-0" style={{ height: 2, background: `linear-gradient(90deg, ${c2}, ${c4}, ${c2})`, opacity: 0.5 }} />
           </div>
@@ -143,9 +155,19 @@ function PatronesInner({ posterColors }: Props) {
               </div>
             </div>
           </div>
+          </>
+          )}
 
           {/* Hero — 3 pattern panels */}
-          <div className="absolute z-[20] rounded-lg overflow-hidden grid grid-cols-3 gap-0" style={{ top: py(LAYOUT.heroTop), left: px(5), right: px(5), height: py(LAYOUT.heroHeight) }}>
+          <div
+            className="absolute z-[20] rounded-lg overflow-hidden grid grid-cols-3 gap-0"
+            style={{
+              top: posterChrome ? py(LAYOUT.heroTop) : py(LAYOUT.heroTop - 8),
+              left: px(5),
+              right: px(5),
+              height: py(LAYOUT.heroHeight),
+            }}
+          >
             <div className="relative overflow-hidden rounded-l-lg" style={{ background: c1 }}>
               <svg className="absolute inset-0 w-full h-full" viewBox="0 0 200 300" preserveAspectRatio="xMidYMid slice">
                 <defs>
@@ -219,7 +241,10 @@ function PatronesInner({ posterColors }: Props) {
           </div>
 
           {/* Pattern Library — 6 tiles */}
-          <div className="absolute z-[20]" style={{ top: py(LAYOUT.libraryTop), left: px(5), right: px(5) }}>
+          <div
+            className="absolute z-[20]"
+            style={{ top: posterChrome ? py(LAYOUT.libraryTop) : py(LAYOUT.libraryTop - 8), left: px(5), right: px(5) }}
+          >
             <div className="flex items-center gap-2 mb-1.5">
               <div style={{ width: 20, height: 2, background: c4, borderRadius: 1 }} />
               <span style={{ ...FONT_MONO, fontSize: 8, letterSpacing: '0.3em', textTransform: 'uppercase', color: c6 }}>Pattern Library</span>
@@ -310,7 +335,10 @@ function PatronesInner({ posterColors }: Props) {
           </div>
 
           {/* Pattern in Context — 4 mockups */}
-          <div className="absolute z-[20]" style={{ top: py(LAYOUT.contextTop), left: px(5), right: px(5) }}>
+          <div
+            className="absolute z-[20]"
+            style={{ top: posterChrome ? py(LAYOUT.contextTop) : py(LAYOUT.contextTop - 8), left: px(5), right: px(5) }}
+          >
             <div className="flex items-center gap-2 mb-1.5">
               <div style={{ width: 20, height: 2, background: c4, borderRadius: 1 }} />
               <span style={{ ...FONT_MONO, fontSize: 8, letterSpacing: '0.3em', textTransform: 'uppercase', color: c6 }}>Pattern in Context</span>
@@ -417,6 +445,8 @@ function PatronesInner({ posterColors }: Props) {
             </div>
           </div>
 
+          {posterChrome && (
+          <>
           <div className="absolute bottom-[2%] right-[-4%] z-[4] pointer-events-none select-none lowercase" style={{ ...FONT_SERIF, fontSize: 140, color: c3, lineHeight: 0.65, opacity: 0.12 }}>a</div>
 
           {/* Footer — mismo formato que Ilustraciones / Papeleria */}
@@ -427,6 +457,8 @@ function PatronesInner({ posterColors }: Props) {
               <div className="rounded-full" style={{ width: 4, height: 4, background: c4 }} />
             </div>
           </div>
+          </>
+          )}
         </div>
       </div>
     </div>

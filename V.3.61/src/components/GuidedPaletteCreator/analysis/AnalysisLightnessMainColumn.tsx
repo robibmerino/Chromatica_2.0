@@ -218,7 +218,7 @@ export function AnalysisLightnessMainColumn({
                     L*{Math.round(d.lstar)}
                   </div>
                   <p className="truncate text-[9px] font-semibold text-slate-500">
-                    {d.key}: {d.hex}
+                    {gray}
                   </p>
                 </div>
               );

@@ -91,9 +91,11 @@ export const COMPACT_VARIANTS = ['estudio', 'cafeteria', 'oficina', 'stand', 'fa
 
 /** Aspect ratio del contenedor de la escena por variante (compact layout). */
 export const SCENE_ASPECT_RATIO: Record<string, string> = {
-  estudio: '556/380',
-  cafeteria: '556/380',
-  oficina: '572/400',
+  // Misma relación de aspecto para todas las variantes: la tarjeta compacta mantiene
+  // altura uniforme al cambiar plantilla (la escena escala dentro con `meet`).
+  estudio: '580/450',
+  cafeteria: '580/450',
+  oficina: '580/450',
   stand: '580/450',
-  fachada: '560/420',
+  fachada: '580/450',
 };

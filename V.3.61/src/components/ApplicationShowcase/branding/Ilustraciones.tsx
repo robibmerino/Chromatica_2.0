@@ -71,7 +71,7 @@ function MiniBru({
 }
 
 /** Patrón Foliage: hojas/forma orgánica */
-function PatternFoliage({ c4, c5, labelStyle }: { c4: string; c5: string; labelStyle: React.CSSProperties }) {
+function PatternFoliage({ c4, c5, labelStyle, showLabel = true }: { c4: string; c5: string; labelStyle: React.CSSProperties; showLabel?: boolean }) {
   return (
     <div className="rounded relative overflow-hidden" style={{ background: c4, opacity: 0.98 }}>
       <div className="absolute inset-[8%] flex flex-wrap items-center justify-center gap-1 p-0.5">
@@ -79,13 +79,13 @@ function PatternFoliage({ c4, c5, labelStyle }: { c4: string; c5: string; labelS
           <div key={i} className="border-2 rounded-[50%_2px_50%_2px]" style={{ width: 8, height: 11, borderColor: c5, opacity: 0.62, transform: i % 2 === 0 ? 'rotate(-12deg)' : 'rotate(10deg) scaleX(-1)' }} />
         ))}
       </div>
-      <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2" style={labelStyle}>Foliage</span>
+      {showLabel && <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2" style={labelStyle}>Foliage</span>}
     </div>
   );
 }
 
 /** Patrón Beans: óvalos tipo grano */
-function PatternBeans({ c4, c5, labelStyle }: { c4: string; c5: string; labelStyle: React.CSSProperties }) {
+function PatternBeans({ c4, c5, labelStyle, showLabel = true }: { c4: string; c5: string; labelStyle: React.CSSProperties; showLabel?: boolean }) {
   return (
     <div className="rounded relative overflow-hidden" style={{ background: c4, opacity: 0.92 }}>
       <div className="absolute inset-[5%] grid gap-0.5" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gridTemplateRows: 'repeat(3, 1fr)', alignContent: 'center', justifyItems: 'center' }}>
@@ -95,13 +95,13 @@ function PatternBeans({ c4, c5, labelStyle }: { c4: string; c5: string; labelSty
           </div>
         ))}
       </div>
-      <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2" style={labelStyle}>Beans</span>
+      {showLabel && <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2" style={labelStyle}>Beans</span>}
     </div>
   );
 }
 
 /** Patrón Geometric: rombos en 2 filas con offset */
-function PatternGeometric({ c1, c5, labelStyle }: { c1: string; c5: string; labelStyle: React.CSSProperties }) {
+function PatternGeometric({ c1, c5, labelStyle, showLabel = true }: { c1: string; c5: string; labelStyle: React.CSSProperties; showLabel?: boolean }) {
   return (
     <div className="rounded relative overflow-hidden" style={{ background: c1 }}>
       <div className="absolute inset-0">
@@ -124,19 +124,19 @@ function PatternGeometric({ c1, c5, labelStyle }: { c1: string; c5: string; labe
           ))
         )}
       </div>
-      <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2" style={labelStyle}>Geometric</span>
+      {showLabel && <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2" style={labelStyle}>Geometric</span>}
     </div>
   );
 }
 
 /** Patrón Waves: líneas horizontales */
-function PatternWaves({ c1, c5, labelStyle }: { c1: string; c5: string; labelStyle: React.CSSProperties }) {
+function PatternWaves({ c1, c5, labelStyle, showLabel = true }: { c1: string; c5: string; labelStyle: React.CSSProperties; showLabel?: boolean }) {
   return (
     <div className="rounded relative overflow-hidden" style={{ background: c1 }}>
       {WAVES_TOP_PERCENTS.map((top) => (
         <div key={top} className="absolute left-0 right-0 h-px rounded-full" style={{ top: `${top}%`, background: c5, opacity: 0.48 }} />
       ))}
-      <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2" style={labelStyle}>Waves</span>
+      {showLabel && <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2" style={labelStyle}>Waves</span>}
     </div>
   );
 }
@@ -206,9 +206,10 @@ const ICON_SET_SVG: { viewBox: string; paths: string[] }[] = [
 
 interface Props {
   posterColors: PosterPalette;
+  sceneOnly?: boolean;
 }
 
-export function Ilustraciones({ posterColors }: Props) {
+export function Ilustraciones({ posterColors, sceneOnly }: Props) {
   const c = posterColors;
   const c1 = c.primary;
   const c2 = c.accent;
@@ -226,11 +227,18 @@ export function Ilustraciones({ posterColors }: Props) {
 
   /** Estilo común para las etiquetas de los 4 patrones (Foliage, Beans, Geometric, Waves) */
   const patternLabelStyle = { ...FONT_MONO, fontSize: 5, color: c5, opacity: 0.95, letterSpacing: '0.1em', textTransform: 'uppercase' as const };
+  /** Banner, pie, texturas y marco; «Illustration Guidelines» y tarjetas inferiores solo en lámina completa. */
+  const posterChrome = !sceneOnly;
 
   return (
     <div className="flex items-center justify-center w-full h-full min-h-0">
       <div style={{ transform: `scale(${POSTER_SCALE})`, transformOrigin: 'center center', flexShrink: 0 }}>
-        <div className="relative overflow-hidden shadow-2xl rounded" style={{ width: w, height: h, background: c5, ...FONT_SANS }}>
+        <div
+          className={posterChrome ? 'relative overflow-hidden shadow-2xl rounded' : 'relative overflow-hidden'}
+          style={{ width: w, height: h, background: posterChrome ? c5 : 'transparent', ...FONT_SANS }}
+        >
+          {posterChrome && (
+            <>
           <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 300, opacity: 0.22, mixBlendMode: 'multiply', backgroundImage: `url("${BRANDING_GRAIN_URL}")`, backgroundSize: '128px' }} />
           <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 2, opacity: 0.03, backgroundImage: `url("${BRANDING_KRAFT_URL}")`, backgroundSize: '200px' }} />
 
@@ -266,9 +274,20 @@ export function Ilustraciones({ posterColors }: Props) {
               </div>
             </div>
           </div>
+          </>
+          )}
 
           {/* Hero — Mascot "Bru" scene: cielo = sobrefondo (c3), suelos = secundario (c4) */}
-          <div className="absolute z-[20] rounded overflow-hidden" style={{ top: py(12.5), left: px(5), right: px(5), height: py(30), background: c3 }}>
+          <div
+            className="absolute z-[20] rounded overflow-hidden"
+            style={{
+              top: posterChrome ? py(12.5) : py(4),
+              left: px(5),
+              right: px(5),
+              height: py(30),
+              background: c3,
+            }}
+          >
             <div className="absolute inset-0" style={{ background: `linear-gradient(160deg, ${c3} 0%, ${c3} 42%, ${c4} 72%, ${c4} 100%)` }} />
             <div className="absolute bottom-0 left-0 right-0" style={{ height: '25%', background: c4, opacity: 0.85, clipPath: 'ellipse(70% 60% at 50% 100%)' }} />
             <div className="absolute bottom-0 left-0 right-0" style={{ height: '18%', background: c2, opacity: 0.6, clipPath: 'ellipse(55% 55% at 60% 100%)' }} />
@@ -368,8 +387,16 @@ export function Ilustraciones({ posterColors }: Props) {
             </div>
           </div>
 
-          {/* Grid 4 */}
-          <div className="absolute z-[20] grid gap-2" style={{ top: py(ILLUST_GRID_TOP_PCT), left: px(5), right: px(5), gridTemplateColumns: 'repeat(4, 1fr)' }}>
+          {/* Grid 4 (también en Solo escena) */}
+          <div
+            className="absolute z-[20] grid gap-2"
+            style={{
+              top: posterChrome ? py(ILLUST_GRID_TOP_PCT) : py(36),
+              left: px(5),
+              right: px(5),
+              gridTemplateColumns: 'repeat(4, 1fr)',
+            }}
+          >
             {ILLUST_GRID_ITEMS.map((item) => (
               <div key={item.type} className="flex flex-col gap-1">
                 <div className="w-full rounded overflow-hidden relative" style={{ aspectRatio: 0.85 }}>
@@ -478,6 +505,8 @@ export function Ilustraciones({ posterColors }: Props) {
             ))}
           </div>
 
+          {/* Illustration Guidelines — solo lámina completa */}
+          {posterChrome && (
           <div className="absolute z-[60]" style={{ top: py(ILLUST_GUIDELINES_TOP_PCT), left: px(5), right: px(5) }}>
             <div className="flex items-center gap-2 mb-2">
               <div style={{ width: 20, height: 2, background: c4, borderRadius: 1 }} />
@@ -501,7 +530,10 @@ export function Ilustraciones({ posterColors }: Props) {
               ))}
             </div>
           </div>
+          )}
 
+          {posterChrome && (
+          <>
           <div className="absolute bottom-[2%] right-[-4%] z-[4] font-serif leading-[0.65] opacity-[0.18] pointer-events-none select-none lowercase" style={{ ...FONT_SERIF, fontSize: 160, color: c3 }}>a</div>
 
           <div className="absolute bottom-0 left-0 right-0 z-[100] flex items-center justify-center" style={{ height: '3.5%', background: c1 }}>
@@ -511,6 +543,8 @@ export function Ilustraciones({ posterColors }: Props) {
               <div className="rounded-full" style={{ width: 4, height: 4, background: c4 }} />
             </div>
           </div>
+          </>
+          )}
         </div>
       </div>
     </div>

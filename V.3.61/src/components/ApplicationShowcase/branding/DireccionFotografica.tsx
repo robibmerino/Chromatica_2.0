@@ -46,9 +46,10 @@ const TEXTURE_BEANS: { left: number; top: number; w: number; h: number; rot: num
 
 interface Props {
   posterColors: PosterPalette;
+  sceneOnly?: boolean;
 }
 
-export function DireccionFotografica({ posterColors }: Props) {
+export function DireccionFotografica({ posterColors, sceneOnly }: Props) {
   const c = posterColors;
   const c1 = c.primary;
   const c2 = c.accent;
@@ -60,22 +61,34 @@ export function DireccionFotografica({ posterColors }: Props) {
   const h = POSTER_HEIGHT;
   const px = (p: number) => (p / 100) * w;
   const py = (p: number) => (p / 100) * h;
+  /** Solo cabecera de marca, pie, texturas de hoja y marco; el arte (hero, grid, specs) sigue visible en Solo escena. */
+  const posterChrome = !sceneOnly;
 
   return (
     <div className="flex items-center justify-center w-full h-full min-h-0">
       <div style={{ transform: `scale(${POSTER_SCALE})`, transformOrigin: 'center center', flexShrink: 0 }}>
-        <div className="relative overflow-hidden shadow-2xl rounded" style={{ width: w, height: h, background: c5, ...FONT_SANS }}>
+        <div
+          className={posterChrome ? 'relative overflow-hidden shadow-2xl rounded' : 'relative overflow-hidden'}
+          style={{ width: w, height: h, background: posterChrome ? c5 : 'transparent', ...FONT_SANS }}
+        >
           {/* Texturas globales */}
-          <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 300, opacity: 0.22, mixBlendMode: 'multiply', backgroundImage: `url("${BRANDING_GRAIN_URL}")`, backgroundSize: '128px' }} />
-          <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 2, opacity: 0.03, backgroundImage: `url("${BRANDING_KRAFT_URL}")`, backgroundSize: '200px' }} />
+          {posterChrome && (
+            <>
+              <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 300, opacity: 0.22, mixBlendMode: 'multiply', backgroundImage: `url("${BRANDING_GRAIN_URL}")`, backgroundSize: '128px' }} />
+              <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 2, opacity: 0.03, backgroundImage: `url("${BRANDING_KRAFT_URL}")`, backgroundSize: '200px' }} />
+            </>
+          )}
 
           {/* Header bar */}
+          {posterChrome && (
           <div className="absolute top-0 left-0 right-0 z-[1]" style={{ height: '8%', background: c1 }}>
             <div className="absolute bottom-0 left-0 right-0" style={{ height: 2, background: `linear-gradient(90deg, ${c2}, ${c4}, ${c2})`, opacity: 0.5 }} />
           </div>
+          )}
 
           {/* Esquinas */}
-          {[
+          {posterChrome &&
+          [
             { pos: 'tl', top: py(1.5), left: px(2) },
             { pos: 'tr', top: py(1.5), right: px(2) },
             { pos: 'bl', bottom: py(5), left: px(2) },
@@ -88,6 +101,7 @@ export function DireccionFotografica({ posterColors }: Props) {
           ))}
 
           {/* Logo aura (mismo que Territorio visual: gráfico + texto, reordenado horizontal) */}
+          {posterChrome && (
           <div className="absolute left-1/2 -translate-x-1/2 z-[50] flex items-center justify-center" style={{ top: 0, height: '8%', width: '100%' }}>
             <div className="flex flex-row items-center gap-4" style={{ transform: 'translate(-18px, 0) scale(1.1)', transformOrigin: 'center center' }}>
               {/* Gráfico: taza + hoja (ligeramente arriba y a la derecha para alinear con el texto) */}
@@ -103,9 +117,10 @@ export function DireccionFotografica({ posterColors }: Props) {
               </div>
             </div>
           </div>
+          )}
 
           {/* Hero photo */}
-          <div className="absolute z-[20] rounded overflow-hidden" style={{ top: py(11.5), left: px(5), right: px(5), height: py(25) }}>
+          <div className="absolute z-[20] rounded overflow-hidden" style={{ top: posterChrome ? py(11.5) : py(4), left: px(5), right: px(5), height: posterChrome ? py(25) : py(30) }}>
             <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, ${c4}22 0%, ${c3}44 40%, ${c2}33 70%, ${c1}88 100%)` }} />
             <div className="absolute left-0 right-0" style={{ top: '58%', height: 1, background: c2, opacity: 0.3 }} />
             <div className="absolute bottom-0 left-0 right-0" style={{ height: '45%', background: c1, clipPath: 'polygon(0% 60%,8% 45%,18% 55%,28% 30%,38% 42%,48% 20%,58% 35%,68% 15%,78% 38%,88% 28%,100% 50%,100% 100%,0% 100%)' }} />
@@ -129,7 +144,7 @@ export function DireccionFotografica({ posterColors }: Props) {
           </div>
 
           {/* Photo grid — 4 fotos */}
-          <div className="absolute z-[20] grid gap-2" style={{ top: py(38), left: px(5), right: px(5), gridTemplateColumns: 'repeat(4, 1fr)' }}>
+          <div className="absolute z-[20] grid gap-2" style={{ top: posterChrome ? py(38) : py(36), left: px(5), right: px(5), gridTemplateColumns: 'repeat(4, 1fr)' }}>
             {PHOTO_GRID_ITEMS.map((item) => (
               <div key={item.type} className="flex flex-col gap-1">
                 <div className="w-full rounded-sm overflow-hidden relative" style={{ aspectRatio: 0.78, background: item.type === 'portrait' ? c3 : item.type === 'detail' || item.type === 'mood' ? c1 : c3 }}>
@@ -211,7 +226,8 @@ export function DireccionFotografica({ posterColors }: Props) {
             ))}
           </div>
 
-          {/* Style Direction — 3 tarjetas */}
+          {/* Style Direction — solo en lámina completa (Solo escena = hero + grid de 4) */}
+          {posterChrome && (
           <div className="absolute z-[60]" style={{ top: py(67), left: px(5), right: px(5) }}>
             <div className="flex items-center gap-2 mb-2">
               <div style={{ width: 20, height: 2, background: c4, borderRadius: 1 }} />
@@ -256,8 +272,10 @@ export function DireccionFotografica({ posterColors }: Props) {
               ))}
             </div>
           </div>
+          )}
 
-          {/* Bottom row — product photo + notes */}
+          {/* Bottom row — product photo + notes (solo lámina completa) */}
+          {posterChrome && (
           <div className="absolute z-[20] grid gap-3 items-start" style={{ top: py(87), left: px(5), right: px(5), gridTemplateColumns: '38% 1fr' }}>
             <div className="rounded-sm overflow-hidden relative" style={{ height: 58, background: c1 }}>
               <div className="absolute inset-0" style={{ background: `linear-gradient(160deg, ${c4}33, ${c1})` }} />
@@ -277,7 +295,7 @@ export function DireccionFotografica({ posterColors }: Props) {
               </div>
               <div className="absolute" style={{ top: 4, right: 6, ...FONT_MONO, fontSize: 7, color: c5, opacity: 0.3 }}>06</div>
             </div>
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 min-w-0">
               <span style={{ ...FONT_MONO, fontSize: 9, letterSpacing: '0.25em', textTransform: 'uppercase', color: c6 }}>Direction Notes</span>
               <span style={{ ...FONT_MONO, fontSize: 8, color: c6, opacity: 0.6, lineHeight: 1.6 }}>All imagery should evoke warmth, authenticity and the ritual of slow coffee. Prioritize natural textures and human connection over polished studio aesthetics.</span>
               <div className="flex items-center gap-1.5 mt-0.5">
@@ -286,8 +304,11 @@ export function DireccionFotografica({ posterColors }: Props) {
               </div>
             </div>
           </div>
+          )}
 
           {/* Watermark */}
+          {posterChrome && (
+          <>
           <div className="absolute bottom-[2%] right-[-4%] z-[4] font-serif leading-[0.65] opacity-[0.18] pointer-events-none select-none lowercase" style={{ ...FONT_SERIF, fontSize: 160, color: c3 }}>a</div>
 
           {/* Footer */}
@@ -298,6 +319,8 @@ export function DireccionFotografica({ posterColors }: Props) {
               <div className="rounded-full" style={{ width: 4, height: 4, background: c4 }} />
             </div>
           </div>
+          </>
+          )}
         </div>
       </div>
     </div>

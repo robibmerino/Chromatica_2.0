@@ -32,9 +32,10 @@ const SPEC_CARDS = [
 
 interface Props {
   posterColors: PosterPalette;
+  sceneOnly?: boolean;
 }
 
-function PublicidadInner({ posterColors }: Props) {
+function PublicidadInner({ posterColors, sceneOnly }: Props) {
   const c = posterColors;
   const c1 = c.primary;
   const c2 = c.accent;
@@ -50,11 +51,18 @@ function PublicidadInner({ posterColors }: Props) {
   const py = (p: number) => (p / 100) * h;
   const formatCardHeight = py(29);
   const fadeOverlayStyle = { background: `linear-gradient(180deg, ${textColor} 0%, ${textColor}99 18%, ${textColor}4d 55%, transparent 100%)` };
+  /** Banner, pie, texturas y marco; líneas decorativas de hoja; «Campaign Specs» y tarjetas solo en lámina completa. */
+  const posterChrome = !sceneOnly;
 
   return (
     <div className="flex items-center justify-center w-full h-full min-h-0" role="img" aria-label="Mockup de campaña publicitaria Aura: billboard nocturno, formatos Magazine Spread, Street Poster e IG Story, y especificaciones de campaña">
       <div style={{ transform: `scale(${POSTER_SCALE})`, transformOrigin: 'center center', flexShrink: 0 }}>
-        <div className="relative overflow-hidden shadow-2xl rounded" style={{ width: w, height: h, background: c5, ...FONT_SANS }}>
+        <div
+          className={posterChrome ? 'relative overflow-hidden shadow-2xl rounded' : 'relative overflow-hidden'}
+          style={{ width: w, height: h, background: posterChrome ? c5 : 'transparent', ...FONT_SANS }}
+        >
+          {posterChrome && (
+            <>
           {/* Texturas */}
           <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 300, opacity: 0.18, mixBlendMode: 'multiply', backgroundImage: `url("${BRANDING_GRAIN_URL}")`, backgroundSize: '128px' }} />
           <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 2, opacity: 0.03, backgroundImage: `url("${BRANDING_KRAFT_URL}")`, backgroundSize: '200px' }} />
@@ -98,9 +106,20 @@ function PublicidadInner({ posterColors }: Props) {
               </div>
             </div>
           </div>
+          </>
+          )}
 
           {/* Hero — Billboard */}
-          <div className="absolute z-[20] rounded overflow-hidden" style={{ top: py(12), left: px(5), right: px(5), height: py(26), background: c1 }}>
+          <div
+            className="absolute z-[20] rounded overflow-hidden"
+            style={{
+              top: posterChrome ? py(12) : py(4),
+              left: px(5),
+              right: px(5),
+              height: py(26),
+              background: c1,
+            }}
+          >
             <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, ${c1} 0%, ${c4} 30%, ${c1} 60%, ${c1} 100%)`, opacity: 0.92 }} />
             <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, ${c1}cc 0%, ${c1}99 40%, ${c1}88 100%)` }} />
             {/* Plano de fondo: color Texto desde el borde superior, degradando a 100% transparencia en la línea de suelo */}
@@ -244,8 +263,8 @@ function PublicidadInner({ posterColors }: Props) {
             </div>
           </div>
 
-          {/* Format grid — 3 columns: contraste, riqueza y legibilidad */}
-          <div className="absolute z-[20]" style={{ top: py(40), left: px(5), right: px(5) }}>
+          {/* Format grid — también en Solo escena */}
+          <div className="absolute z-[20]" style={{ top: posterChrome ? py(40) : py(31.5), left: px(5), right: px(5) }}>
             <div className="flex items-center gap-2 mb-1.5">
               <div style={{ width: 22, height: 2.5, background: c4, borderRadius: 1 }} />
               <span style={{ ...FONT_MONO, fontSize: 8, letterSpacing: '0.3em', textTransform: 'uppercase', color: c6, opacity: 0.92 }}>Campaign Formats</span>
@@ -353,7 +372,8 @@ function PublicidadInner({ posterColors }: Props) {
             </div>
           </div>
 
-          {/* Specs — 3 cards */}
+          {/* Campaign Specs — solo lámina completa */}
+          {posterChrome && (
           <div className="absolute z-[20]" style={{ top: py(79), left: px(5), right: px(5) }}>
             <div className="flex items-center gap-2 mb-1">
               <div style={{ width: 20, height: 2, background: c4, borderRadius: 1 }} />
@@ -376,7 +396,10 @@ function PublicidadInner({ posterColors }: Props) {
               ))}
             </div>
           </div>
+          )}
 
+          {posterChrome && (
+          <>
           {/* Watermark */}
           <div className="absolute bottom-[2%] right-[-4%] z-[4] pointer-events-none select-none lowercase" style={{ ...FONT_SERIF, fontSize: 140, color: c3, lineHeight: 0.65, opacity: 0.12 }}>a</div>
 
@@ -388,6 +411,8 @@ function PublicidadInner({ posterColors }: Props) {
               <div className="rounded-full" style={{ width: 4, height: 4, background: c4 }} />
             </div>
           </div>
+          </>
+          )}
         </div>
       </div>
     </div>

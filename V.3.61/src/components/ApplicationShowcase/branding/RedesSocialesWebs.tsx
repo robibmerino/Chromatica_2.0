@@ -56,9 +56,10 @@ const MENU_SECTIONS = [
 
 interface Props {
   posterColors: PosterPalette;
+  sceneOnly?: boolean;
 }
 
-export function RedesSocialesWebs({ posterColors }: Props) {
+export function RedesSocialesWebs({ posterColors, sceneOnly }: Props) {
   const c = posterColors;
   const c1 = c.primary;
   const c2 = c.accent;
@@ -70,11 +71,18 @@ export function RedesSocialesWebs({ posterColors }: Props) {
   const h = POSTER_HEIGHT;
   const px = (p: number) => (p / 100) * w;
   const py = (p: number) => (p / 100) * h;
+  /** Banner, pie, texturas de hoja y marco; «Digital Specs» y bloques inferiores solo en lámina completa. */
+  const posterChrome = !sceneOnly;
 
   return (
     <div className="flex items-center justify-center w-full h-full min-h-0">
       <div style={{ transform: `scale(${POSTER_SCALE})`, transformOrigin: 'center center', flexShrink: 0 }}>
-        <div className="relative overflow-hidden shadow-2xl rounded" style={{ width: w, height: h, background: c5, ...FONT_SANS }}>
+        <div
+          className={posterChrome ? 'relative overflow-hidden shadow-2xl rounded' : 'relative overflow-hidden'}
+          style={{ width: w, height: h, background: posterChrome ? c5 : 'transparent', ...FONT_SANS }}
+        >
+          {posterChrome && (
+            <>
           <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 300, opacity: 0.22, mixBlendMode: 'multiply', backgroundImage: `url("${BRANDING_GRAIN_URL}")`, backgroundSize: '128px' }} />
           <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 2, opacity: 0.03, backgroundImage: `url("${BRANDING_KRAFT_URL}")`, backgroundSize: '200px' }} />
 
@@ -112,9 +120,20 @@ export function RedesSocialesWebs({ posterColors }: Props) {
               </div>
             </div>
           </div>
+          </>
+          )}
 
           {/* Hero — Laptop + plant + mug */}
-          <div className="absolute z-[20] rounded overflow-hidden" style={{ top: py(12.5), left: px(5), right: px(5), height: py(28), background: c1 }}>
+          <div
+            className="absolute z-[20] rounded overflow-hidden"
+            style={{
+              top: posterChrome ? py(12.5) : py(4),
+              left: px(5),
+              right: px(5),
+              height: py(28),
+              background: c1,
+            }}
+          >
             <div className="absolute inset-0" style={{ background: `linear-gradient(160deg, ${c1}, ${c4})` }} />
             <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: `repeating-linear-gradient(88deg, transparent, transparent 14px, ${c2} 14px, ${c2} 15px)` }} />
             {/* Plant */}
@@ -198,8 +217,11 @@ export function RedesSocialesWebs({ posterColors }: Props) {
             </div>
           </div>
 
-          {/* Grid 4 digital */}
-          <div className="absolute z-[20] grid gap-2" style={{ top: py(42.5), left: px(5), right: px(5), gridTemplateColumns: 'repeat(4, 1fr)' }}>
+          {/* Grid 4 digital — visible también en Solo escena */}
+          <div
+            className="absolute z-[20] grid gap-2"
+            style={{ top: posterChrome ? py(42.5) : py(33.5), left: px(5), right: px(5), gridTemplateColumns: 'repeat(4, 1fr)' }}
+          >
             {DIGITAL_GRID_ITEMS.map((item) => (
               <div key={item.type} className="flex flex-col gap-1">
                 <div className="w-full rounded overflow-hidden relative" style={{ aspectRatio: 0.56 }}>
@@ -360,7 +382,8 @@ export function RedesSocialesWebs({ posterColors }: Props) {
             ))}
           </div>
 
-          {/* Specs */}
+          {/* Digital Specs — solo lámina completa */}
+          {posterChrome && (
           <div className="absolute z-[60]" style={{ top: py(79), left: px(5), right: px(5) }}>
             <div className="flex items-center gap-2 mb-2">
               <div style={{ width: 20, height: 2, background: c4, borderRadius: 1 }} />
@@ -384,7 +407,10 @@ export function RedesSocialesWebs({ posterColors }: Props) {
               ))}
             </div>
           </div>
+          )}
 
+          {posterChrome && (
+          <>
           <div className="absolute bottom-[2%] right-[-4%] z-[4] font-serif leading-[0.65] opacity-[0.18] pointer-events-none select-none lowercase" style={{ ...FONT_SERIF, fontSize: 160, color: c3 }}>a</div>
 
           {/* Footer (mismo que Dirección fotográfica y Mockup) */}
@@ -395,6 +421,8 @@ export function RedesSocialesWebs({ posterColors }: Props) {
               <div className="rounded-full" style={{ width: 4, height: 4, background: c4 }} />
             </div>
           </div>
+          </>
+          )}
         </div>
       </div>
     </div>
