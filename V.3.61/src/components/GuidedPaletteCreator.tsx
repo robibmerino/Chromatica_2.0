@@ -404,8 +404,8 @@ export default function GuidedPaletteCreator({
 
   return (
     <div className="app-fullscreen flex flex-col overflow-hidden bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-      <AutoFitStage baseWidth={1440} baseHeight={900} minScale={0.3}>
-        <div className="h-full w-full overflow-hidden flex flex-col">
+      <header className="app-topbar border-b border-gray-700/50 bg-gray-900/80 backdrop-blur-md sticky top-0 z-50 transition-shadow duration-300 hover:shadow-[0_4px_24px_-4px_rgba(0,0,0,0.25)]">
+        <AutoFitStage baseWidth={1440} baseHeight={84} minScale={0.3} allowOverflow>
           <GuidedPaletteCreatorHeader
             phase={state.phase}
             colorsLength={state.colors.length}
@@ -421,8 +421,18 @@ export default function GuidedPaletteCreator({
             onOpenResearch={onOpenResearch}
             onOpenAccount={onOpenAccount}
           />
+        </AutoFitStage>
+      </header>
 
-          <main className="flex-1 min-h-0 overflow-hidden w-full max-w-7xl mx-auto px-4 py-4 md:py-6">
+      <main className="app-shell-main min-h-0 overflow-hidden w-full">
+        <AutoFitStage
+          baseWidth={1440}
+          baseHeight={816}
+          minScale={0.3}
+          fitToContent
+          syncViewportCssVar={false}
+        >
+          <div className="h-full w-full box-border overflow-hidden max-w-7xl mx-auto px-4 py-4 md:py-6 flex flex-col min-h-0">
             <AnimatePresence mode="wait">
               {state.phase === 'inspiration-menu' && (
                 <div className="flex-1 min-h-0 overflow-hidden">
@@ -530,9 +540,9 @@ export default function GuidedPaletteCreator({
                 </Suspense>
               )}
             </AnimatePresence>
-          </main>
-        </div>
-      </AutoFitStage>
+          </div>
+        </AutoFitStage>
+      </main>
 
       <AnimatePresence>
         {state.notification && <NotificationToast message={state.notification} />}

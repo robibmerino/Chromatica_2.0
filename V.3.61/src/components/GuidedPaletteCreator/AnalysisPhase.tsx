@@ -304,7 +304,7 @@ function AnalysisPhaseInner(props: AnalysisPhaseProps) {
   return (
     <PhaseLayout
       phaseKey="analysis"
-      className="flex flex-col gap-4 min-h-0 max-h-[calc(var(--app-vh)-10rem)]"
+      className="flex flex-col gap-4 min-h-0 h-full"
       header={
         <SectionBanner
           onBack={goBack}

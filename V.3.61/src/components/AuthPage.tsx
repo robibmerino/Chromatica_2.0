@@ -6,6 +6,7 @@ import { isSupabaseConfigured } from '../lib/supabase';
 import ChromaticaLogo from './ChromaticaLogo';
 import { LabIntroAsidePanel } from './LabIntroAsidePanel';
 import { ParticleBackground } from './ParticleBackground';
+import { AutoFitStage } from './AutoFitStage';
 
 const inputClass =
   'w-full px-3 py-2.5 rounded-lg bg-gray-800 border border-gray-600 text-white placeholder-gray-500 focus:ring-2 focus:ring-indigo-500 focus:border-transparent';
@@ -408,7 +409,7 @@ export function AuthPage({ onBack, onSuccess, labEntryAside, backLabel = 'Volver
           );
 
   return (
-    <div className="app-fullscreen bg-[#0a0a0f] flex flex-col relative">
+    <div className="app-fullscreen bg-[#0a0a0f] flex flex-col relative overflow-hidden">
       <ParticleBackground particleCount={120} showOrbs opacityScale={0.85} />
       <header className="relative z-10 border-b border-gray-700/50 bg-gray-900/80 backdrop-blur-md sticky top-0">
         <div className="max-w-4xl mx-auto pl-2 pr-4 py-5 grid grid-cols-3 items-center">
@@ -429,34 +430,38 @@ export function AuthPage({ onBack, onSuccess, labEntryAside, backLabel = 'Volver
         </div>
       </header>
 
-      <main
-        className={
-          labEntryAside
-            ? 'relative z-10 flex-1 flex items-start justify-center p-6 py-8 lg:items-center lg:py-10'
-            : 'relative z-10 flex-1 flex items-center justify-center p-6'
-        }
-      >
-        {labEntryAside ? (
-          <div className="w-full max-w-5xl mx-auto">
-            <div className="overflow-hidden rounded-2xl border border-gray-700/60 bg-gray-950/70 shadow-2xl shadow-black/40 backdrop-blur-md">
-              <div className="grid grid-cols-1 divide-y divide-gray-700/50 lg:grid-cols-2 lg:divide-x lg:divide-y-0 lg:items-stretch">
-                <aside className="order-2 flex min-h-[20rem] flex-col justify-center px-5 py-7 sm:px-7 sm:py-9 lg:order-1 lg:min-h-[24rem]">
-                  <LabIntroAsidePanel
-                    variant="split"
-                    onContinueWithoutAuth={labEntryAside.onContinueWithoutAuth}
-                  />
-                </aside>
-                <div className="order-1 flex min-h-[20rem] flex-col justify-center px-5 py-7 sm:px-7 sm:py-9 lg:order-2 lg:min-h-[24rem]">
-                  <div className="mx-auto w-full max-w-sm">{formsInner}</div>
+      <main className="relative z-10 flex-1 min-h-0 overflow-hidden">
+        <AutoFitStage baseWidth={1440} baseHeight={816} minScale={0.3}>
+          <div
+            className={
+              labEntryAside
+                ? 'h-full w-full flex items-start justify-center p-6 py-8 lg:items-center lg:py-10'
+                : 'h-full w-full flex items-center justify-center p-6'
+            }
+          >
+            {labEntryAside ? (
+              <div className="w-full max-w-5xl mx-auto">
+                <div className="overflow-hidden rounded-2xl border border-gray-700/60 bg-gray-950/70 shadow-2xl shadow-black/40 backdrop-blur-md">
+                  <div className="grid grid-cols-1 divide-y divide-gray-700/50 lg:grid-cols-2 lg:divide-x lg:divide-y-0 lg:items-stretch">
+                    <aside className="order-2 flex min-h-[20rem] flex-col justify-center px-5 py-7 sm:px-7 sm:py-9 lg:order-1 lg:min-h-[24rem]">
+                      <LabIntroAsidePanel
+                        variant="split"
+                        onContinueWithoutAuth={labEntryAside.onContinueWithoutAuth}
+                      />
+                    </aside>
+                    <div className="order-1 flex min-h-[20rem] flex-col justify-center px-5 py-7 sm:px-7 sm:py-9 lg:order-2 lg:min-h-[24rem]">
+                      <div className="mx-auto w-full max-w-sm">{formsInner}</div>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="w-full max-w-sm mx-auto">
+                {formsInner}
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="w-full max-w-sm mx-auto">
-            {formsInner}
-          </div>
-        )}
+        </AutoFitStage>
       </main>
     </div>
   );

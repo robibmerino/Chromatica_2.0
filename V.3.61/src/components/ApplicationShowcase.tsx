@@ -344,7 +344,7 @@ export default function ApplicationShowcase({
 
   const sceneBase = useMemo(() => {
     if (activeCategory === 'architecture') {
-      return { width: 620, height: 826 };
+      return { width: 620, height: 640 };
     }
     return { width: POSTER_PREVIEW_WIDTH, height: POSTER_PREVIEW_HEIGHT };
   }, [activeCategory]);

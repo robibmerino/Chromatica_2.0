@@ -40,40 +40,39 @@ export function GuidedPaletteCreatorHeader({
   onOpenAccount,
 }: GuidedPaletteCreatorHeaderProps) {
   return (
-    <header className="app-topbar border-b border-gray-700/50 bg-gray-900/80 backdrop-blur-md sticky top-0 z-50 transition-shadow duration-300 hover:shadow-[0_4px_24px_-4px_rgba(0,0,0,0.25)]">
-      <div className="max-w-7xl mx-auto px-4 h-full">
-        <div className="flex h-full items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <ChromaticaLogo size="sm" />
-            <AuthMenu onOpenAuth={onOpenAuth} onOpenAccount={onOpenAccount} />
-            {onOpenResearch && (
-              <button
-                type="button"
-                onClick={onOpenResearch}
-                className="flex items-center justify-center p-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-700/50 transition-colors"
-                title="Análisis de datos para investigación"
-                aria-label="Análisis investigación"
-              >
-                <BarChart3 className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-
-          <div className="mr-[4.75rem] flex justify-end">
-            <FlowProgress
-              currentStepperIndex={currentStepperIndex}
-              totalStepperSteps={totalStepperSteps}
-              phase={phase}
-              inspirationMode={inspirationMode}
-              colorsLength={colorsLength}
-              hasCompletedCurrentFlow={hasCompletedCurrentFlow}
-              hasPersonalizedFlow={hasPersonalizedFlow}
-              flowSectionEdited={flowSectionEdited}
-              onPhaseClick={onPhaseClick}
-            />
-          </div>
+    <div className="relative h-full w-full px-4">
+      <div className="absolute left-4 top-1/2 z-10 flex -translate-y-1/2 items-center gap-4">
+        <div className="flex items-center gap-4 shrink-0">
+          <ChromaticaLogo size="sm" />
+          <AuthMenu onOpenAuth={onOpenAuth} onOpenAccount={onOpenAccount} />
+          {onOpenResearch && (
+            <button
+              type="button"
+              onClick={onOpenResearch}
+              className="flex items-center justify-center p-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-700/50 transition-colors"
+              title="Análisis de datos para investigación"
+              aria-label="Análisis investigación"
+            >
+              <BarChart3 className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
-    </header>
+      <div className="flex h-full items-center justify-center">
+        <div className="w-full min-w-0">
+          <FlowProgress
+            currentStepperIndex={currentStepperIndex}
+            totalStepperSteps={totalStepperSteps}
+            phase={phase}
+            inspirationMode={inspirationMode}
+            colorsLength={colorsLength}
+            hasCompletedCurrentFlow={hasCompletedCurrentFlow}
+            hasPersonalizedFlow={hasPersonalizedFlow}
+            flowSectionEdited={flowSectionEdited}
+            onPhaseClick={onPhaseClick}
+          />
+        </div>
+      </div>
+    </div>
   );
 }

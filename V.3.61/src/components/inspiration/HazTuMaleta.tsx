@@ -28,6 +28,8 @@ const LEFT_TOOLS_CARD_WIDTH = 200;
 const LEFT_COLUMN_INNER_GAP = 10;
 /** Espacio reservado en la columna (tarjeta + separación) para el cálculo de escala. */
 const LEFT_TOOLS_RAIL = LEFT_TOOLS_CARD_WIDTH + LEFT_COLUMN_INNER_GAP;
+/** Margen de seguridad para evitar corte inferior por redondeos/zoom del navegador. */
+const LEFT_COLUMN_SAFE_SCALE = 0.975;
 /** El carril se adapta al alto disponible; el panel abierto hace scroll interno. */
 
 /** Tapa de la caja cerrada: beteado y relieve (solo estado `placed.length === 0`). */
@@ -2231,20 +2233,22 @@ export function HazTuMaleta({
     if (!el || typeof ResizeObserver === 'undefined') return;
 
     const updateScale = () => {
-      const rect = el.getBoundingClientRect();
+      const viewportWidth = el.clientWidth;
+      const viewportHeight = el.clientHeight;
       const contentEl = leftColumnContentRef.current;
-      if (rect.width <= 0 || rect.height <= 0) return;
+      if (viewportWidth <= 0 || viewportHeight <= 0) return;
       if (!contentEl) return;
 
       const contentWidth = contentEl.offsetWidth || LEFT_COLUMN_BASE_WIDTH;
       const contentHeight = contentEl.offsetHeight || 1;
 
-      const availW = Math.max(0, rect.width - LEFT_TOOLS_RAIL);
+      const availW = Math.max(0, viewportWidth - LEFT_TOOLS_RAIL);
       const widthScale = availW / LEFT_COLUMN_BASE_WIDTH;
-      const heightScale = rect.height / contentHeight;
+      const heightScale = viewportHeight / contentHeight;
       const contentWidthScale = availW / contentWidth;
       const nextScale = Math.max(MIN_LEFT_COLUMN_SCALE, Math.min(1, widthScale, heightScale));
-      const finalScale = Math.max(MIN_LEFT_COLUMN_SCALE, Math.min(nextScale, contentWidthScale));
+      const fittedScale = Math.max(MIN_LEFT_COLUMN_SCALE, Math.min(nextScale, contentWidthScale));
+      const finalScale = Math.max(MIN_LEFT_COLUMN_SCALE, Math.min(1, fittedScale * LEFT_COLUMN_SAFE_SCALE));
       setLeftColumnScale((prev) => (Math.abs(prev - finalScale) < 0.01 ? prev : finalScale));
     };
 

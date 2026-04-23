@@ -7,6 +7,7 @@ import {
   SPLASH_BRAND_STOPS_COMENZAR,
   linearBrandGradient90,
 } from '../lib/chromaticaBrandColors';
+import { AutoFitStage } from './AutoFitStage';
 
 /** Velocidad de la rueda cromática (fase/s) compartida logo + «atica» + CTA. */
 const SPLASH_BRAND_PHASE_SPEED = 0.22;
@@ -164,7 +165,7 @@ export const SplashScreen = ({ onEnter }: SplashScreenProps) => {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.5 }}
-        className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden cursor-crosshair"
+        className="fixed inset-0 z-50 overflow-hidden cursor-crosshair"
         style={{ background: '#08080c' }}
         onMouseMove={handleMouseMove}
         onClick={handleClick}
@@ -385,8 +386,10 @@ export const SplashScreen = ({ onEnter }: SplashScreenProps) => {
           ))}
         </div>
 
+        <AutoFitStage baseWidth={1440} baseHeight={900} minScale={0.3}>
+          <div className="relative h-full w-full overflow-hidden">
         {/* Main content */}
-        <div className="relative z-10 flex flex-col items-center">
+        <div className="relative z-10 flex h-full w-full flex-col items-center justify-center">
           {/* Marca + título + subtítulo: translateY sube el grupo sin desplazar el botón (el hueco en flujo se conserva) */}
           <div className="flex flex-col items-center -translate-y-10 sm:-translate-y-12 md:-translate-y-16 lg:-translate-y-20">
             {/* Marca + título */}
@@ -622,28 +625,6 @@ export const SplashScreen = ({ onEnter }: SplashScreenProps) => {
           }}
         />
 
-        {/* Logo colaborador — Neuroarquitectura (horizontal, PNG) */}
-        <motion.a
-          href="https://www.linkedin.com/company/laboratorio-de-neuroarquitectura-de-la-upv/posts/?feedView=all"
-          target="_blank"
-          rel="noopener noreferrer"
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 1.05 }}
-          whileHover={{ scale: 1.04 }}
-          whileTap={{ scale: 0.97 }}
-          className="group absolute left-4 sm:left-6 bottom-10 sm:bottom-12 z-20 block cursor-pointer select-none outline-none focus-visible:ring-2 focus-visible:ring-white/35 focus-visible:ring-offset-2 focus-visible:ring-offset-[#08080c] rounded-sm"
-          aria-label="Laboratorio de Neuroarquitectura de la UPV en LinkedIn"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <img
-            src="/neuroarquitectura-logo-horizontal.png"
-            alt=""
-            className="w-auto max-w-[min(52vw,28rem)] sm:max-w-[34rem] h-[4.7rem] sm:h-[5.3rem] object-contain object-left object-bottom opacity-[0.78] transition-all duration-300 ease-out group-hover:opacity-100 group-hover:brightness-110 group-hover:drop-shadow-[0_0_20px_rgba(255,255,255,0.18)]"
-            draggable={false}
-          />
-        </motion.a>
-
         {/* Footer */}
         <motion.div
           initial={{ y: 20, opacity: 0 }}
@@ -671,6 +652,30 @@ export const SplashScreen = ({ onEnter }: SplashScreenProps) => {
             </motion.svg>
           </a>
         </motion.div>
+          </div>
+        </AutoFitStage>
+
+        {/* Logo colaborador — anclado al viewport para mantener margen izquierdo real */}
+        <motion.a
+          href="https://www.linkedin.com/company/laboratorio-de-neuroarquitectura-de-la-upv/posts/?feedView=all"
+          target="_blank"
+          rel="noopener noreferrer"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 1.05 }}
+          whileHover={{ scale: 1.04 }}
+          whileTap={{ scale: 0.97 }}
+          className="group absolute left-4 sm:left-6 bottom-10 sm:bottom-12 z-20 block cursor-pointer select-none outline-none focus-visible:ring-2 focus-visible:ring-white/35 focus-visible:ring-offset-2 focus-visible:ring-offset-[#08080c] rounded-sm"
+          aria-label="Laboratorio de Neuroarquitectura de la UPV en LinkedIn"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <img
+            src="/neuroarquitectura-logo-horizontal.png"
+            alt=""
+            className="w-auto max-w-[min(52vw,28rem)] sm:max-w-[34rem] h-[4.7rem] sm:h-[5.3rem] object-contain object-left object-bottom opacity-[0.78] transition-all duration-300 ease-out group-hover:opacity-100 group-hover:brightness-110 group-hover:drop-shadow-[0_0_20px_rgba(255,255,255,0.18)]"
+            draggable={false}
+          />
+        </motion.a>
       </motion.div>
     </AnimatePresence>
   );

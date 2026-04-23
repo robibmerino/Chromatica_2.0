@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Cog,
   SlidersHorizontal,
@@ -46,6 +46,9 @@ const DEFAULT_ACCENT = {
   particle: '#818cf8',
 };
 
+/** Margen lateral de seguridad para evitar recortes en extremos (Guardar, etc.). */
+const DESKTOP_SAFE_GUTTER_PX = 20;
+
 interface FlowProgressProps {
   currentStepperIndex: number;
   totalStepperSteps: number;
@@ -75,6 +78,72 @@ export function FlowProgress({
   const progressPercent = (currentStepperIndex / (TOTAL_STEPS - 1)) * 100;
   const flowAccent = getFlowAccent(inspirationMode) ?? DEFAULT_ACCENT;
   const prefersReducedMotion = useReducedMotion();
+  const desktopViewportRef = useRef<HTMLDivElement | null>(null);
+  const desktopContentRef = useRef<HTMLDivElement | null>(null);
+  const desktopOriginRef = useRef<HTMLButtonElement | null>(null);
+  const [desktopScale, setDesktopScale] = useState(1);
+  const [desktopContentSize, setDesktopContentSize] = useState({ width: 0, height: 0 });
+  const [desktopOffsetX, setDesktopOffsetX] = useState(0);
+
+  useEffect(() => {
+    const viewport = desktopViewportRef.current;
+    const content = desktopContentRef.current;
+    if (!viewport || !content || typeof ResizeObserver === 'undefined') return;
+
+    const updateDesktopScale = () => {
+      const availableWidth = viewport.clientWidth;
+      const contentWidth = content.scrollWidth;
+      const contentHeight = content.offsetHeight;
+      if (availableWidth <= 0 || contentWidth <= 0 || contentHeight <= 0) return;
+
+      const safeWidth = Math.max(0, availableWidth - DESKTOP_SAFE_GUTTER_PX * 2);
+
+      let nextScale = Math.min(1, safeWidth / contentWidth);
+      let rawOffset = 0;
+      const originButton = desktopOriginRef.current;
+      if (originButton) {
+        const originRect = originButton.getBoundingClientRect();
+        const contentRect = content.getBoundingClientRect();
+        const renderedScale = originButton.offsetWidth > 0 ? originRect.width / originButton.offsetWidth : 1;
+        const scaledOriginCenter = originRect.left - contentRect.left + originRect.width / 2;
+        const originCenterFromContentLeft = scaledOriginCenter / renderedScale;
+
+        // Mantiene la C centrada sin recortar extremos (p.ej. "Guardar") al hacer zoom.
+        const maxHalfSpan = Math.max(originCenterFromContentLeft, contentWidth - originCenterFromContentLeft);
+        const centeredFitScale = maxHalfSpan > 0 ? safeWidth / (2 * maxHalfSpan) : 1;
+        nextScale = Math.min(nextScale, centeredFitScale, 1);
+        rawOffset = nextScale * (contentWidth / 2 - originCenterFromContentLeft);
+      }
+
+      // Evita cualquier recorte en los extremos aunque la C quiera desplazarse más.
+      const scaledWidth = nextScale * contentWidth;
+      const remainingSpace = Math.max(0, safeWidth - scaledWidth);
+      const maxShift = remainingSpace / 2;
+      const nextOffset = Math.max(-maxShift, Math.min(maxShift, rawOffset));
+
+      setDesktopScale((prev) => (Math.abs(prev - nextScale) < 0.01 ? prev : nextScale));
+      setDesktopOffsetX((prev) => (Math.abs(prev - nextOffset) < 0.5 ? prev : nextOffset));
+      setDesktopContentSize((prev) =>
+        prev.width === contentWidth && prev.height === contentHeight
+          ? prev
+          : { width: contentWidth, height: contentHeight }
+      );
+    };
+
+    updateDesktopScale();
+
+    const viewportObserver = new ResizeObserver(updateDesktopScale);
+    const contentObserver = new ResizeObserver(updateDesktopScale);
+    viewportObserver.observe(viewport);
+    contentObserver.observe(content);
+    window.addEventListener('resize', updateDesktopScale);
+
+    return () => {
+      viewportObserver.disconnect();
+      contentObserver.disconnect();
+      window.removeEventListener('resize', updateDesktopScale);
+    };
+  }, []);
 
   const canGoToStep = (index: number) => {
     if (currentStepperIndex === 0) return index === 0;
@@ -115,7 +184,7 @@ export function FlowProgress({
 
   return (
     <div
-      className="w-full max-w-xl"
+      className="w-full min-w-0"
       role="progressbar"
       aria-valuenow={currentStepperIndex + 1}
       aria-valuemin={1}
@@ -139,8 +208,24 @@ export function FlowProgress({
       </div>
 
       {/* Escritorio: cuadradito | Fábrica | separador | [Refinar–Aplicar–Análisis] grupo | Guardar */}
-      <div className="hidden md:flex items-center w-full">
-        {STEPPER_STEPS.map((step, index) => {
+      <div ref={desktopViewportRef} className="hidden md:flex items-center justify-center w-full min-w-0 overflow-visible">
+        <div
+          className="shrink-0"
+          style={{
+            width: desktopContentSize.width ? `${desktopContentSize.width * desktopScale}px` : undefined,
+            height: desktopContentSize.height ? `${desktopContentSize.height * desktopScale}px` : undefined,
+            transform: `translateX(${desktopOffsetX}px)`,
+          }}
+        >
+          <div
+            ref={desktopContentRef}
+            className="flex items-center w-max"
+            style={{
+              transform: `scale(${desktopScale})`,
+              transformOrigin: 'top center',
+            }}
+          >
+            {STEPPER_STEPS.map((step, index) => {
           const completed = isCompleted(index);
           const current = isCurrentStep(index);
           const clickable = canGoToStep(index);
@@ -255,6 +340,7 @@ export function FlowProgress({
             return (
               <div key={step.id + index} className="flex flex-shrink-0 items-center">
                 <motion.button
+                  ref={desktopOriginRef}
                   type="button"
                   onClick={() => clickable && onPhaseClick(targetPhase)}
                   disabled={!clickable}
@@ -400,6 +486,8 @@ export function FlowProgress({
           }
           return null;
         })}
+          </div>
+        </div>
       </div>
     </div>
   );
