@@ -17,6 +17,7 @@ import { INSPIRATION_MODE_LABELS } from './GuidedPaletteCreator/config/phasesCon
 import { blendColorsVibrant } from './inspiration/archetypePaletteUtils';
 import { hexToHsl, hslToHex } from '../utils/colorUtils';
 import type { ExportPanelProPersistedState } from './export/ExportPanelPro';
+import { AutoFitStage } from './AutoFitStage';
 
 const COMBINED_MODES_UI = [
   {
@@ -403,131 +404,135 @@ export default function GuidedPaletteCreator({
 
   return (
     <div className="app-fullscreen flex flex-col overflow-hidden bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-      <GuidedPaletteCreatorHeader
-        phase={state.phase}
-        colorsLength={state.colors.length}
-        currentStepperIndex={state.currentStepperIndex}
-        totalStepperSteps={state.totalStepperSteps}
-        inspirationMode={state.inspirationMode}
-        hasCompletedCurrentFlow={state.hasCompletedCurrentFlow}
-        hasPersonalizedFlow={state.hasPersonalizedCurrentFlow}
-        flowSectionEdited={state.flowSectionEdited}
-        onPhaseClick={state.goToPhase}
-        onLogoClick={state.handleLogoClick}
-        onOpenAuth={onOpenAuth}
-        onOpenResearch={onOpenResearch}
-        onOpenAccount={onOpenAccount}
-      />
+      <AutoFitStage baseWidth={1440} baseHeight={900} minScale={0.3}>
+        <div className="h-full w-full overflow-hidden flex flex-col">
+          <GuidedPaletteCreatorHeader
+            phase={state.phase}
+            colorsLength={state.colors.length}
+            currentStepperIndex={state.currentStepperIndex}
+            totalStepperSteps={state.totalStepperSteps}
+            inspirationMode={state.inspirationMode}
+            hasCompletedCurrentFlow={state.hasCompletedCurrentFlow}
+            hasPersonalizedFlow={state.hasPersonalizedCurrentFlow}
+            flowSectionEdited={state.flowSectionEdited}
+            onPhaseClick={state.goToPhase}
+            onLogoClick={state.handleLogoClick}
+            onOpenAuth={onOpenAuth}
+            onOpenResearch={onOpenResearch}
+            onOpenAccount={onOpenAccount}
+          />
 
-      <main className="app-shell-main min-h-0 overflow-hidden flex flex-col max-w-7xl mx-auto w-full px-4 py-4 md:py-6">
-        <AnimatePresence mode="wait">
-          {state.phase === 'inspiration-menu' && (
-            <div className="flex-1 min-h-0 overflow-auto">
-              <InspirationMenuPhase
-                onSelectOption={state.handleInspirationSelectFromMenu ?? state.handleInspirationSelect}
-                activePalettesByMode={state.flowActivePaletteByMode}
-                paletteOptionsByMode={state.menuPaletteOptionsByMode}
-                defaultPaletteSourceByMode={state.menuPreferredPaletteSourceByMode}
-                onOpenCombinedPalette={handleOpenCombinedPaletteModal}
-              />
-            </div>
-          )}
+          <main className="flex-1 min-h-0 overflow-hidden w-full max-w-7xl mx-auto px-4 py-4 md:py-6">
+            <AnimatePresence mode="wait">
+              {state.phase === 'inspiration-menu' && (
+                <div className="flex-1 min-h-0 overflow-hidden">
+                  <InspirationMenuPhase
+                    onSelectOption={state.handleInspirationSelectFromMenu ?? state.handleInspirationSelect}
+                    activePalettesByMode={state.flowActivePaletteByMode}
+                    paletteOptionsByMode={state.menuPaletteOptionsByMode}
+                    defaultPaletteSourceByMode={state.menuPreferredPaletteSourceByMode}
+                    onOpenCombinedPalette={handleOpenCombinedPaletteModal}
+                  />
+                </div>
+              )}
 
-          {state.phase === 'inspiration-detail' && (
-            <Suspense fallback={<PhaseFallback />}>
-              <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-                <InspirationDetailPhase
-                inspirationMode={state.inspirationMode}
-                colorCount={state.colorCount}
-                onColorCountChange={state.setColorCount}
-                onComplete={state.requestInspirationComplete}
-                onBack={state.goBackFromInspirationDetail}
-                onSetInspirationMode={state.setInspirationMode}
-                inspirationDetailSavedState={state.inspirationDetailSavedState}
-                onStateChange={state.reportInspirationDetailState}
-                onGeneratedPaletteChange={state.reportInspirationGeneratedPalette}
-              />
-              </div>
-            </Suspense>
-          )}
+              {state.phase === 'inspiration-detail' && (
+                <Suspense fallback={<PhaseFallback />}>
+                  <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+                    <InspirationDetailPhase
+                      inspirationMode={state.inspirationMode}
+                      colorCount={state.colorCount}
+                      onColorCountChange={state.setColorCount}
+                      onComplete={state.requestInspirationComplete}
+                      onBack={state.goBackFromInspirationDetail}
+                      onSetInspirationMode={state.setInspirationMode}
+                      inspirationDetailSavedState={state.inspirationDetailSavedState}
+                      onStateChange={state.reportInspirationDetailState}
+                      onGeneratedPaletteChange={state.reportInspirationGeneratedPalette}
+                    />
+                  </div>
+                </Suspense>
+              )}
 
-          {state.phase === 'refinement' && (
-            <Suspense fallback={<PhaseFallback />}>
-              <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
-                <RefinementPhase {...refinementProps} />
-              </div>
-            </Suspense>
-          )}
+              {state.phase === 'refinement' && (
+                <Suspense fallback={<PhaseFallback />}>
+                  <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+                    <RefinementPhase {...refinementProps} />
+                  </div>
+                </Suspense>
+              )}
 
-          {state.phase === 'application' && (
-            <Suspense fallback={<PhaseFallback />}>
-              <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
-                <ApplicationPhase {...applicationProps} />
-              </div>
-            </Suspense>
-          )}
+              {state.phase === 'application' && (
+                <Suspense fallback={<PhaseFallback />}>
+                  <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+                    <ApplicationPhase {...applicationProps} />
+                  </div>
+                </Suspense>
+              )}
 
-          {state.phase === 'analysis' && (
-            <Suspense fallback={<PhaseFallback />}>
-              <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
-                <AnalysisPhase
-                  colors={state.colors}
-                  supportColorsList={state.supportColorsList}
-                  updateSupportColor={state.updateSupportColor}
-                  resetSupportPalette={state.resetSupportPalette}
-                  analysisType={state.analysisType}
-                  setAnalysisType={state.setAnalysisType}
-                  updateColorsWithHistory={state.updateColorsWithHistory}
-                  setColors={state.setColors}
-                  showNotification={state.showNotification}
-                  goBack={state.goBack}
-                  goNext={state.goNext}
-                  undo={state.undo}
-                  redo={state.redo}
-                  undoDisabled={!state.canUndo}
-                  redoDisabled={!state.canRedo}
-                  onSavePalette={handleSavePaletteClick}
-                  lockPinned={state.sectionLocked.analysis}
-                  onLockToggle={() => state.toggleSectionLock('analysis')}
-                  onOpenHistory={() => setShowHistoryModal(true)}
-                />
-              </div>
-            </Suspense>
-          )}
+              {state.phase === 'analysis' && (
+                <Suspense fallback={<PhaseFallback />}>
+                  <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+                    <AnalysisPhase
+                      colors={state.colors}
+                      supportColorsList={state.supportColorsList}
+                      updateSupportColor={state.updateSupportColor}
+                      resetSupportPalette={state.resetSupportPalette}
+                      analysisType={state.analysisType}
+                      setAnalysisType={state.setAnalysisType}
+                      updateColorsWithHistory={state.updateColorsWithHistory}
+                      setColors={state.setColors}
+                      showNotification={state.showNotification}
+                      goBack={state.goBack}
+                      goNext={state.goNext}
+                      undo={state.undo}
+                      redo={state.redo}
+                      undoDisabled={!state.canUndo}
+                      redoDisabled={!state.canRedo}
+                      onSavePalette={handleSavePaletteClick}
+                      lockPinned={state.sectionLocked.analysis}
+                      onLockToggle={() => state.toggleSectionLock('analysis')}
+                      onOpenHistory={() => setShowHistoryModal(true)}
+                    />
+                  </div>
+                </Suspense>
+              )}
 
-          {state.phase === 'save' && (
-            <Suspense fallback={<PhaseFallback />}>
-              <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
-                <SavePhase
-                  colors={state.colors}
-                  secondaryColors={state.supportColorsList.map((s) => s.hex)}
-                  paletteName={state.paletteName}
-                  setPaletteName={state.setPaletteName}
-                  savePalette={state.savePalette}
-                  removePalette={state.removePalette}
-                  savedPalettes={state.savedPalettes}
-                  showMyPalettes={state.showMyPalettes}
-                  setShowMyPalettes={state.setShowMyPalettes}
-                  setColors={state.setColors}
-                  setPhase={state.setPhase}
-                  setSavedPalettes={state.setSavedPalettes}
-                  showNotification={state.showNotification}
-                  goBack={state.goBack}
-                  onStartNewPalette={state.handleStartNewPalette}
-                  undo={state.undo}
-                  redo={state.redo}
-                  undoDisabled={!state.canUndo}
-                  redoDisabled={!state.canRedo}
-                  onSavePalette={handleSavePaletteClick}
-                  onOpenHistory={() => setShowHistoryModal(true)}
-                  exportPanelState={saveExportPanelState}
-                  onExportPanelStateChange={setSaveExportPanelState}
-                />
-              </div>
-            </Suspense>
-          )}
-        </AnimatePresence>
-      </main>
+              {state.phase === 'save' && (
+                <Suspense fallback={<PhaseFallback />}>
+                  <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+                    <SavePhase
+                      colors={state.colors}
+                      secondaryColors={state.supportColorsList.map((s) => s.hex)}
+                      paletteName={state.paletteName}
+                      setPaletteName={state.setPaletteName}
+                      savePalette={state.savePalette}
+                      removePalette={state.removePalette}
+                      savedPalettes={state.savedPalettes}
+                      showMyPalettes={state.showMyPalettes}
+                      setShowMyPalettes={state.setShowMyPalettes}
+                      setColors={state.setColors}
+                      setPhase={state.setPhase}
+                      setSavedPalettes={state.setSavedPalettes}
+                      showNotification={state.showNotification}
+                      goBack={state.goBack}
+                      onStartNewPalette={state.handleStartNewPalette}
+                      undo={state.undo}
+                      redo={state.redo}
+                      undoDisabled={!state.canUndo}
+                      redoDisabled={!state.canRedo}
+                      onSavePalette={handleSavePaletteClick}
+                      onOpenHistory={() => setShowHistoryModal(true)}
+                      exportPanelState={saveExportPanelState}
+                      onExportPanelStateChange={setSaveExportPanelState}
+                    />
+                  </div>
+                </Suspense>
+              )}
+            </AnimatePresence>
+          </main>
+        </div>
+      </AutoFitStage>
 
       <AnimatePresence>
         {state.notification && <NotificationToast message={state.notification} />}
