@@ -402,7 +402,7 @@ export default function GuidedPaletteCreator({
   );
 
   return (
-    <div className="h-[100dvh] flex flex-col overflow-hidden bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+    <div className="h-screen flex flex-col overflow-hidden bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
       <GuidedPaletteCreatorHeader
         phase={state.phase}
         colorsLength={state.colors.length}
