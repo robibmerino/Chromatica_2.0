@@ -402,7 +402,7 @@ export default function GuidedPaletteCreator({
   );
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+    <div className="app-fullscreen flex flex-col overflow-hidden bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
       <GuidedPaletteCreatorHeader
         phase={state.phase}
         colorsLength={state.colors.length}
@@ -419,7 +419,7 @@ export default function GuidedPaletteCreator({
         onOpenAccount={onOpenAccount}
       />
 
-      <main className="flex-1 min-h-0 overflow-hidden flex flex-col max-w-7xl mx-auto w-full px-4 py-6">
+      <main className="app-shell-main min-h-0 overflow-hidden flex flex-col max-w-7xl mx-auto w-full px-4 py-4 md:py-6">
         <AnimatePresence mode="wait">
           {state.phase === 'inspiration-menu' && (
             <div className="flex-1 min-h-0 overflow-auto">

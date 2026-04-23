@@ -233,7 +233,7 @@ export function ArchetypesGlobalSummaryModal({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.98, y: 8 }}
           transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-          className="relative z-10 w-[1200px] max-w-[min(1200px,calc(100vw-2rem))] h-[700px] max-h-[min(700px,calc(100vh-3rem))] flex flex-col shadow-2xl shadow-black/50"
+          className="relative z-10 w-[1200px] max-w-[min(1200px,calc(100vw-2rem))] h-[700px] max-h-[min(700px,calc(var(--app-vh)-3rem))] flex flex-col shadow-2xl shadow-black/50"
           role="dialog"
           aria-modal="true"
           aria-labelledby="archetypes-global-summary-title"

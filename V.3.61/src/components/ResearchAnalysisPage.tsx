@@ -710,7 +710,7 @@ export function ResearchAnalysisPage({ onBack }: ResearchAnalysisPageProps) {
     (section === 'palettes' && palettesData && palettesData.length > 0);
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-gray-100 flex flex-col">
+    <div className="app-fullscreen bg-[#0a0a0f] text-gray-100 flex flex-col">
       <header className="border-b border-gray-700/50 bg-gray-900/80 backdrop-blur-md sticky top-0 z-50 shrink-0">
         <div className="px-4 py-4 flex items-center gap-4">
           <button

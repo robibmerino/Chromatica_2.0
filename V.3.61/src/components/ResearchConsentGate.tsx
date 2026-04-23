@@ -98,7 +98,7 @@ export function ResearchConsentGate() {
   );
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] flex flex-col relative">
+    <div className="app-fullscreen bg-[#0a0a0f] flex flex-col relative">
       <ParticleBackground particleCount={120} showOrbs opacityScale={0.85} />
       <header className="relative z-10 border-b border-gray-700/50 bg-gray-900/80 backdrop-blur-md sticky top-0">
         <div className="max-w-4xl mx-auto px-4 py-5 flex justify-center">

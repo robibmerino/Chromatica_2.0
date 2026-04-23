@@ -202,7 +202,7 @@ export function AccountPanel({ onBack, onEditPalette, onExportPalette }: Account
   const previewColors = selectedPalette?.colors ?? [];
 
   return (
-    <div className="flex flex-col h-screen text-gray-100 overflow-hidden bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+    <div className="app-fullscreen flex flex-col text-gray-100 overflow-hidden bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
       {/* Barra superior: mismo estilo que header del flujo principal (Inspiración, etc.) */}
       <div className="border-b border-gray-700/50 bg-gray-900/80 backdrop-blur-md shrink-0">
         <div className="max-w-7xl mx-auto w-full px-4 lg:px-6">
@@ -232,7 +232,7 @@ export function AccountPanel({ onBack, onEditPalette, onExportPalette }: Account
 
       {/* Contenedor centrado: bloque de columnas con altura limitada, sin scroll de página */}
       <div className="max-w-7xl mx-auto w-full flex-1 min-h-0 overflow-hidden flex flex-col items-center justify-center px-4 lg:px-6 py-4 lg:py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 w-full max-h-[calc(100vh-11rem)] min-h-0 overflow-hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 w-full max-h-[calc(var(--app-vh)-11rem)] min-h-0 overflow-hidden">
         {/* Columna izquierda: Mis paletas */}
         <div className="bg-gray-800/70 rounded-2xl p-5 flex flex-col min-h-0 overflow-hidden flex-1 lg:flex-initial max-h-full border border-gray-700/40">
           <div className="flex items-center gap-2 mb-4 shrink-0">

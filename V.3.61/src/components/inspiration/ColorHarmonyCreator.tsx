@@ -255,7 +255,7 @@ export default function ColorHarmonyCreator({ colorCount, onColorCountChange, on
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex flex-col min-h-0 max-h-[calc(100vh-10rem)]"
+      className="flex flex-col min-h-0 max-h-[calc(var(--app-vh)-10rem)]"
     >
       {/* Banner integrado con el mismo estilo que las columnas */}
       <div className="shrink-0 bg-gray-700/60 rounded-2xl border border-gray-600/50 px-6 py-4 flex items-center justify-between gap-4">

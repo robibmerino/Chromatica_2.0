@@ -144,7 +144,7 @@ function RefinementPhaseInner({
   return (
     <PhaseLayout
       phaseKey="refinement"
-      className="flex flex-col gap-4 min-h-0 max-h-[calc(100vh-10rem)]"
+      className="flex flex-col gap-4 min-h-0 max-h-[calc(var(--app-vh)-10rem)]"
       header={
         <SectionBanner
           onBack={goBack}

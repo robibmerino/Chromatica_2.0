@@ -12,12 +12,17 @@ import {
   CategoryIcons,
 } from './ApplicationShowcase/types';
 import { cn } from '../utils/cn';
-import { getMainPaletteRole } from './ApplicationShowcase/constants';
+import {
+  getMainPaletteRole,
+  POSTER_PREVIEW_HEIGHT,
+  POSTER_PREVIEW_WIDTH,
+} from './ApplicationShowcase/constants';
 import { ArchitectureSection } from './ApplicationShowcase/ArchitectureSection';
 import { PosterSection } from './ApplicationShowcase/PosterSection';
 import { BrandingSection } from './ApplicationShowcase/BrandingSection';
 import { FloatingPanel } from './GuidedPaletteCreator/FloatingPanel';
 import { ColorEditPanelBody } from './ColorEditPanelBody';
+import { ResponsiveSceneFrame } from './ResponsiveSceneFrame';
 
 export type { SupportPaletteVariant, SupportColorItem } from './ApplicationShowcase/types';
 
@@ -337,6 +342,13 @@ export default function ApplicationShowcase({
     return null;
   };
 
+  const sceneBase = useMemo(() => {
+    if (activeCategory === 'architecture') {
+      return { width: 620, height: 826 };
+    }
+    return { width: POSTER_PREVIEW_WIDTH, height: POSTER_PREVIEW_HEIGHT };
+  }, [activeCategory]);
+
   return (
     <div className="grid grid-cols-[minmax(0,200px)_1fr_minmax(0,240px)] gap-4 min-h-0 flex-1 overflow-hidden">
       {/* Columna izquierda: menú categorías + variantes */}
@@ -383,7 +395,7 @@ export default function ApplicationShowcase({
         </nav>
       </div>
 
-      {/* Columna central: vista previa - sin scroll, contenido centrado y ligeramente escalado para que quepa */}
+      {/* Columna central: vista previa ajustada con fit proporcional por escena */}
       <div
         ref={previewRef}
         className="rounded-2xl p-6 min-h-0 flex-1 flex items-center justify-center transition-colors duration-300 border border-gray-700/30 overflow-hidden"
@@ -398,9 +410,9 @@ export default function ApplicationShowcase({
             transition={{ duration: 0.3 }}
             className="w-full h-full flex items-center justify-center min-h-0"
           >
-            <div style={{ transform: 'scale(0.94)', transformOrigin: 'center center' }}>
+            <ResponsiveSceneFrame baseWidth={sceneBase.width} baseHeight={sceneBase.height}>
               {renderContent()}
-            </div>
+            </ResponsiveSceneFrame>
           </motion.div>
         </AnimatePresence>
       </div>

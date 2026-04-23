@@ -1,15 +1,42 @@
 @import "tailwindcss";
 
+:root {
+  --app-vh: 100vh;
+  --header-h: 84px;
+  --content-h: calc(var(--app-vh) - var(--header-h));
+}
+
+@supports (height: 100dvh) {
+  :root {
+    --app-vh: 100dvh;
+  }
+}
+
 /* Evitar franja blanca si hay overflow; fondo coherente con la app */
 html,
 body {
   background: rgb(17 24 39);
   overflow: hidden;
+  height: 100%;
 }
 
 #root {
-  height: 100vh;
+  height: var(--app-vh);
+  min-height: var(--app-vh);
   overflow: hidden;
+}
+
+.app-fullscreen {
+  height: var(--app-vh);
+  min-height: var(--app-vh);
+}
+
+.app-topbar {
+  height: var(--header-h);
+}
+
+.app-shell-main {
+  height: var(--content-h);
 }
 
 /* Custom scrollbar */

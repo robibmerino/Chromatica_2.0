@@ -570,7 +570,7 @@ export function TrendingPalettes({
 
       {/* Layout sin scroll global: izquierda fija, derecha con scroll propio */}
       <div className="flex-1 min-h-0 flex flex-col gap-4">
-        <div className="flex flex-col md:flex-row gap-4 min-h-0 items-start h-[calc(100vh-180px)]">
+        <div className="flex flex-col md:flex-row gap-4 min-h-0 items-start h-[calc(var(--app-vh)-180px)]">
           {/* Columna izquierda: filtros y configuraciones */}
           <aside className="w-full md:w-80 lg:w-96 shrink-0 self-start flex flex-col gap-3">
             {/* Panel principal de control */}

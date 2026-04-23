@@ -28,8 +28,7 @@ const LEFT_TOOLS_CARD_WIDTH = 200;
 const LEFT_COLUMN_INNER_GAP = 10;
 /** Espacio reservado en la columna (tarjeta + separación) para el cálculo de escala. */
 const LEFT_TOOLS_RAIL = LEFT_TOOLS_CARD_WIDTH + LEFT_COLUMN_INNER_GAP;
-/** Altura fija del carril de herramientas (abierto/cerrado); el panel abierto hace scroll interno si hace falta. */
-const LEFT_TOOLS_CARD_HEIGHT = 600;
+/** El carril se adapta al alto disponible; el panel abierto hace scroll interno. */
 
 /** Tapa de la caja cerrada: beteado y relieve (solo estado `placed.length === 0`). */
 const CLOSED_TOOLS_LID_WOOD: CSSProperties = {
@@ -2610,7 +2609,7 @@ export function HazTuMaleta({
             userSelect: 'none',
           }}
         >
-          <div className="h-full grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_200px] gap-4 p-4 overflow-hidden">
+          <div className="h-full grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(170px,200px)] gap-4 p-4 overflow-hidden">
 
         {/* ── Suitcase + Shelf column ──────────────────────────────────────── */}
         <div
@@ -2651,9 +2650,9 @@ export function HazTuMaleta({
             `,
             alignSelf: 'flex-start',
             overflow: 'hidden',
-            height: LEFT_TOOLS_CARD_HEIGHT,
-            minHeight: LEFT_TOOLS_CARD_HEIGHT,
-            maxHeight: LEFT_TOOLS_CARD_HEIGHT,
+            height: '100%',
+            minHeight: 0,
+            maxHeight: '100%',
             display: 'flex',
             flexDirection: 'column',
           }}

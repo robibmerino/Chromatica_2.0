@@ -2,6 +2,9 @@
 export const POSTER_BASE_WIDTH = 620;
 export const POSTER_HEIGHT = Math.round(POSTER_BASE_WIDTH * Math.SQRT2);
 export const POSTER_SCALE = 0.78;
+export const POSTER_PREVIEW_WIDTH = Math.round(POSTER_BASE_WIDTH * POSTER_SCALE);
+export const POSTER_PREVIEW_HEIGHT = Math.round(POSTER_HEIGHT * POSTER_SCALE);
+export const POSTER_EXPORT_SCALE = 1;
 /** Altura de referencia 620×826 para pósters Swiss y Festival Gig (escalado a POSTER_HEIGHT). */
 export const POSTER_REF_HEIGHT = 826;
 /** Índices de la rejilla decorativa tipo QR en el pie del póster Conference (celdas rellenas). */
