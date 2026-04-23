@@ -29,7 +29,7 @@ export function ArchetypeOrShapeButton({ type, onClick }: ArchetypeOrShapeButton
       onMouseLeave={() => setIsHovered(false)}
       whileHover={{ scale: 1.02, y: -3 }}
       whileTap={{ scale: 0.98 }}
-      className={`relative overflow-hidden rounded-2xl p-6 md:p-5 lg:p-6 text-left bg-gradient-to-br ${config.bgGradient} border ${config.borderColor} group transition-all min-h-[260px] md:min-h-[280px] lg:min-h-[300px]`}
+      className={`relative overflow-hidden rounded-2xl p-6 md:p-5 lg:p-6 text-left text-white bg-gradient-to-br ${config.bgGradient} border ${config.borderColor} group transition-all min-h-[260px] md:min-h-[280px] lg:min-h-[300px]`}
     >
       <ButtonParticles isHovered={isHovered} color={config.particleColor} count={20} intensity="medium" />
 

@@ -9,12 +9,14 @@ import type { InspirationDetailSavedState } from './hooks/useGuidedPalette';
 import type { ArchetypeSavedState } from '../inspiration/ArchetypesCreator';
 import type { HarmonySavedState } from '../inspiration/ColorHarmonyCreator';
 import type { ImageExtractorSavedState } from '../inspiration/ImageColorExtractor';
+import type { HazTuMaletaSavedState } from '../inspiration/HazTuMaleta';
 
 // Carga bajo demanda por modo para reducir el chunk inicial de inspiración
 const ColorHarmonyCreator = lazy(() => import('../inspiration/ColorHarmonyCreator').then((m) => ({ default: m.default })));
 const ImageColorExtractor = lazy(() => import('../inspiration/ImageColorExtractor').then((m) => ({ default: m.default })));
 const ArchetypesCreator = lazy(() => import('../inspiration/ArchetypesCreator').then((m) => ({ default: m.ArchetypesCreator })));
 const TrendingPalettes = lazy(() => import('../inspiration/TrendingPalettes').then((m) => ({ default: m.default })));
+const HazTuMaleta = lazy(() => import('../inspiration/HazTuMaleta'));
 
 const ModeFallback = () => (
   <div className="flex items-center justify-center min-h-[280px]">
@@ -56,19 +58,13 @@ export function InspirationDetailPhase({
   onStateChange,
   onGeneratedPaletteChange,
 }: InspirationDetailPhaseProps) {
-  const [comingSoonMode, setComingSoonMode] = useState<'shapes' | 'aquarium' | 'design' | null>(null);
+  const [comingSoonMode, setComingSoonMode] = useState<'shapes' | 'design' | null>(null);
   const COMING_SOON_CONTENT = {
     shapes: {
       title: 'Formas llegará muy pronto',
       message:
         'Estamos diseñando esta sección para que puedas crear paletas a partir de formas abstractas y composiciones visuales.',
       accent: 'fuchsia',
-    },
-    aquarium: {
-      title: 'Pecera está en construcción',
-      message:
-        'Aquí podrás crear peces con distintos rasgos para que naden en una pecera y generar una nube de palabras que describa su personalidad cromática.',
-      accent: 'cyan',
     },
     design: {
       title: 'Diseño de espacios estará disponible pronto',
@@ -150,14 +146,14 @@ export function InspirationDetailPhase({
               title={COPY.inspiration.archetypesMenuTitle}
               subtitle={COPY.inspiration.archetypesMenuSubtitle}
               icon={ARCHETYPES_MENU_ICON}
-              iconBoxClassName={SECTION_ICON_ACCENTS.fuchsia}
+              iconBoxClassName={SECTION_ICON_ACCENTS.rose}
             />
           }
         >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <ArchetypeOrShapeButton type="archetypes" onClick={() => onSetInspirationMode('archetypes')} />
             <ArchetypeOrShapeButton type="shapes" onClick={() => setComingSoonMode('shapes')} />
-            <ArchetypeOrShapeButton type="aquarium" onClick={() => setComingSoonMode('aquarium')} />
+            <ArchetypeOrShapeButton type="aquarium" onClick={() => onSetInspirationMode('aquarium')} />
             <ArchetypeOrShapeButton type="design" onClick={() => setComingSoonMode('design')} />
           </div>
         </PhaseLayout>
@@ -170,6 +166,24 @@ export function InspirationDetailPhase({
             onCreatePalette={onComplete}
             onBack={() => onSetInspirationMode('archetypes-menu')}
             initialState={inspirationDetailSavedState.archetypes as ArchetypeSavedState | undefined}
+          />
+        </Suspense>
+      )}
+      {inspirationMode === 'aquarium' && (
+        <Suspense fallback={<ModeFallback />}>
+          <HazTuMaleta
+            colorCount={colorCount}
+            onColorCountChange={onColorCountChange}
+            onComplete={onComplete}
+            onBack={(saved) => {
+              if (saved != null) onStateChange?.('aquarium', saved);
+              onSetInspirationMode('archetypes-menu');
+            }}
+            initialState={inspirationDetailSavedState.aquarium as HazTuMaletaSavedState | undefined}
+            onStateChange={onStateChange ? (s) => onStateChange('aquarium', s) : undefined}
+            onGeneratedPaletteChange={
+              onGeneratedPaletteChange ? (hex) => onGeneratedPaletteChange('aquarium', hex) : undefined
+            }
           />
         </Suspense>
       )}

@@ -87,6 +87,7 @@ function SavePhaseInner({
           iconBoxClassName={SECTION_ICON_ACCENTS.emerald}
           primaryLabel={COPY.savePhase.primaryNewPalette}
           onPrimaryClick={onStartNewPalette}
+          primaryDisabled={colors.length === 0}
           onUndo={undo}
           onRedo={redo}
           undoDisabled={undoDisabled}

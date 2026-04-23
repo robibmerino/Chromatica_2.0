@@ -17,22 +17,27 @@ export interface ArchetypeShapeButtonConfig {
   icon: React.ReactNode;
 }
 
+/**
+ * Misma estrategia cromática que Formas / Maleta / Diseño: escala 900, gradiente 40%→30%
+ * (fuchsia→pink, análogo a violet→purple, amber→orange, teal→emerald). Evita 950+50% que
+ * aplanaba y tiraba a barro frente a las otras tarjetas.
+ */
 export const ARCHETYPE_BUTTON_CONFIG: ArchetypeShapeButtonConfig = {
-  bgGradient: 'from-amber-900/40 to-orange-900/30',
-  borderColor: 'border-amber-500/30 hover:border-amber-400/50',
-  iconBg: 'bg-amber-500/20',
-  iconColor: 'text-amber-400',
-  particleColor: '#fbbf24',
-  glowColor: 'rgba(251, 191, 36, 0.2)',
+  bgGradient: 'from-fuchsia-900/40 to-pink-900/30',
+  borderColor: 'border-fuchsia-500/30 hover:border-fuchsia-400/50',
+  iconBg: 'bg-fuchsia-500/20',
+  iconColor: 'text-fuchsia-400',
+  particleColor: '#e879f9',
+  glowColor: 'rgba(232, 121, 249, 0.2)',
   title: 'Arquetipos',
   description: 'Explora conceptos, emociones y significados para crear paletas con intención',
   tags: ['Emocionales', 'Estilos', 'Culturales'],
-  tagBg: 'bg-amber-500/20',
-  tagColor: 'text-amber-300',
-  textColor: 'text-amber-200/70',
+  tagBg: 'bg-fuchsia-500/20',
+  tagColor: 'text-fuchsia-300',
+  textColor: 'text-fuchsia-200/80',
   rotate: -5,
   icon: (
-    <svg className="w-8 h-8 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+    <svg className="w-8 h-8 text-fuchsia-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
       <path d="M12 2L2 7l10 5 10-5-10-5z" />
       <path d="M2 17l10 5 10-5" />
       <path d="M2 12l10 5 10-5" />
@@ -63,24 +68,24 @@ export const SHAPE_BUTTON_CONFIG: ArchetypeShapeButtonConfig = {
 };
 
 export const AQUARIUM_BUTTON_CONFIG: ArchetypeShapeButtonConfig = {
-  bgGradient: 'from-cyan-900/40 to-sky-900/30',
-  borderColor: 'border-cyan-500/30 hover:border-cyan-400/50',
-  iconBg: 'bg-cyan-500/20',
-  iconColor: 'text-cyan-300',
-  particleColor: '#22d3ee',
-  glowColor: 'rgba(34, 211, 238, 0.2)',
-  title: 'Pecera',
-  description: 'Crea peces que naden en una pecera y genera una nube de palabras con su personalidad',
-  tags: ['Peces', 'Movimiento', 'Nube de palabras'],
-  tagBg: 'bg-cyan-500/20',
-  tagColor: 'text-cyan-200',
-  textColor: 'text-cyan-100/70',
+  bgGradient: 'from-amber-900/40 to-orange-900/30',
+  borderColor: 'border-amber-500/30 hover:border-amber-400/50',
+  iconBg: 'bg-amber-500/20',
+  iconColor: 'text-amber-400',
+  particleColor: '#fbbf24',
+  glowColor: 'rgba(251, 191, 36, 0.2)',
+  title: 'Maleta del viajero',
+  description: 'Define la personalidad de tu viajero y los objetos que llevaría en su maleta',
+  tags: ['Objetos', 'Viaje', 'Arquetipos'],
+  tagBg: 'bg-amber-500/20',
+  tagColor: 'text-amber-300',
+  textColor: 'text-amber-200/70',
   rotate: -4,
   icon: (
-    <svg className="w-8 h-8 text-cyan-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path d="M4 12c2-4 6-6 10-6 2.5 0 4.5.8 6 2-1.4 1.6-1.4 4.4 0 6-1.5 1.2-3.5 2-6 2-4 0-8-2-10-6z" />
-      <circle cx="12.2" cy="10.5" r="0.7" fill="currentColor" stroke="none" />
-      <path d="M3 9.5c-.8.8-1.2 1.6-1.2 2.5S2.2 13.7 3 14.5" />
+    <svg className="w-8 h-8 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <rect x="5" y="8" width="14" height="12" rx="2" />
+      <path d="M9 8V6a2 2 0 012-2h2a2 2 0 012 2v2" strokeLinecap="round" />
+      <path d="M12 14v2" strokeLinecap="round" />
     </svg>
   ),
 };

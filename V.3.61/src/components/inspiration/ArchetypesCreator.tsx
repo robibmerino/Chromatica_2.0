@@ -1017,6 +1017,11 @@ export const ArchetypesCreator: React.FC<ArchetypesCreatorProps> = ({
     });
   }, [baseCombinedPalette, colorCount, combineMode]);
 
+  const hasAnyActiveIndividualPalette = useMemo(
+    () => Object.values(activatedColumns).some(Boolean),
+    [activatedColumns]
+  );
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
@@ -1059,7 +1064,7 @@ export const ArchetypesCreator: React.FC<ArchetypesCreatorProps> = ({
           <span>Volver</span>
         </button>
         <div className="flex items-center gap-3 min-w-0 flex-1 justify-center">
-          <span className={`flex shrink-0 items-center justify-center w-9 h-9 rounded-lg bg-gray-700/80 border border-amber-500/30 ${ARCHETYPE_BUTTON_CONFIG.iconColor} [&_svg]:w-5 [&_svg]:h-5`} aria-hidden>
+          <span className={`flex shrink-0 items-center justify-center w-9 h-9 rounded-lg bg-gray-700/80 border border-rose-500/30 ${ARCHETYPE_BUTTON_CONFIG.iconColor} [&_svg]:w-5 [&_svg]:h-5`} aria-hidden>
             {ARCHETYPE_BUTTON_CONFIG.icon}
           </span>
           <div>
@@ -1174,6 +1179,7 @@ export const ArchetypesCreator: React.FC<ArchetypesCreatorProps> = ({
         ) : (
           <button
             type="button"
+            disabled={!hasAnyActiveIndividualPalette}
             onClick={() => {
               const savedState: ArchetypeSavedState = {
                 quienPalette: [...quienPalette],
@@ -1194,7 +1200,11 @@ export const ArchetypesCreator: React.FC<ArchetypesCreatorProps> = ({
               setPendingCombinedPalette([...combinedPalette]);
               setShowGlobalSummary(true);
             }}
-            className="shrink-0 py-2 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white border border-indigo-500/50 font-medium transition-all text-sm"
+            className={`shrink-0 py-2 px-4 rounded-xl font-medium transition-all text-sm border ${
+              hasAnyActiveIndividualPalette
+                ? 'bg-indigo-600 hover:bg-indigo-500 text-white border-indigo-500/50'
+                : 'bg-indigo-900/35 text-indigo-200/45 border-indigo-700/35 cursor-default'
+            }`}
           >
             Usar paleta →
           </button>

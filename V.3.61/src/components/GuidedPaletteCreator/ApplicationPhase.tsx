@@ -11,8 +11,12 @@ function getApplicationIconAccent(mode: InspirationMode | null): SectionIconAcce
   if (!mode) return 'emerald';
   if (mode === 'harmony') return 'emerald';
   if (mode === 'image') return 'blue';
-  if (mode === 'archetypes-menu' || mode === 'archetypes' || mode === 'shapes') return 'fuchsia';
+  if (mode === 'archetypes-menu' || mode === 'archetypes') return 'rose';
+  if (mode === 'shapes') return 'fuchsia';
+  if (mode === 'aquarium') return 'amber';
+  if (mode === 'design') return 'teal';
   if (mode === 'trending') return 'orange';
+  if (mode === 'multi-origin') return 'blue';
   return 'emerald';
 }
 
@@ -89,6 +93,7 @@ function ApplicationPhaseInner({
           iconBoxClassName={SECTION_ICON_ACCENTS[iconAccent]}
           primaryLabel={COPY.application.primaryAction}
           onPrimaryClick={goNext}
+          primaryDisabled={colors.length === 0}
           onUndo={undo}
           onRedo={redo}
           undoDisabled={undoDisabled}

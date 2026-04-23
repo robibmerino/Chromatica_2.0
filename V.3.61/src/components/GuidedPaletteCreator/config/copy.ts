@@ -8,7 +8,7 @@ export const COPY = {
     trendingLabel: 'Paletas en tendencia',
     backToMenu: 'Volver al menú',
     archetypesMenuTitle: '¿Cómo quieres inspirarte?',
-    archetypesMenuSubtitle: 'Elige entre conceptos, formas, pecera o diseño de espacios',
+    archetypesMenuSubtitle: 'Elige entre conceptos, formas, maleta del viajero o diseño de espacios',
   },
   nav: {
     back: 'Volver',

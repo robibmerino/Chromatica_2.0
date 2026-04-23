@@ -8,6 +8,11 @@ export const SECTION_ICON_ACCENTS = {
   emerald: 'bg-gray-700/80 border border-emerald-500/30 text-emerald-400',
   blue: 'bg-gray-700/80 border border-blue-500/30 text-blue-400',
   fuchsia: 'bg-gray-700/80 border border-fuchsia-500/30 text-fuchsia-400',
+  /** Acento más rosado (Arquetipos, alineado con fuchsia + pink) */
+  rose: 'bg-gray-700/80 border border-rose-500/30 text-pink-300',
+  indigo: 'bg-gray-700/80 border border-indigo-500/30 text-indigo-300',
+  amber: 'bg-gray-700/80 border border-amber-500/30 text-amber-400',
+  teal: 'bg-gray-700/80 border border-teal-500/30 text-teal-300',
   orange: 'bg-gray-700/80 border border-orange-500/30 text-orange-400',
 } as const;
 
@@ -23,6 +28,7 @@ export interface SectionBannerProps {
   /** Botón principal (ej. "Mejorar paleta"). Si no se pasa, el banner solo muestra Volver + título (secciones de elección). */
   primaryLabel?: string;
   onPrimaryClick?: () => void;
+  primaryDisabled?: boolean;
   /** Undo/Redo: se muestran si se pasan onUndo/onRedo. */
   onUndo?: () => void;
   onRedo?: () => void;
@@ -82,6 +88,7 @@ export function SectionBanner({
   iconBoxClassName,
   primaryLabel,
   onPrimaryClick,
+  primaryDisabled = false,
   onUndo,
   onRedo,
   undoDisabled = false,
@@ -250,7 +257,12 @@ export function SectionBanner({
           <button
             type="button"
             onClick={onPrimaryClick}
-            className="py-2 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white border border-indigo-500/50 font-medium transition-all text-sm whitespace-nowrap"
+            disabled={primaryDisabled}
+            className={`py-2 px-4 rounded-xl font-medium transition-all text-sm whitespace-nowrap border ${
+              primaryDisabled
+                ? 'bg-indigo-900/35 text-indigo-200/45 border-indigo-700/35 cursor-default'
+                : 'bg-indigo-600 hover:bg-indigo-500 text-white border-indigo-500/50'
+            }`}
           >
             {primaryLabel}
           </button>
