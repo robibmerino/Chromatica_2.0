@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Base tipografía estable para escalar layout por altura de viewport */
+html {
+  font-size: 16px;
+}
+
 /* Evitar franja blanca si hay overflow; fondo coherente con la app */
 html,
 body {
@@ -11,6 +16,45 @@ body {
 #root {
   height: 100dvh;
   overflow: hidden;
+}
+
+/* Modo compacto automático en pantallas bajas (portátiles, zoom alto) */
+@media (max-height: 900px) {
+  html {
+    font-size: 15px;
+  }
+
+  .chromatica-header-shell {
+    padding-top: 0.625rem;
+    padding-bottom: 0.625rem;
+  }
+
+  .chromatica-main-shell {
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+  }
+}
+
+@media (max-height: 800px) {
+  html {
+    font-size: 14px;
+  }
+
+  .chromatica-header-shell {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .chromatica-main-shell {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .chromatica-inspiration-menu-hero {
+    margin-bottom: 0.875rem;
+    padding-top: 0.875rem;
+    padding-bottom: 0.875rem;
+  }
 }
 
 /* Custom scrollbar */
