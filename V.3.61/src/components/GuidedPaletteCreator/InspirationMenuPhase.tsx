@@ -96,7 +96,7 @@ export function InspirationMenuPhase({
     >
       {/* Hero con más carácter: tipografía atrevida y mensaje claro */}
       <header
-        className="mb-10 rounded-2xl border border-gray-700/40 bg-gradient-to-b from-gray-800/50 to-gray-800/20 px-6 py-7 md:px-10 md:py-9 text-center"
+        className="mb-6 md:mb-10 rounded-2xl border border-gray-700/40 bg-gradient-to-b from-gray-800/50 to-gray-800/20 px-6 py-6 md:px-10 md:py-9 text-center"
         role="region"
         aria-label="Fábrica"
       >
@@ -237,7 +237,8 @@ const InspirationCard = React.memo(function InspirationCard({
       transition={{ delay: index * 0.06, duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
       whileHover={{ y: -4, transition: { duration: 0.2 } }}
       whileTap={{ scale: 0.98 }}
-      className={`group relative flex flex-col items-center rounded-2xl p-8 md:p-9 h-[230px] md:h-[240px] border backdrop-blur-sm overflow-hidden ${option.bgColor} ${option.borderColor} ${option.hoverBorder} transition-colors duration-200`}
+      className={`group relative flex flex-col items-center rounded-2xl p-6 md:p-8 border backdrop-blur-sm overflow-hidden ${option.bgColor} ${option.borderColor} ${option.hoverBorder} transition-colors duration-200`}
+      style={{ minHeight: 'clamp(188px, 26vh, 240px)' }}
       aria-label={`${option.title}. ${option.description}`}
     >
       <ButtonParticles isHovered={isHovered} color={option.particleColor} count={12} intensity="light" />

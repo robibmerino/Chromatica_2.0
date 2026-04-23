@@ -5,10 +5,11 @@ html,
 body {
   background: rgb(17 24 39);
   overflow: hidden;
+  min-height: 100dvh;
 }
 
 #root {
-  height: 100vh;
+  height: 100dvh;
   overflow: hidden;
 }
 
