@@ -419,7 +419,7 @@ export default function GuidedPaletteCreator({
         onOpenAccount={onOpenAccount}
       />
 
-      <main className="chromatica-main-shell flex-1 min-h-0 overflow-hidden flex flex-col max-w-7xl mx-auto w-full px-4 py-4 lg:py-6">
+      <main className="flex-1 min-h-0 overflow-hidden flex flex-col max-w-7xl mx-auto w-full px-4 py-6">
         <AnimatePresence mode="wait">
           {state.phase === 'inspiration-menu' && (
             <div className="flex-1 min-h-0 overflow-auto">

@@ -41,7 +41,7 @@ export function GuidedPaletteCreatorHeader({
 }: GuidedPaletteCreatorHeaderProps) {
   return (
     <header className="border-b border-gray-700/50 bg-gray-900/80 backdrop-blur-md sticky top-0 z-50 transition-shadow duration-300 hover:shadow-[0_4px_24px_-4px_rgba(0,0,0,0.25)]">
-      <div className="chromatica-header-shell max-w-7xl mx-auto px-4 py-4 lg:py-5">
+      <div className="max-w-7xl mx-auto px-4 py-5">
         <div className="flex items-center justify-between gap-6">
           <div className="flex items-center gap-4">
             <ChromaticaLogo size="sm" />
