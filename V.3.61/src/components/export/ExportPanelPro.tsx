@@ -32,17 +32,19 @@ const EXPORT_DOWNLOAD_GOLD = {
   particle: '#fb923c',
 } as const;
 
-export type ExportPageFormat = 'A5' | 'A4' | 'A3';
+type ExportPresetPageFormat = 'A5' | 'A4' | 'A3';
+export type ExportPageFormat = ExportPresetPageFormat | 'custom';
 
 /** ISO 216 retrato; píxeles CSS ≈ 96 DPI (25.4 mm = 1 in). */
 const MM_TO_CSS_PX = 96 / 25.4;
-const EXPORT_PAGE_SPECS: Record<ExportPageFormat, { label: string; widthMm: number; heightMm: number }> = {
+const CSS_PX_TO_MM = 1 / MM_TO_CSS_PX;
+const EXPORT_PAGE_SPECS: Record<ExportPresetPageFormat, { label: string; widthMm: number; heightMm: number }> = {
   A5: { label: 'A5', widthMm: 148, heightMm: 210 },
   A4: { label: 'A4', widthMm: 210, heightMm: 297 },
   A3: { label: 'A3', widthMm: 297, heightMm: 420 },
 };
 
-function exportPagePixelSize(format: ExportPageFormat): { w: number; h: number } {
+function exportPagePixelSizeFromPreset(format: ExportPresetPageFormat): { w: number; h: number } {
   const s = EXPORT_PAGE_SPECS[format];
   return {
     w: Math.round(s.widthMm * MM_TO_CSS_PX),
@@ -177,16 +179,72 @@ const EXPORT_CANVAS_KIND_LABEL_ES: Record<ExportCanvasItem['kind'], string> = {
 };
 
 type ExportElementsSection = 'basics' | 'application' | 'analysis';
+type ExportTemplatesSection = 'basics' | 'application' | 'analysis';
+type ExportTemplatesApplicationMode = 'individual' | 'composition';
+type ExportMatchSizeToolStep = 'idle' | 'pickSource' | 'pickTarget';
+type ExportAlignToolMode = 'vertical' | 'horizontal' | 'left' | 'right' | 'top' | 'bottom';
+type ExportQuickLayoutPresetId =
+  | 'a5-basic'
+  | 'a5-duo'
+  | 'a4-report'
+  | 'a4-showcase'
+  | 'a3-presentation'
+  | 'a3-catalog'
+  | 'app-a4-poster'
+  | 'app-a4-architecture'
+  | 'app-a4-branding-single'
+  | 'app-a3-poster'
+  | 'app-a3-architecture'
+  | 'app-a3-branding'
+  | 'app-a3-composition-grid'
+  | 'analysis-a5-core'
+  | 'analysis-a4-full'
+  | 'analysis-a3-dashboard';
+type ExportLayoutBackup = {
+  exportPageFormat: ExportPageFormat;
+  customPageWidthPx: number;
+  customPageHeightPx: number;
+  canvasItems: ExportCanvasItem[];
+};
+
+const EXPORT_QUICK_LAYOUT_PRESETS: {
+  id: ExportQuickLayoutPresetId;
+  section: ExportTemplatesSection;
+  applicationMode?: ExportTemplatesApplicationMode;
+  format: ExportPresetPageFormat;
+  label: string;
+}[] = [
+  { id: 'a5-basic', section: 'basics', format: 'A5', label: 'A5 · Básico' },
+  { id: 'a5-duo', section: 'basics', format: 'A5', label: 'A5 · Doble paleta' },
+  { id: 'a4-report', section: 'basics', format: 'A4', label: 'A4 · Informe' },
+  { id: 'a4-showcase', section: 'basics', format: 'A4', label: 'A4 · Showcase' },
+  { id: 'a3-presentation', section: 'basics', format: 'A3', label: 'A3 · Presentación' },
+  { id: 'a3-catalog', section: 'basics', format: 'A3', label: 'A3 · Catálogo' },
+  { id: 'app-a4-poster', section: 'application', applicationMode: 'individual', format: 'A4', label: 'A4 · Poster' },
+  { id: 'app-a4-architecture', section: 'application', applicationMode: 'individual', format: 'A4', label: 'A4 · Arquitectura' },
+  { id: 'app-a4-branding-single', section: 'application', applicationMode: 'individual', format: 'A4', label: 'A4 · Branding' },
+  { id: 'app-a3-poster', section: 'application', applicationMode: 'individual', format: 'A3', label: 'A3 · Poster' },
+  { id: 'app-a3-architecture', section: 'application', applicationMode: 'individual', format: 'A3', label: 'A3 · Arquitectura' },
+  { id: 'app-a3-branding', section: 'application', applicationMode: 'individual', format: 'A3', label: 'A3 · Branding' },
+  { id: 'app-a3-composition-grid', section: 'application', applicationMode: 'composition', format: 'A3', label: 'A3 · Composición' },
+  { id: 'analysis-a5-core', section: 'analysis', format: 'A5', label: 'A5 · Core análisis' },
+  { id: 'analysis-a4-full', section: 'analysis', format: 'A4', label: 'A4 · Análisis completo' },
+  { id: 'analysis-a3-dashboard', section: 'analysis', format: 'A3', label: 'A3 · Dashboard análisis' },
+];
 
 export type ExportPanelProPersistedState = {
-  exportSidebarAccordion: 'size' | 'style' | 'elements' | null;
-  background: 'white' | 'dark' | 'custom';
+  exportSidebarAccordion: 'size' | 'style' | 'templates' | 'elements' | null;
+  background: 'white' | 'dark' | 'custom' | 'transparent';
   customBg: string;
   showBorder: boolean;
   transparentElementCards: boolean;
   borderRadius: 'none' | 'small' | 'medium' | 'large';
   exportPageFormat: ExportPageFormat;
+  customPageWidthPx: number;
+  customPageHeightPx: number;
   exportElementsSection: ExportElementsSection;
+  exportTemplatesSection: ExportTemplatesSection;
+  exportTemplatesApplicationMode: ExportTemplatesApplicationMode;
   canvasItems: ExportCanvasItem[];
 };
 
@@ -198,11 +256,20 @@ const EXPORT_PANEL_PRO_DEFAULT_PERSISTED_STATE: ExportPanelProPersistedState = {
   transparentElementCards: false,
   borderRadius: 'medium',
   exportPageFormat: 'A4',
+  customPageWidthPx: 794,
+  customPageHeightPx: 1123,
   exportElementsSection: 'basics',
+  exportTemplatesSection: 'basics',
+  exportTemplatesApplicationMode: 'individual',
   canvasItems: [],
 };
 
 const EXPORT_ELEMENTS_SECTION_OPTIONS: { id: ExportElementsSection; label: string }[] = [
+  { id: 'basics', label: 'Básicos' },
+  { id: 'application', label: 'Aplicación' },
+  { id: 'analysis', label: 'Análisis' },
+];
+const EXPORT_TEMPLATES_SECTION_OPTIONS: { id: ExportTemplatesSection; label: string }[] = [
   { id: 'basics', label: 'Básicos' },
   { id: 'application', label: 'Aplicación' },
   { id: 'analysis', label: 'Análisis' },
@@ -1760,14 +1827,14 @@ export const ExportPanelPro: React.FC<ExportPanelProProps> = ({
   const [isExporting, setIsExporting] = useState(false);
   const [downloadButtonHovered, setDownloadButtonHovered] = useState(false);
   /** Acordeón exclusivo en columna izquierda (layout split / compact). */
-  const [exportSidebarAccordion, setExportSidebarAccordion] = useState<'size' | 'style' | 'elements' | null>(
+  const [exportSidebarAccordion, setExportSidebarAccordion] = useState<'size' | 'style' | 'templates' | 'elements' | null>(
     () =>
       persistedState?.exportSidebarAccordion ??
       EXPORT_PANEL_PRO_DEFAULT_PERSISTED_STATE.exportSidebarAccordion,
   );
 
   // Configuración visual - fondo oscuro por defecto
-  const [background, setBackground] = useState<'white' | 'dark' | 'custom'>(
+  const [background, setBackground] = useState<'white' | 'dark' | 'custom' | 'transparent'>(
     () => persistedState?.background ?? EXPORT_PANEL_PRO_DEFAULT_PERSISTED_STATE.background,
   );
   const [customBg, setCustomBg] = useState(
@@ -1787,8 +1854,22 @@ export const ExportPanelPro: React.FC<ExportPanelProProps> = ({
   const [exportPageFormat, setExportPageFormat] = useState<ExportPageFormat>(
     () => persistedState?.exportPageFormat ?? EXPORT_PANEL_PRO_DEFAULT_PERSISTED_STATE.exportPageFormat,
   );
+  const [customPageWidthPx, setCustomPageWidthPx] = useState(
+    () => persistedState?.customPageWidthPx ?? EXPORT_PANEL_PRO_DEFAULT_PERSISTED_STATE.customPageWidthPx,
+  );
+  const [customPageHeightPx, setCustomPageHeightPx] = useState(
+    () => persistedState?.customPageHeightPx ?? EXPORT_PANEL_PRO_DEFAULT_PERSISTED_STATE.customPageHeightPx,
+  );
   const [exportElementsSection, setExportElementsSection] = useState<ExportElementsSection>(
     () => persistedState?.exportElementsSection ?? EXPORT_PANEL_PRO_DEFAULT_PERSISTED_STATE.exportElementsSection,
+  );
+  const [exportTemplatesSection, setExportTemplatesSection] = useState<ExportTemplatesSection>(
+    () => persistedState?.exportTemplatesSection ?? EXPORT_PANEL_PRO_DEFAULT_PERSISTED_STATE.exportTemplatesSection,
+  );
+  const [exportTemplatesApplicationMode, setExportTemplatesApplicationMode] = useState<ExportTemplatesApplicationMode>(
+    () =>
+      persistedState?.exportTemplatesApplicationMode ??
+      EXPORT_PANEL_PRO_DEFAULT_PERSISTED_STATE.exportTemplatesApplicationMode,
   );
   const [canvasItems, setCanvasItems] = useState<ExportCanvasItem[]>(
     () => persistedState?.canvasItems ?? EXPORT_PANEL_PRO_DEFAULT_PERSISTED_STATE.canvasItems,
@@ -1796,6 +1877,28 @@ export const ExportPanelPro: React.FC<ExportPanelProProps> = ({
   const [selectedCanvasId, setSelectedCanvasId] = useState<string | null>(null);
   const [editingCanvasId, setEditingCanvasId] = useState<string | null>(null);
   const [activeContrastTextEditorId, setActiveContrastTextEditorId] = useState<string | null>(null);
+  const [matchSizeToolStep, setMatchSizeToolStep] = useState<ExportMatchSizeToolStep>('idle');
+  const [matchSizeSourceId, setMatchSizeSourceId] = useState<string | null>(null);
+  const lastSelectionForMatchSizeRef = useRef<string | null>(null);
+  const [alignToolStep, setAlignToolStep] = useState<ExportMatchSizeToolStep>('idle');
+  const [alignToolMode, setAlignToolMode] = useState<ExportAlignToolMode | null>(null);
+  const [alignSourceId, setAlignSourceId] = useState<string | null>(null);
+  const lastSelectionForAlignRef = useRef<string | null>(null);
+  const [layoutBackup, setLayoutBackup] = useState<ExportLayoutBackup | null>(null);
+  const normalizedCustomPageWidthPx = clampExportCanvas(Math.round(customPageWidthPx), 320, 2400);
+  const normalizedCustomPageHeightPx = clampExportCanvas(Math.round(customPageHeightPx), 320, 3200);
+  const normalizedCustomPageWidthMm = Math.max(85, Math.min(635, Math.round(normalizedCustomPageWidthPx * CSS_PX_TO_MM)));
+  const normalizedCustomPageHeightMm = Math.max(85, Math.min(847, Math.round(normalizedCustomPageHeightPx * CSS_PX_TO_MM)));
+  const exportPagePixelSize = (format: ExportPageFormat): { w: number; h: number } => {
+    if (format === 'custom') {
+      return { w: normalizedCustomPageWidthPx, h: normalizedCustomPageHeightPx };
+    }
+    return exportPagePixelSizeFromPreset(format);
+  };
+  const exportPageFormatLabel =
+    exportPageFormat === 'custom'
+      ? `Personalizado (${normalizedCustomPageWidthMm}×${normalizedCustomPageHeightMm} mm)`
+      : EXPORT_PAGE_SPECS[exportPageFormat].label;
 
   useEffect(() => {
     if (!onPersistedStateChange) return;
@@ -1807,7 +1910,11 @@ export const ExportPanelPro: React.FC<ExportPanelProProps> = ({
       transparentElementCards,
       borderRadius,
       exportPageFormat,
+      customPageWidthPx,
+      customPageHeightPx,
       exportElementsSection,
+      exportTemplatesSection,
+      exportTemplatesApplicationMode,
       canvasItems,
     });
   }, [
@@ -1818,15 +1925,97 @@ export const ExportPanelPro: React.FC<ExportPanelProProps> = ({
     transparentElementCards,
     borderRadius,
     exportPageFormat,
+    customPageWidthPx,
+    customPageHeightPx,
     exportElementsSection,
+    exportTemplatesSection,
+    exportTemplatesApplicationMode,
     canvasItems,
     onPersistedStateChange,
   ]);
 
+  useEffect(() => {
+    if (lastSelectionForMatchSizeRef.current === selectedCanvasId) return;
+    lastSelectionForMatchSizeRef.current = selectedCanvasId;
+    if (!selectedCanvasId || matchSizeToolStep === 'idle') return;
+
+    if (matchSizeToolStep === 'pickSource') {
+      setMatchSizeSourceId(selectedCanvasId);
+      setMatchSizeToolStep('pickTarget');
+      showInfoNotification('Origen seleccionado. Ahora elige un segundo elemento.');
+      return;
+    }
+
+    if (matchSizeToolStep === 'pickTarget') {
+      if (!matchSizeSourceId) {
+        setMatchSizeToolStep('pickSource');
+        showInfoNotification('Selecciona primero el elemento origen.');
+        return;
+      }
+      if (selectedCanvasId === matchSizeSourceId) {
+        showInfoNotification('Ese es el origen. Selecciona un elemento distinto como destino.');
+        return;
+      }
+      const { w: iw, h: ih } = exportPagePixelSize(exportPageFormat);
+      const applied = matchCanvasItemSizeFromSource(matchSizeSourceId, selectedCanvasId, iw - 48, ih - 48);
+      if (applied) {
+        showInfoNotification('Tamaño aplicado: el segundo elemento ahora iguala ancho y alto del primero.');
+      } else {
+        showInfoNotification('No hubo cambios: el elemento ya tenía ese tamaño o alcanzó sus límites.');
+      }
+      cancelMatchSizeTool();
+    }
+  }, [selectedCanvasId, matchSizeToolStep, matchSizeSourceId, exportPageFormat]);
+
+  useEffect(() => {
+    if (lastSelectionForAlignRef.current === selectedCanvasId) return;
+    lastSelectionForAlignRef.current = selectedCanvasId;
+    if (!selectedCanvasId || alignToolStep === 'idle' || !alignToolMode) return;
+
+    if (alignToolStep === 'pickSource') {
+      setAlignSourceId(selectedCanvasId);
+      setAlignToolStep('pickTarget');
+      showInfoNotification('Origen seleccionado. Ahora elige un segundo elemento.');
+      return;
+    }
+
+    if (alignToolStep === 'pickTarget') {
+      if (!alignSourceId) {
+        setAlignToolStep('pickSource');
+        showInfoNotification('Selecciona primero el elemento origen.');
+        return;
+      }
+      if (selectedCanvasId === alignSourceId) {
+        showInfoNotification('Ese es el origen. Selecciona un elemento distinto como destino.');
+        return;
+      }
+      const { w: iw, h: ih } = exportPagePixelSize(exportPageFormat);
+      const applied = alignCanvasItemToSource(
+        alignSourceId,
+        selectedCanvasId,
+        alignToolMode,
+        iw - 48,
+        ih - 48,
+      );
+      if (applied) {
+        showInfoNotification(`Alineacion ${getAlignModeLabel(alignToolMode)} aplicada.`);
+      } else {
+        showInfoNotification('No hubo cambios: el elemento ya estaba alineado o alcanzó sus límites.');
+      }
+      cancelAlignTool();
+    }
+  }, [selectedCanvasId, alignToolStep, alignSourceId, alignToolMode, exportPageFormat]);
+
   /** Resumen una línea para acordeón «Estilo» colapsado (columna compacta). */
   const exportAccordionStyleSummary = () => {
     const bgLabel =
-      background === 'dark' ? 'Oscuro' : background === 'white' ? 'Claro' : 'Custom';
+      background === 'dark'
+        ? 'Oscuro'
+        : background === 'white'
+          ? 'Claro'
+          : background === 'transparent'
+            ? 'Sin fondo'
+            : 'Custom';
     const r =
       borderRadius === 'none' ? '—' : borderRadius === 'small' ? 'S' : borderRadius === 'medium' ? 'M' : 'L';
     const elementBorderLabel = showBorder ? 'Borde elem ✓' : 'Borde elem —';
@@ -1842,6 +2031,11 @@ export const ExportPanelPro: React.FC<ExportPanelProProps> = ({
     const head = labels.slice(0, 3).join(', ');
     return n > 3 ? `${n} bloques · ${head}…` : `${n} bloque${n === 1 ? '' : 's'} · ${head}`;
   };
+
+  const exportAccordionTemplatesSummary = () =>
+    layoutBackup
+      ? `Sección ${EXPORT_TEMPLATES_SECTION_OPTIONS.find((s) => s.id === exportTemplatesSection)?.label ?? 'Básicos'} · Copia disponible`
+      : `Sección ${EXPORT_TEMPLATES_SECTION_OPTIONS.find((s) => s.id === exportTemplatesSection)?.label ?? 'Básicos'}`;
 
   const handleAddCanvasTitle = () => {
     const { w, h } = exportPagePixelSize(exportPageFormat);
@@ -2192,6 +2386,433 @@ export const ExportPanelPro: React.FC<ExportPanelProProps> = ({
     setEditingCanvasId(null);
   };
 
+  const buildQuickLayoutPresetItems = (
+    format: ExportPresetPageFormat,
+    presetId: ExportQuickLayoutPresetId,
+  ): ExportCanvasItem[] => {
+    const { w, h } = exportPagePixelSizeFromPreset(format);
+    const iw = w - 48;
+    const ih = h - 48;
+    const newId = () => crypto.randomUUID();
+    const presetSection =
+      EXPORT_QUICK_LAYOUT_PRESETS.find((preset) => preset.id === presetId)?.section ?? 'basics';
+    const paletteFormatsForPreset: ExportPaletteCodeFormat[] =
+      presetSection === 'basics' ? ['hex'] : EXPORT_PALETTE_CODE_FORMAT_OPTIONS.map((f) => f.format);
+    const createTitle = (x: number, y: number, width: number, height: number, text: string): ExportCanvasItem => ({
+      id: newId(),
+      kind: 'title',
+      x: clampExportCanvas(x, 0, Math.max(0, iw - width)),
+      y: clampExportCanvas(y, 0, Math.max(0, ih - height)),
+      width: clampExportCanvas(width, 100, iw),
+      height: clampExportCanvas(height, 52, ih),
+      text,
+      fontSizePx: clampTitleFontForBlock(height, getExportTitleTextMetrics(height).fs),
+      textAlign: 'left',
+    });
+    const createBody = (x: number, y: number, width: number, height: number, text: string): ExportCanvasItem => ({
+      id: newId(),
+      kind: 'body',
+      x: clampExportCanvas(x, 0, Math.max(0, iw - width)),
+      y: clampExportCanvas(y, 0, Math.max(0, ih - height)),
+      width: clampExportCanvas(width, 120, iw),
+      height: clampExportCanvas(height, 72, ih),
+      text,
+      fontSizePx: clampBodyFontForBlock(height, getExportBodyTextMetrics(height).fs),
+      textAlign: 'left',
+    });
+    const createPalette = (
+      kind: 'palette' | 'palette-secondary',
+      x: number,
+      y: number,
+      width: number,
+      height: number,
+      text: string,
+    ): ExportCanvasItem => ({
+      id: newId(),
+      kind,
+      x: clampExportCanvas(x, 0, Math.max(0, iw - width)),
+      y: clampExportCanvas(y, 0, Math.max(0, ih - height)),
+      width: clampExportCanvas(width, 140, iw),
+      height: clampExportCanvas(height, 64, ih),
+      text,
+      fontSizePx: 12,
+      textAlign: 'left',
+      paletteCodeFormats: paletteFormatsForPreset,
+    });
+    const createApplicationPoster = (
+      x: number,
+      y: number,
+      width: number,
+      height: number,
+      visualScale = 155,
+      template: ExportApplicationPosterTemplate = 'conference',
+    ): ExportCanvasItem => ({
+      id: newId(),
+      kind: 'application-poster',
+      x: clampExportCanvas(x, 0, Math.max(0, iw - width)),
+      y: clampExportCanvas(y, 0, Math.max(0, ih - height)),
+      width: clampExportCanvas(width, 170, iw),
+      height: clampExportCanvas(height, 220, ih),
+      text: 'Poster',
+      fontSizePx: 12,
+      textAlign: 'left',
+      applicationPosterVariant: 'claro',
+      applicationPosterTemplate: template,
+      applicationPosterVisualScale: visualScale,
+    });
+    const createApplicationArchitecture = (
+      x: number,
+      y: number,
+      width: number,
+      height: number,
+      visualScale = 130,
+      template: ExportApplicationArchitectureTemplate = 'estudio',
+    ): ExportCanvasItem => ({
+      id: newId(),
+      kind: 'application-architecture',
+      x: clampExportCanvas(x, 0, Math.max(0, iw - width)),
+      y: clampExportCanvas(y, 0, Math.max(0, ih - height)),
+      width: clampExportCanvas(width, 220, iw),
+      height: clampExportCanvas(height, 180, ih),
+      text: 'Arquitectura',
+      fontSizePx: 12,
+      textAlign: 'left',
+      applicationArchitectureVariant: 'claro',
+      applicationArchitectureTemplate: template,
+      applicationArchitectureVisualScale: visualScale,
+      applicationArchitectureSceneOnly: false,
+    });
+    const createApplicationBranding = (
+      x: number,
+      y: number,
+      width: number,
+      height: number,
+      visualScale = 155,
+      template: ExportApplicationBrandingTemplate = 'territorio-visual',
+    ): ExportCanvasItem => ({
+      id: newId(),
+      kind: 'application-branding',
+      x: clampExportCanvas(x, 0, Math.max(0, iw - width)),
+      y: clampExportCanvas(y, 0, Math.max(0, ih - height)),
+      width: clampExportCanvas(width, 170, iw),
+      height: clampExportCanvas(height, 220, ih),
+      text: 'Branding',
+      fontSizePx: 12,
+      textAlign: 'left',
+      applicationBrandingVariant: 'claro',
+      applicationBrandingTemplate: template,
+      applicationBrandingVisualScale: visualScale,
+      applicationBrandingSceneOnly: false,
+    });
+    const createAnalysisHarmony = (x: number, y: number, width: number, height: number): ExportCanvasItem => ({
+      id: newId(),
+      kind: 'analysis-harmony',
+      x: clampExportCanvas(x, 0, Math.max(0, iw - width)),
+      y: clampExportCanvas(y, 0, Math.max(0, ih - height)),
+      width: clampExportCanvas(width, 180, iw),
+      height: clampExportCanvas(height, 130, ih),
+      text: 'Armonía',
+      fontSizePx: 12,
+      textAlign: 'left',
+      analysisHarmonyOptions: EXPORT_ANALYSIS_HARMONY_OPTIONS.map((o) => o.option),
+      analysisHarmonyVisualScale: 100,
+    });
+    const createAnalysisTemperature = (x: number, y: number, width: number, height: number): ExportCanvasItem => ({
+      id: newId(),
+      kind: 'analysis-temperature',
+      x: clampExportCanvas(x, 0, Math.max(0, iw - width)),
+      y: clampExportCanvas(y, 0, Math.max(0, ih - height)),
+      width: clampExportCanvas(width, 220, iw),
+      height: clampExportCanvas(height, 150, ih),
+      text: 'Temperatura',
+      fontSizePx: 12,
+      textAlign: 'left',
+      analysisTemperatureOptions: EXPORT_ANALYSIS_TEMPERATURE_OPTIONS.map((o) => o.option),
+    });
+    const createAnalysisFocus = (x: number, y: number, width: number, height: number): ExportCanvasItem => ({
+      id: newId(),
+      kind: 'analysis-focus',
+      x: clampExportCanvas(x, 0, Math.max(0, iw - width)),
+      y: clampExportCanvas(y, 0, Math.max(0, ih - height)),
+      width: clampExportCanvas(width, 220, iw),
+      height: clampExportCanvas(height, 150, ih),
+      text: 'Focus',
+      fontSizePx: 12,
+      textAlign: 'left',
+      analysisFocusOptions: EXPORT_ANALYSIS_FOCUS_OPTIONS.map((o) => o.option),
+      analysisFocusVisualScale: 100,
+    });
+    const createAnalysisLightness = (x: number, y: number, width: number, height: number): ExportCanvasItem => ({
+      id: newId(),
+      kind: 'analysis-lightness',
+      x: clampExportCanvas(x, 0, Math.max(0, iw - width)),
+      y: clampExportCanvas(y, 0, Math.max(0, ih - height)),
+      width: clampExportCanvas(width, 240, iw),
+      height: clampExportCanvas(height, 150, ih),
+      text: 'Luminosidad',
+      fontSizePx: 12,
+      textAlign: 'left',
+      analysisLightnessOptions: EXPORT_ANALYSIS_LIGHTNESS_OPTIONS.map((o) => o.option),
+    });
+    const createAnalysisCvd = (x: number, y: number, width: number, height: number): ExportCanvasItem => ({
+      id: newId(),
+      kind: 'analysis-cvd',
+      x: clampExportCanvas(x, 0, Math.max(0, iw - width)),
+      y: clampExportCanvas(y, 0, Math.max(0, ih - height)),
+      width: clampExportCanvas(width, 260, iw),
+      height: clampExportCanvas(height, 150, ih),
+      text: 'Daltonismo',
+      fontSizePx: 12,
+      textAlign: 'left',
+      analysisCvdOptions: EXPORT_ANALYSIS_CVD_OPTIONS.map((o) => o.option),
+      analysisCvdVisualScale: 100,
+    });
+    const createAnalysisContrast = (x: number, y: number, width: number, height: number): ExportCanvasItem => ({
+      id: newId(),
+      kind: 'analysis-contrast',
+      x: clampExportCanvas(x, 0, Math.max(0, iw - width)),
+      y: clampExportCanvas(y, 0, Math.max(0, ih - height)),
+      width: clampExportCanvas(width, 280, iw),
+      height: clampExportCanvas(height, 150, ih),
+      text: 'Contraste',
+      fontSizePx: 12,
+      textAlign: 'left',
+      analysisContrastOptions: EXPORT_ANALYSIS_CONTRAST_OPTIONS.map((o) => o.option),
+      analysisContrastVisualScale: 100,
+      contrastWcagTexts: {},
+    });
+
+    if (presetId === 'a5-basic') {
+      return [
+        createTitle(iw * 0.08, ih * 0.06, iw * 0.84, 64, 'Resumen cromático'),
+        createPalette('palette', iw * 0.08, ih * 0.22, iw * 0.84, 84, 'Paleta Principal'),
+        createBody(iw * 0.08, ih * 0.34, iw * 0.84, ih * 0.5, 'Idea principal, contexto y guía rápida de uso.'),
+      ];
+    }
+    if (presetId === 'a5-duo') {
+      return [
+        createTitle(iw * 0.08, ih * 0.05, iw * 0.84, 58, 'Paleta + Variantes'),
+        createPalette('palette', iw * 0.08, ih * 0.2, iw * 0.84, 84, 'Paleta Principal'),
+        createPalette('palette-secondary', iw * 0.08, ih * 0.34, iw * 0.84, 84, 'Paleta Secundaria'),
+        createBody(iw * 0.08, ih * 0.47, iw * 0.84, ih * 0.36, 'Notas de aplicación rápida para redes y piezas cortas.'),
+      ];
+    }
+    if (presetId === 'a4-report') {
+      return [
+        createTitle(iw * 0.07, ih * 0.05, iw * 0.86, 72, 'Informe de paleta'),
+        createBody(iw * 0.07, ih * 0.16, iw * 0.86, 120, 'Resumen ejecutivo de la dirección visual y criterios de color.'),
+        createPalette('palette', iw * 0.07, ih * 0.33, iw * 0.86, 84, 'Paleta Principal'),
+        createPalette('palette-secondary', iw * 0.07, ih * 0.45, iw * 0.86, 84, 'Paleta Secundaria'),
+        createBody(iw * 0.07, ih * 0.58, iw * 0.86, ih * 0.3, 'Guías de contraste, recomendación de usos y observaciones del sistema.'),
+      ];
+    }
+    if (presetId === 'a4-showcase') {
+      const cardW = iw * 0.42;
+      return [
+        createTitle(iw * 0.06, ih * 0.05, iw * 0.88, 70, 'Showcase de color'),
+        createPalette('palette', iw * 0.06, ih * 0.2, cardW, 86, 'Principal'),
+        createPalette('palette-secondary', iw * 0.52, ih * 0.2, cardW, 86, 'Secundaria'),
+        createBody(iw * 0.06, ih * 0.34, cardW, ih * 0.5, 'Mensajes y tono visual para piezas clave.'),
+        createBody(iw * 0.52, ih * 0.34, cardW, ih * 0.5, 'Aplicaciones sugeridas y notas de implementación.'),
+      ];
+    }
+    if (presetId === 'a3-presentation') {
+      const colW = iw * 0.29;
+      return [
+        createTitle(iw * 0.04, ih * 0.04, iw * 0.92, 82, 'Presentación de sistema cromático'),
+        createPalette('palette', iw * 0.04, ih * 0.18, iw * 0.92, 94, 'Paleta Principal'),
+        createBody(iw * 0.04, ih * 0.3, colW, ih * 0.58, 'Concepto, audiencia y objetivo visual.'),
+        createBody(iw * 0.355, ih * 0.3, colW, ih * 0.58, 'Reglas de aplicación por canal y soporte.'),
+        createBody(iw * 0.67, ih * 0.3, colW, ih * 0.58, 'Checklist de consistencia y siguientes pasos.'),
+      ];
+    }
+    if (presetId === 'app-a4-poster') {
+      return [
+        createApplicationPoster(0, 0, iw, ih, 105),
+      ];
+    }
+    if (presetId === 'app-a3-poster') {
+      return [
+        createApplicationPoster(0, 0, iw, ih, 155),
+      ];
+    }
+    if (presetId === 'app-a4-architecture') {
+      return [
+        createApplicationArchitecture(0, 0, iw, ih, 90),
+      ];
+    }
+    if (presetId === 'app-a3-architecture') {
+      return [
+        createApplicationArchitecture(0, 0, iw, ih, 130),
+      ];
+    }
+    if (presetId === 'app-a4-branding-single') {
+      return [
+        createApplicationBranding(0, 0, iw, ih, 105),
+      ];
+    }
+    if (presetId === 'app-a3-branding') {
+      return [
+        createApplicationBranding(0, 0, iw, ih),
+      ];
+    }
+    if (presetId === 'app-a3-composition-grid') {
+      const cols = 3;
+      const sidePad = Math.round(iw * 0.05);
+      const topPad = Math.round(ih * 0.04);
+      const hGap = Math.round(iw * 0.02);
+      const cellW = Math.floor((iw - sidePad * 2 - hGap * (cols - 1)) / cols);
+      const contentH = ih - topPad * 2;
+      const vGap = Math.max(16, Math.round(contentH * 0.03));
+      const rowsAvail = contentH - vGap * 2;
+      // Proporción de referencia: fila superior grande, fila central media, fila inferior grande.
+      const row1H = Math.round(rowsAvail * 0.38); // Branding
+      const row2H = Math.round(rowsAvail * 0.24); // Arquitectura
+      const row3H = rowsAvail - row1H - row2H; // Poster
+      const xCol = (idx: number) => sidePad + idx * (cellW + hGap);
+      const frameW = Math.round(cellW * 1.32);
+      const frameX = (idx: number) => xCol(idx) - Math.round((frameW - cellW) / 2);
+      const y1 = topPad;
+      const y2 = y1 + row1H + vGap;
+      const y3 = y2 + row2H + vGap;
+      const architectureH = row2H * 2;
+      const architectureY = Math.round((ih - architectureH) / 2);
+      return [
+        createApplicationBranding(frameX(0), y1, frameW, row1H, 60, 'territorio-visual'),
+        createApplicationBranding(frameX(1), y1, frameW, row1H, 60, 'patrones'),
+        createApplicationBranding(frameX(2), y1, frameW, row1H, 60, 'mockup'),
+        createApplicationArchitecture(frameX(0), architectureY, frameW, architectureH, 85, 'estudio'),
+        createApplicationArchitecture(frameX(1), architectureY, frameW, architectureH, 85, 'stand'),
+        createApplicationArchitecture(frameX(2), architectureY, frameW, architectureH, 85, 'fachada'),
+        createApplicationPoster(frameX(0), y3, frameW, row3H, 60, 'conference'),
+        createApplicationPoster(frameX(1), y3, frameW, row3H, 60, 'festival-gig'),
+        createApplicationPoster(frameX(2), y3, frameW, row3H, 60, 'exhibition-swiss'),
+      ];
+    }
+    if (presetId === 'analysis-a5-core') {
+      return [
+        createTitle(iw * 0.08, ih * 0.05, iw * 0.84, 58, 'Core de análisis'),
+        createAnalysisHarmony(iw * 0.08, ih * 0.17, iw * 0.84, ih * 0.22),
+        createAnalysisContrast(iw * 0.08, ih * 0.43, iw * 0.84, ih * 0.4),
+      ];
+    }
+    if (presetId === 'analysis-a4-full') {
+      const colW = iw * 0.47;
+      return [
+        createTitle(iw * 0.04, ih * 0.04, iw * 0.92, 72, 'Análisis cromático completo'),
+        createAnalysisHarmony(iw * 0.04, ih * 0.16, colW, ih * 0.24),
+        createAnalysisTemperature(iw * 0.52, ih * 0.16, colW, ih * 0.24),
+        createAnalysisFocus(iw * 0.04, ih * 0.43, colW, ih * 0.24),
+        createAnalysisLightness(iw * 0.52, ih * 0.43, colW, ih * 0.24),
+        createAnalysisCvd(iw * 0.04, ih * 0.7, colW, ih * 0.24),
+        createAnalysisContrast(iw * 0.52, ih * 0.7, colW, ih * 0.24),
+      ];
+    }
+    if (presetId === 'analysis-a3-dashboard') {
+      const colW = iw * 0.31;
+      return [
+        createTitle(iw * 0.03, ih * 0.04, iw * 0.94, 84, 'Dashboard de análisis'),
+        createAnalysisHarmony(iw * 0.03, ih * 0.17, colW, ih * 0.34),
+        createAnalysisTemperature(iw * 0.345, ih * 0.17, colW, ih * 0.34),
+        createAnalysisFocus(iw * 0.66, ih * 0.17, colW, ih * 0.34),
+        createAnalysisLightness(iw * 0.03, ih * 0.55, colW, ih * 0.34),
+        createAnalysisCvd(iw * 0.345, ih * 0.55, colW, ih * 0.34),
+        createAnalysisContrast(iw * 0.66, ih * 0.55, colW, ih * 0.34),
+      ];
+    }
+    const leftW = iw * 0.57;
+    const rightX = iw * 0.63;
+    const rightW = iw * 0.31;
+    return [
+      createTitle(iw * 0.04, ih * 0.04, iw * 0.92, 82, 'Catálogo de paleta'),
+      createPalette('palette', iw * 0.04, ih * 0.18, leftW, 94, 'Paleta Principal'),
+      createPalette('palette-secondary', iw * 0.04, ih * 0.3, leftW, 94, 'Paleta Secundaria'),
+      createBody(iw * 0.04, ih * 0.42, leftW, ih * 0.46, 'Aplicaciones destacadas, jerarquías y tono visual recomendado.'),
+      createBody(rightX, ih * 0.18, rightW, ih * 0.7, 'Notas de producción, variaciones por soporte y recomendaciones de exportación.'),
+    ];
+  };
+
+  const applyQuickLayoutPreset = (presetId: ExportQuickLayoutPresetId) => {
+    const preset = EXPORT_QUICK_LAYOUT_PRESETS.find((p) => p.id === presetId);
+    if (!preset) return;
+    setLayoutBackup({
+      exportPageFormat,
+      customPageWidthPx: normalizedCustomPageWidthPx,
+      customPageHeightPx: normalizedCustomPageHeightPx,
+      canvasItems: canvasItems.map((item) => ({ ...item })),
+    });
+    const items = buildQuickLayoutPresetItems(preset.format, preset.id);
+    setExportPageFormat(preset.format);
+    setCanvasItems(items);
+    setSelectedCanvasId(null);
+    setEditingCanvasId(null);
+    cancelAllCanvasRelationTools();
+    if (preset.section === 'application' || preset.section === 'analysis') {
+      setShowBorder(false);
+      setTransparentElementCards(true);
+    }
+    showInfoNotification(`Plantilla aplicada: ${preset.label}. Copia previa guardada.`);
+  };
+
+  const restoreLayoutBackup = () => {
+    if (!layoutBackup) {
+      showInfoNotification('No hay una copia anterior para restaurar.');
+      return;
+    }
+    setExportPageFormat(layoutBackup.exportPageFormat);
+    setCustomPageWidthPx(layoutBackup.customPageWidthPx);
+    setCustomPageHeightPx(layoutBackup.customPageHeightPx);
+    setCanvasItems(layoutBackup.canvasItems.map((item) => ({ ...item })));
+    setSelectedCanvasId(layoutBackup.canvasItems[0]?.id ?? null);
+    setEditingCanvasId(null);
+    setLayoutBackup(null);
+    showInfoNotification('Composición anterior restaurada.');
+  };
+
+  const getCanvasBlockMinSize = (kind: ExportCanvasItem['kind']) => {
+    const minW =
+      kind === 'title'
+        ? 100
+        : kind === 'body'
+          ? 120
+          : kind === 'analysis-harmony'
+            ? 170
+            : kind === 'application-poster'
+              ? 170
+              : kind === 'application-architecture'
+                ? 220
+                : kind === 'application-branding'
+                  ? 170
+                  : kind === 'analysis-temperature' ||
+                      kind === 'analysis-focus' ||
+                      kind === 'analysis-lightness' ||
+                      kind === 'analysis-cvd' ||
+                      kind === 'analysis-contrast'
+                    ? 220
+                    : 120;
+    const minH =
+      kind === 'title'
+        ? 52
+        : kind === 'body'
+          ? 72
+          : kind === 'analysis-harmony'
+            ? 130
+            : kind === 'application-poster'
+              ? 220
+              : kind === 'application-architecture'
+                ? 180
+                : kind === 'application-branding'
+                  ? 220
+                  : kind === 'analysis-temperature' ||
+                      kind === 'analysis-focus' ||
+                      kind === 'analysis-lightness' ||
+                      kind === 'analysis-cvd' ||
+                      kind === 'analysis-contrast'
+                    ? 150
+                    : 38;
+    return { minW, minH };
+  };
+
   const beginResizeCanvasBlock = (
     e: React.PointerEvent,
     id: string,
@@ -2204,46 +2825,7 @@ export const ExportPanelPro: React.FC<ExportPanelProProps> = ({
     e.preventDefault();
     const item = canvasItems.find((c) => c.id === id);
     if (!item) return;
-    const minW =
-      item.kind === 'title'
-        ? 100
-        : item.kind === 'body'
-          ? 120
-          : item.kind === 'analysis-harmony'
-            ? 170
-            : item.kind === 'application-poster'
-              ? 170
-            : item.kind === 'application-architecture'
-              ? 220
-            : item.kind === 'application-branding'
-              ? 170
-            : item.kind === 'analysis-temperature' ||
-                item.kind === 'analysis-focus' ||
-                item.kind === 'analysis-lightness' ||
-                item.kind === 'analysis-cvd' ||
-                item.kind === 'analysis-contrast'
-              ? 220
-              : 120;
-    const minH =
-      item.kind === 'title'
-        ? 52
-        : item.kind === 'body'
-          ? 72
-          : item.kind === 'analysis-harmony'
-            ? 130
-            : item.kind === 'application-poster'
-              ? 220
-            : item.kind === 'application-architecture'
-              ? 180
-            : item.kind === 'application-branding'
-              ? 220
-            : item.kind === 'analysis-temperature' ||
-                item.kind === 'analysis-focus' ||
-                item.kind === 'analysis-lightness' ||
-                item.kind === 'analysis-cvd' ||
-                item.kind === 'analysis-contrast'
-              ? 150
-              : 38;
+    const { minW, minH } = getCanvasBlockMinSize(item.kind);
     const f = fit > 0 ? fit : 1;
     const start = { cx: e.clientX, cy: e.clientY, w: item.width, h: item.height, x: item.x, y: item.y };
     const onMove = (ev: PointerEvent) => {
@@ -2341,6 +2923,181 @@ export const ExportPanelPro: React.FC<ExportPanelProProps> = ({
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
+  };
+
+  const matchCanvasItemSizeFromSource = (sourceId: string, targetId: string, iw: number, ih: number) => {
+    let applied = false;
+    setCanvasItems((prev) => {
+      const source = prev.find((c) => c.id === sourceId);
+      const target = prev.find((c) => c.id === targetId);
+      if (!source || !target || source.id === target.id) return prev;
+      const { minW, minH } = getCanvasBlockMinSize(target.kind);
+      const targetMaxW = Math.max(minW, iw - target.x);
+      const targetMaxH = Math.max(minH, ih - target.y);
+      const nextW = clampExportCanvas(source.width, minW, targetMaxW);
+      const nextH = clampExportCanvas(source.height, minH, targetMaxH);
+      if (nextW === target.width && nextH === target.height) return prev;
+      applied = true;
+      return prev.map((c) => {
+        if (c.id !== targetId) return c;
+        const next = { ...c, width: nextW, height: nextH };
+        if (c.kind === 'title') {
+          return { ...next, fontSizePx: clampTitleFontForBlock(nextH, c.fontSizePx) };
+        }
+        if (c.kind === 'body') {
+          return { ...next, fontSizePx: clampBodyFontForBlock(nextH, c.fontSizePx) };
+        }
+        return next;
+      });
+    });
+    return applied;
+  };
+
+  const alignCanvasItemToSource = (
+    sourceId: string,
+    targetId: string,
+    mode: ExportAlignToolMode,
+    iw: number,
+    ih: number,
+  ) => {
+    let applied = false;
+    setCanvasItems((prev) => {
+      const source = prev.find((c) => c.id === sourceId);
+      const target = prev.find((c) => c.id === targetId);
+      if (!source || !target || source.id === target.id) return prev;
+      let nextX = target.x;
+      let nextY = target.y;
+      if (mode === 'vertical') {
+        const sourceCx = source.x + source.width / 2;
+        nextX = clampExportCanvas(sourceCx - target.width / 2, 0, Math.max(0, iw - target.width));
+      } else if (mode === 'horizontal') {
+        const sourceCy = source.y + source.height / 2;
+        nextY = clampExportCanvas(sourceCy - target.height / 2, 0, Math.max(0, ih - target.height));
+      } else if (mode === 'left') {
+        nextX = clampExportCanvas(source.x, 0, Math.max(0, iw - target.width));
+      } else if (mode === 'right') {
+        const sourceRight = source.x + source.width;
+        nextX = clampExportCanvas(sourceRight - target.width, 0, Math.max(0, iw - target.width));
+      } else if (mode === 'top') {
+        nextY = clampExportCanvas(source.y, 0, Math.max(0, ih - target.height));
+      } else if (mode === 'bottom') {
+        const sourceBottom = source.y + source.height;
+        nextY = clampExportCanvas(sourceBottom - target.height, 0, Math.max(0, ih - target.height));
+      }
+      if (nextX === target.x && nextY === target.y) return prev;
+      applied = true;
+      return prev.map((c) => (c.id === targetId ? { ...c, x: nextX, y: nextY } : c));
+    });
+    return applied;
+  };
+
+  const cancelMatchSizeTool = () => {
+    setMatchSizeToolStep('idle');
+    setMatchSizeSourceId(null);
+  };
+
+  const cancelAlignTool = () => {
+    setAlignToolStep('idle');
+    setAlignToolMode(null);
+    setAlignSourceId(null);
+  };
+
+  const cancelAllCanvasRelationTools = () => {
+    cancelMatchSizeTool();
+    cancelAlignTool();
+  };
+
+  const getAlignModeLabel = (mode: ExportAlignToolMode) => {
+    if (mode === 'vertical') return 'vertical (centro X)';
+    if (mode === 'horizontal') return 'horizontal (centro Y)';
+    if (mode === 'left') return 'por borde izquierdo';
+    if (mode === 'right') return 'por borde derecho';
+    if (mode === 'top') return 'por borde superior';
+    return 'por borde inferior';
+  };
+
+  const toggleMatchSizeTool = () => {
+    if (matchSizeToolStep !== 'idle') {
+      cancelMatchSizeTool();
+      return;
+    }
+    cancelAlignTool();
+    if (canvasItems.length < 2) {
+      showInfoNotification('Necesitas al menos 2 elementos en el lienzo para igualar tamaños.');
+      return;
+    }
+    if (selectedCanvasId) {
+      setMatchSizeSourceId(selectedCanvasId);
+      setMatchSizeToolStep('pickTarget');
+      showInfoNotification('Origen fijado. Selecciona ahora el segundo elemento para copiar ancho y alto.');
+      return;
+    }
+    setMatchSizeSourceId(null);
+    setMatchSizeToolStep('pickSource');
+    showInfoNotification('Selecciona el elemento origen para tomar su ancho y alto.');
+  };
+
+  const toggleAlignTool = (mode: ExportAlignToolMode) => {
+    if (alignToolStep !== 'idle' && alignToolMode === mode) {
+      cancelAlignTool();
+      return;
+    }
+    cancelMatchSizeTool();
+    if (canvasItems.length < 2) {
+      showInfoNotification('Necesitas al menos 2 elementos en el lienzo para alinear.');
+      return;
+    }
+    setAlignToolMode(mode);
+    if (selectedCanvasId) {
+      setAlignSourceId(selectedCanvasId);
+      setAlignToolStep('pickTarget');
+      showInfoNotification(`Origen fijado. Selecciona el destino para alinear ${getAlignModeLabel(mode)}.`);
+      return;
+    }
+    setAlignSourceId(null);
+    setAlignToolStep('pickSource');
+    showInfoNotification(`Selecciona el elemento origen para alinear ${getAlignModeLabel(mode)}.`);
+  };
+
+  const duplicateSelectedCanvasItem = () => {
+    if (!selectedCanvasId) {
+      showInfoNotification('Selecciona un elemento para duplicarlo.');
+      return;
+    }
+    const { w, h } = exportPagePixelSize(exportPageFormat);
+    const iw = w - 48;
+    const ih = h - 48;
+    const duplicateOffset = 24;
+    let duplicated = false;
+    let newSelectedId: string | null = null;
+    setCanvasItems((prev) => {
+      const source = prev.find((c) => c.id === selectedCanvasId);
+      if (!source) return prev;
+      const newId = crypto.randomUUID();
+      const nextX = clampExportCanvas(source.x + duplicateOffset, 0, Math.max(0, iw - source.width));
+      const nextY = clampExportCanvas(source.y + duplicateOffset, 0, Math.max(0, ih - source.height));
+      const copy: ExportCanvasItem = {
+        ...source,
+        id: newId,
+        x: nextX,
+        y: nextY,
+        paletteCodeFormats: source.paletteCodeFormats ? [...source.paletteCodeFormats] : undefined,
+        analysisHarmonyOptions: source.analysisHarmonyOptions ? [...source.analysisHarmonyOptions] : undefined,
+        analysisTemperatureOptions: source.analysisTemperatureOptions ? [...source.analysisTemperatureOptions] : undefined,
+        analysisFocusOptions: source.analysisFocusOptions ? [...source.analysisFocusOptions] : undefined,
+        analysisLightnessOptions: source.analysisLightnessOptions ? [...source.analysisLightnessOptions] : undefined,
+        analysisCvdOptions: source.analysisCvdOptions ? [...source.analysisCvdOptions] : undefined,
+        analysisContrastOptions: source.analysisContrastOptions ? [...source.analysisContrastOptions] : undefined,
+        contrastWcagTexts: source.contrastWcagTexts ? { ...source.contrastWcagTexts } : undefined,
+      };
+      duplicated = true;
+      newSelectedId = newId;
+      return [...prev, copy];
+    });
+    if (!duplicated || !newSelectedId) return;
+    setSelectedCanvasId(newSelectedId);
+    setEditingCanvasId(null);
+    showInfoNotification('Elemento duplicado.');
   };
 
   const bumpCanvasFontSize = (id: string, delta: number) => {
@@ -2656,6 +3413,7 @@ export const ExportPanelPro: React.FC<ExportPanelProProps> = ({
       case 'white': return '#ffffff';
       case 'dark': return '#0f0f1a';
       case 'custom': return customBg;
+      case 'transparent': return 'transparent';
     }
   };
 
@@ -2664,6 +3422,7 @@ export const ExportPanelPro: React.FC<ExportPanelProProps> = ({
       case 'white': return '#ffffff';
       case 'dark': return '#0f0f1a';
       case 'custom': return customBg;
+      case 'transparent': return undefined;
     }
   };
 
@@ -2817,7 +3576,7 @@ export const ExportPanelPro: React.FC<ExportPanelProProps> = ({
         try {
           const canvas = await html2canvas(previewRef.current, {
             scale: dpr,
-            backgroundColor: bgColor,
+            backgroundColor: bgColor ?? null,
             useCORS: true,
             allowTaint: true,
             logging: false,
@@ -2943,14 +3702,23 @@ export const ExportPanelPro: React.FC<ExportPanelProProps> = ({
     document.body.appendChild(notification);
     setTimeout(() => notification.remove(), 8000);
   };
+
+  const showInfoNotification = (message: string) => {
+    const notification = document.createElement('div');
+    notification.className = 'fixed bottom-4 right-4 bg-sky-600 text-white px-5 py-3 rounded-xl shadow-lg z-50 max-w-md';
+    notification.innerHTML = `<div class="text-sm">${message}</div>`;
+    document.body.appendChild(notification);
+    setTimeout(() => notification.remove(), 2800);
+  };
   
 
   const renderExportSizeFields = () => (
     <>
       <p className="mb-4 text-[11px] text-gray-500">
-        Formato de hoja DIN (vertical). La vista previa y el PNG usan la misma proporción y tamaño lógico (~96 DPI).
+        Elige un formato DIN o usa tamaño personalizado. La vista previa y el PNG usan la misma proporción y tamaño
+        lógico (~96 DPI).
       </p>
-      <div className="flex gap-1">
+      <div className="grid grid-cols-4 gap-1">
         {(['A5', 'A4', 'A3'] as const).map((fmt) => (
           <button
             key={fmt}
@@ -2965,18 +3733,248 @@ export const ExportPanelPro: React.FC<ExportPanelProProps> = ({
             {EXPORT_PAGE_SPECS[fmt].label}
           </button>
         ))}
+        <button
+          type="button"
+          onClick={() => {
+            if (exportPageFormat !== 'custom') {
+              const dims = exportPagePixelSizeFromPreset(exportPageFormat);
+              setCustomPageWidthPx(dims.w);
+              setCustomPageHeightPx(dims.h);
+            }
+            setExportPageFormat('custom');
+          }}
+          className={`rounded-lg py-2.5 text-xs font-medium transition-all ${
+            exportPageFormat === 'custom'
+              ? 'bg-purple-600 text-white'
+              : 'bg-gray-700/50 text-gray-300 hover:bg-gray-700'
+          }`}
+        >
+          Custom
+        </button>
       </div>
+      <AnimatePresence>
+        {exportPageFormat === 'custom' && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="mt-3 overflow-hidden"
+          >
+            <div className="rounded-xl border border-gray-700/50 bg-gray-900/50 p-3">
+              <div className="grid grid-cols-2 gap-2">
+                <label className="space-y-1">
+                  <span className="text-[10px] font-medium text-gray-400">Ancho (mm)</span>
+                  <input
+                    type="number"
+                    min={85}
+                    max={635}
+                    step={1}
+                    value={normalizedCustomPageWidthMm}
+                    onChange={(e) => {
+                      const nextMm = Number(e.target.value) || 85;
+                      setCustomPageWidthPx(Math.round(nextMm * MM_TO_CSS_PX));
+                    }}
+                    className="w-full rounded-lg border border-gray-600 bg-gray-800 px-2.5 py-2 text-xs text-white"
+                  />
+                </label>
+                <label className="space-y-1">
+                  <span className="text-[10px] font-medium text-gray-400">Alto (mm)</span>
+                  <input
+                    type="number"
+                    min={85}
+                    max={847}
+                    step={1}
+                    value={normalizedCustomPageHeightMm}
+                    onChange={(e) => {
+                      const nextMm = Number(e.target.value) || 85;
+                      setCustomPageHeightPx(Math.round(nextMm * MM_TO_CSS_PX));
+                    }}
+                    className="w-full rounded-lg border border-gray-600 bg-gray-800 px-2.5 py-2 text-xs text-white"
+                  />
+                </label>
+              </div>
+              <p className="mt-2 text-[10px] text-gray-500">
+                Rango recomendado: ancho 85–635 mm, alto 85–847 mm.
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
+  );
+
+  const renderExportTemplatesFields = () => (
+    <div>
+      <h5 className="mb-2 text-[11px] font-semibold text-gray-300">Plantillas rápidas</h5>
+      <p className="mb-2 text-[10px] text-gray-500">
+        Carga composiciones listas para exportar (reemplaza bloques actuales).
+      </p>
+      <div className="mb-2 flex items-center justify-between rounded-lg border border-gray-700/60 bg-gray-900/40 px-2 py-1">
+        <button
+          type="button"
+          aria-label="Sección anterior"
+          onClick={() =>
+            setExportTemplatesSection((cur) => {
+              const idx = EXPORT_TEMPLATES_SECTION_OPTIONS.findIndex((s) => s.id === cur);
+              const next = (idx - 1 + EXPORT_TEMPLATES_SECTION_OPTIONS.length) % EXPORT_TEMPLATES_SECTION_OPTIONS.length;
+              return EXPORT_TEMPLATES_SECTION_OPTIONS[next].id;
+            })
+          }
+          className="flex h-6 w-6 items-center justify-center rounded text-gray-300 hover:bg-gray-700/60 hover:text-white"
+        >
+          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <div className="flex items-center gap-1">
+          {EXPORT_TEMPLATES_SECTION_OPTIONS.map((section) => (
+            <button
+              key={section.id}
+              type="button"
+              onClick={() => setExportTemplatesSection(section.id)}
+              className={`rounded-md px-2 py-1 text-[10px] font-semibold transition-colors ${
+                exportTemplatesSection === section.id
+                  ? 'bg-purple-600/75 text-white'
+                  : 'text-gray-300 hover:bg-gray-700/60 hover:text-white'
+              }`}
+            >
+              {section.label}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          aria-label="Siguiente sección"
+          onClick={() =>
+            setExportTemplatesSection((cur) => {
+              const idx = EXPORT_TEMPLATES_SECTION_OPTIONS.findIndex((s) => s.id === cur);
+              const next = (idx + 1) % EXPORT_TEMPLATES_SECTION_OPTIONS.length;
+              return EXPORT_TEMPLATES_SECTION_OPTIONS[next].id;
+            })
+          }
+          className="flex h-6 w-6 items-center justify-center rounded text-gray-300 hover:bg-gray-700/60 hover:text-white"
+        >
+          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      </div>
+      {(() => {
+        const presets = EXPORT_QUICK_LAYOUT_PRESETS.filter((preset) => preset.section === exportTemplatesSection);
+        if (exportTemplatesSection === 'application') {
+          const individualPresets = presets.filter((preset) => (preset.applicationMode ?? 'individual') === 'individual');
+          const compositionPresets = presets.filter((preset) => preset.applicationMode === 'composition');
+          const activePresets =
+            exportTemplatesApplicationMode === 'individual' ? individualPresets : compositionPresets;
+          const a4Presets = activePresets.filter((preset) => preset.format === 'A4');
+          const a3Presets = activePresets.filter((preset) => preset.format === 'A3');
+          return (
+            <div>
+              <div className="mb-2 grid grid-cols-2 gap-1 rounded-lg border border-gray-700/60 bg-gray-900/40 p-1">
+                <button
+                  type="button"
+                  onClick={() => setExportTemplatesApplicationMode('individual')}
+                  className={`rounded-md px-2 py-1.5 text-[10px] font-semibold transition-colors ${
+                    exportTemplatesApplicationMode === 'individual'
+                      ? 'bg-purple-600/75 text-white'
+                      : 'text-gray-300 hover:bg-gray-700/60 hover:text-white'
+                  }`}
+                >
+                  Individual
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setExportTemplatesApplicationMode('composition')}
+                  className={`rounded-md px-2 py-1.5 text-[10px] font-semibold transition-colors ${
+                    exportTemplatesApplicationMode === 'composition'
+                      ? 'bg-purple-600/75 text-white'
+                      : 'text-gray-300 hover:bg-gray-700/60 hover:text-white'
+                  }`}
+                >
+                  Composición
+                </button>
+              </div>
+              {activePresets.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-gray-700/70 bg-gray-900/30 px-3 py-4 text-center text-[10px] text-gray-400">
+                  Plantillas de composición próximamente.
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-1.5">
+                  <div className="space-y-1.5">
+                    {a4Presets.map((preset) => (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => applyQuickLayoutPreset(preset.id)}
+                        className="w-full rounded-lg border border-gray-600/70 bg-gray-800/70 px-2 py-2 text-[10px] font-medium text-gray-200 transition-colors hover:border-purple-500/70 hover:bg-gray-700"
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="space-y-1.5">
+                    {a3Presets.map((preset) => (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => applyQuickLayoutPreset(preset.id)}
+                        className="w-full rounded-lg border border-gray-600/70 bg-gray-800/70 px-2 py-2 text-[10px] font-medium text-gray-200 transition-colors hover:border-purple-500/70 hover:bg-gray-700"
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        }
+        return (
+          <div className="grid grid-cols-2 gap-1.5">
+            {presets.map((preset) => (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() => applyQuickLayoutPreset(preset.id)}
+                className="rounded-lg border border-gray-600/70 bg-gray-800/70 px-2 py-2 text-[10px] font-medium text-gray-200 transition-colors hover:border-purple-500/70 hover:bg-gray-700"
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
+        );
+      })()}
+      <div className="mt-2">
+        <button
+          type="button"
+          onClick={restoreLayoutBackup}
+          disabled={!layoutBackup}
+          className={`w-full rounded-lg border px-2 py-2 text-[10px] font-semibold transition-colors ${
+            layoutBackup
+              ? 'border-emerald-500/70 bg-emerald-600/20 text-emerald-200 hover:bg-emerald-600/30'
+              : 'cursor-not-allowed border-gray-700/70 bg-gray-800/40 text-gray-500'
+          }`}
+        >
+          Restaurar anterior
+        </button>
+      </div>
+    </div>
   );
 
   const renderExportStyleFields = () => (
     <>
       <h4 className="text-xs font-medium text-gray-400 mb-2">Fondo</h4>
-      <div className="grid grid-cols-3 gap-2 mb-4">
+      <div className="grid grid-cols-4 gap-2 mb-4">
         {[
           { id: 'dark' as const, label: 'Oscuro', color: '#0f0f1a' },
           { id: 'white' as const, label: 'Claro', color: '#ffffff' },
           { id: 'custom' as const, label: 'Custom', color: customBg },
+          {
+            id: 'transparent' as const,
+            label: 'Sin fondo',
+            color:
+              'linear-gradient(135deg, #0f172a 0%, #0f172a 45%, #1e293b 45%, #1e293b 55%, #0f172a 55%, #0f172a 100%)',
+          },
         ].map((bg) => (
           <button
             key={bg.id}
@@ -2989,7 +3987,9 @@ export const ExportPanelPro: React.FC<ExportPanelProProps> = ({
             }`}
             style={{ background: bg.color }}
           >
-            <span className={`text-[10px] font-medium ${bg.id === 'white' ? 'text-gray-600' : 'text-white'}`}>{bg.label}</span>
+            <span className={`text-[10px] font-medium ${bg.id === 'white' ? 'text-gray-600' : 'text-white'}`}>
+              {bg.label}
+            </span>
           </button>
         ))}
       </div>
@@ -3360,9 +4360,9 @@ export const ExportPanelPro: React.FC<ExportPanelProProps> = ({
                   {exportSidebarAccordion !== 'size' && (
                     <span
                       className="truncate pl-6 text-[10px] font-medium leading-snug text-gray-400"
-                      title={`Formato · ${EXPORT_PAGE_SPECS[exportPageFormat].label}`}
+                      title={`Formato · ${exportPageFormatLabel}`}
                     >
-                      Formato · {EXPORT_PAGE_SPECS[exportPageFormat].label}
+                      Formato · {exportPageFormatLabel}
                     </span>
                   )}
                 </span>
@@ -3417,6 +4417,44 @@ export const ExportPanelPro: React.FC<ExportPanelProProps> = ({
                 <div className="border-t border-gray-700/40 px-3 py-3">{renderExportStyleFields()}</div>
               )}
             </div>
+            <div className="overflow-hidden rounded-xl border border-gray-700/50 bg-gray-800/50">
+              <button
+                type="button"
+                aria-expanded={exportSidebarAccordion === 'templates'}
+                onClick={() => setExportSidebarAccordion((o) => (o === 'templates' ? null : 'templates'))}
+                className="flex w-full items-start justify-between gap-2 px-3 py-2.5 text-left transition-colors hover:bg-gray-700/25"
+              >
+                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span className="flex items-center gap-2 text-sm font-semibold text-gray-200">
+                    <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden>
+                      <rect x="4" y="4" width="7" height="7" rx="1.5" />
+                      <rect x="13" y="4" width="7" height="7" rx="1.5" />
+                      <rect x="4" y="13" width="7" height="7" rx="1.5" />
+                      <rect x="13" y="13" width="7" height="7" rx="1.5" />
+                    </svg>
+                    Plantillas rápidas
+                  </span>
+                  {exportSidebarAccordion !== 'templates' && (
+                    <span className="truncate pl-6 text-[10px] font-medium leading-snug text-gray-400">
+                      {exportAccordionTemplatesSummary()}
+                    </span>
+                  )}
+                </span>
+                <svg
+                  className={`mt-0.5 h-4 w-4 shrink-0 text-gray-400 transition-transform ${exportSidebarAccordion === 'templates' ? 'rotate-180' : ''}`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  aria-hidden
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {exportSidebarAccordion === 'templates' && (
+                <div className="border-t border-gray-700/40 px-3 py-3">{renderExportTemplatesFields()}</div>
+              )}
+            </div>
 
             <div className="overflow-hidden rounded-xl border border-gray-700/50 bg-gray-800/50">
               <button
@@ -3457,7 +4495,7 @@ export const ExportPanelPro: React.FC<ExportPanelProProps> = ({
         ) : (
         <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Columna 1: Tamaño de imagen + estilo */}
+        {/* Columna 1: Tamaño de imagen + estilo + plantillas */}
         <div className="space-y-4">
           <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-5 border border-gray-700/50">
             <h3 className="text-sm font-semibold text-gray-200 mb-1 flex items-center gap-2">
@@ -3478,6 +4516,9 @@ export const ExportPanelPro: React.FC<ExportPanelProProps> = ({
               Estilo
             </h3>
             {renderExportStyleFields()}
+          </div>
+          <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-5 border border-gray-700/50">
+            {renderExportTemplatesFields()}
           </div>
         </div>
 
@@ -3590,6 +4631,7 @@ export const ExportPanelPro: React.FC<ExportPanelProProps> = ({
             if (pageHost instanceof HTMLElement && !pageHost.contains(t)) {
               setSelectedCanvasId(null);
               setEditingCanvasId(null);
+              cancelAllCanvasRelationTools();
             }
           }}
         >
@@ -3601,6 +4643,232 @@ export const ExportPanelPro: React.FC<ExportPanelProProps> = ({
               height: pagePx.h * fit,
             }}
           >
+            <div
+              data-export-handle
+              className="pointer-events-none absolute -right-12 top-0 z-40 flex flex-col gap-2"
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                data-export-handle
+                aria-label="Alinear en vertical entre dos elementos"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleAlignTool('vertical');
+                }}
+                className={`group pointer-events-auto relative flex h-9 w-9 items-center justify-center rounded-lg border transition-all ${
+                  alignToolStep !== 'idle' && alignToolMode === 'vertical'
+                    ? 'border-purple-400 bg-purple-600 text-white shadow-lg shadow-purple-500/30'
+                    : 'border-gray-600/80 bg-gray-900/80 text-gray-200 hover:border-purple-500 hover:text-white'
+                }`}
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+                  <rect x="5" y="4" width="14" height="5" rx="1.2" />
+                  <rect x="8" y="15" width="8" height="5" rx="1.2" />
+                  <path d="M12 10v4M10.5 12.5 12 14l1.5-1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <span
+                  data-export-handle
+                  className="pointer-events-none absolute right-full top-1/2 z-[70] mr-2 -translate-y-1/2 whitespace-nowrap rounded-lg border border-cyan-300/45 bg-slate-950/98 px-2.5 py-1.5 text-[11px] font-semibold text-slate-50 opacity-0 shadow-xl shadow-black/60 ring-1 ring-white/10 transition-all duration-150 group-hover:opacity-100"
+                >
+                  {alignToolStep !== 'idle' && alignToolMode === 'vertical'
+                    ? 'Alineacion vertical activa (origen -> destino)'
+                    : 'Alinear vertical entre dos elementos'}
+                </span>
+              </button>
+              <button
+                type="button"
+                data-export-handle
+                aria-label="Alinear en horizontal entre dos elementos"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleAlignTool('horizontal');
+                }}
+                className={`group pointer-events-auto relative flex h-9 w-9 items-center justify-center rounded-lg border transition-all ${
+                  alignToolStep !== 'idle' && alignToolMode === 'horizontal'
+                    ? 'border-purple-400 bg-purple-600 text-white shadow-lg shadow-purple-500/30'
+                    : 'border-gray-600/80 bg-gray-900/80 text-gray-200 hover:border-purple-500 hover:text-white'
+                }`}
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+                  <rect x="4" y="6" width="6" height="12" rx="1.2" />
+                  <rect x="14" y="9" width="6" height="6" rx="1.2" />
+                  <path d="M11 12h2M11.5 10.5 10 12l1.5 1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <span
+                  data-export-handle
+                  className="pointer-events-none absolute right-full top-1/2 z-[70] mr-2 -translate-y-1/2 whitespace-nowrap rounded-lg border border-cyan-300/45 bg-slate-950/98 px-2.5 py-1.5 text-[11px] font-semibold text-slate-50 opacity-0 shadow-xl shadow-black/60 ring-1 ring-white/10 transition-all duration-150 group-hover:opacity-100"
+                >
+                  {alignToolStep !== 'idle' && alignToolMode === 'horizontal'
+                    ? 'Alineacion horizontal activa (origen -> destino)'
+                    : 'Alinear horizontal entre dos elementos'}
+                </span>
+              </button>
+              <button
+                type="button"
+                data-export-handle
+                aria-label="Alinear borde izquierdo entre dos elementos"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleAlignTool('left');
+                }}
+                className={`group pointer-events-auto relative flex h-9 w-9 items-center justify-center rounded-lg border transition-all ${
+                  alignToolStep !== 'idle' && alignToolMode === 'left'
+                    ? 'border-purple-400 bg-purple-600 text-white shadow-lg shadow-purple-500/30'
+                    : 'border-gray-600/80 bg-gray-900/80 text-gray-200 hover:border-purple-500 hover:text-white'
+                }`}
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+                  <path d="M6 4v16" strokeLinecap="round" />
+                  <rect x="9" y="5" width="9" height="5" rx="1.2" />
+                  <rect x="11" y="14" width="7" height="5" rx="1.2" />
+                </svg>
+                <span
+                  data-export-handle
+                  className="pointer-events-none absolute right-full top-1/2 z-[70] mr-2 -translate-y-1/2 whitespace-nowrap rounded-lg border border-cyan-300/45 bg-slate-950/98 px-2.5 py-1.5 text-[11px] font-semibold text-slate-50 opacity-0 shadow-xl shadow-black/60 ring-1 ring-white/10 transition-all duration-150 group-hover:opacity-100"
+                >
+                  {alignToolStep !== 'idle' && alignToolMode === 'left'
+                    ? 'Alineacion por borde izquierdo activa'
+                    : 'Alinear borde izquierdo entre dos elementos'}
+                </span>
+              </button>
+              <button
+                type="button"
+                data-export-handle
+                aria-label="Alinear borde derecho entre dos elementos"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleAlignTool('right');
+                }}
+                className={`group pointer-events-auto relative flex h-9 w-9 items-center justify-center rounded-lg border transition-all ${
+                  alignToolStep !== 'idle' && alignToolMode === 'right'
+                    ? 'border-purple-400 bg-purple-600 text-white shadow-lg shadow-purple-500/30'
+                    : 'border-gray-600/80 bg-gray-900/80 text-gray-200 hover:border-purple-500 hover:text-white'
+                }`}
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+                  <path d="M18 4v16" strokeLinecap="round" />
+                  <rect x="6" y="5" width="9" height="5" rx="1.2" />
+                  <rect x="8" y="14" width="7" height="5" rx="1.2" />
+                </svg>
+                <span
+                  data-export-handle
+                  className="pointer-events-none absolute right-full top-1/2 z-[70] mr-2 -translate-y-1/2 whitespace-nowrap rounded-lg border border-cyan-300/45 bg-slate-950/98 px-2.5 py-1.5 text-[11px] font-semibold text-slate-50 opacity-0 shadow-xl shadow-black/60 ring-1 ring-white/10 transition-all duration-150 group-hover:opacity-100"
+                >
+                  {alignToolStep !== 'idle' && alignToolMode === 'right'
+                    ? 'Alineacion por borde derecho activa'
+                    : 'Alinear borde derecho entre dos elementos'}
+                </span>
+              </button>
+              <button
+                type="button"
+                data-export-handle
+                aria-label="Alinear borde superior entre dos elementos"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleAlignTool('top');
+                }}
+                className={`group pointer-events-auto relative flex h-9 w-9 items-center justify-center rounded-lg border transition-all ${
+                  alignToolStep !== 'idle' && alignToolMode === 'top'
+                    ? 'border-purple-400 bg-purple-600 text-white shadow-lg shadow-purple-500/30'
+                    : 'border-gray-600/80 bg-gray-900/80 text-gray-200 hover:border-purple-500 hover:text-white'
+                }`}
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+                  <path d="M4 6h16" strokeLinecap="round" />
+                  <rect x="5" y="9" width="6" height="9" rx="1.2" />
+                  <rect x="14" y="11" width="5" height="7" rx="1.2" />
+                </svg>
+                <span
+                  data-export-handle
+                  className="pointer-events-none absolute right-full top-1/2 z-[70] mr-2 -translate-y-1/2 whitespace-nowrap rounded-lg border border-cyan-300/45 bg-slate-950/98 px-2.5 py-1.5 text-[11px] font-semibold text-slate-50 opacity-0 shadow-xl shadow-black/60 ring-1 ring-white/10 transition-all duration-150 group-hover:opacity-100"
+                >
+                  {alignToolStep !== 'idle' && alignToolMode === 'top'
+                    ? 'Alineacion por borde superior activa'
+                    : 'Alinear borde superior entre dos elementos'}
+                </span>
+              </button>
+              <button
+                type="button"
+                data-export-handle
+                aria-label="Alinear borde inferior entre dos elementos"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleAlignTool('bottom');
+                }}
+                className={`group pointer-events-auto relative flex h-9 w-9 items-center justify-center rounded-lg border transition-all ${
+                  alignToolStep !== 'idle' && alignToolMode === 'bottom'
+                    ? 'border-purple-400 bg-purple-600 text-white shadow-lg shadow-purple-500/30'
+                    : 'border-gray-600/80 bg-gray-900/80 text-gray-200 hover:border-purple-500 hover:text-white'
+                }`}
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+                  <path d="M4 18h16" strokeLinecap="round" />
+                  <rect x="5" y="6" width="6" height="9" rx="1.2" />
+                  <rect x="14" y="8" width="5" height="7" rx="1.2" />
+                </svg>
+                <span
+                  data-export-handle
+                  className="pointer-events-none absolute right-full top-1/2 z-[70] mr-2 -translate-y-1/2 whitespace-nowrap rounded-lg border border-cyan-300/45 bg-slate-950/98 px-2.5 py-1.5 text-[11px] font-semibold text-slate-50 opacity-0 shadow-xl shadow-black/60 ring-1 ring-white/10 transition-all duration-150 group-hover:opacity-100"
+                >
+                  {alignToolStep !== 'idle' && alignToolMode === 'bottom'
+                    ? 'Alineacion por borde inferior activa'
+                    : 'Alinear borde inferior entre dos elementos'}
+                </span>
+              </button>
+              <button
+                type="button"
+                data-export-handle
+                aria-label="Igualar tamaño entre dos elementos"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleMatchSizeTool();
+                }}
+                className={`group pointer-events-auto relative flex h-9 w-9 items-center justify-center rounded-lg border transition-all ${
+                  matchSizeToolStep === 'idle'
+                    ? 'border-gray-600/80 bg-gray-900/80 text-gray-200 hover:border-purple-500 hover:text-white'
+                    : 'border-purple-400 bg-purple-600 text-white shadow-lg shadow-purple-500/30'
+                }`}
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+                  <rect x="3.5" y="4" width="7" height="6" rx="1.2" />
+                  <rect x="13.5" y="14" width="7" height="6" rx="1.2" />
+                  <path d="M10.5 7h3M12 5.5 13.5 7 12 8.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M13.5 17h-3M12 15.5 10.5 17 12 18.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <span
+                  data-export-handle
+                  className="pointer-events-none absolute right-full top-1/2 z-[70] mr-2 -translate-y-1/2 whitespace-nowrap rounded-lg border border-cyan-300/45 bg-slate-950/98 px-2.5 py-1.5 text-[11px] font-semibold text-slate-50 opacity-0 shadow-xl shadow-black/60 ring-1 ring-white/10 transition-all duration-150 group-hover:translate-x-0 group-hover:opacity-100"
+                >
+                  {matchSizeToolStep === 'pickSource'
+                    ? 'Elige el elemento origen'
+                    : matchSizeToolStep === 'pickTarget'
+                      ? 'Elige el elemento destino'
+                      : 'Igualar tamaño entre dos elementos'}
+                </span>
+              </button>
+              <button
+                type="button"
+                data-export-handle
+                aria-label="Duplicar elemento seleccionado"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  duplicateSelectedCanvasItem();
+                }}
+                className="group pointer-events-auto relative flex h-9 w-9 items-center justify-center rounded-lg border border-gray-600/80 bg-gray-900/80 text-gray-200 transition-all hover:border-purple-500 hover:text-white"
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+                  <rect x="8" y="8" width="10" height="10" rx="1.5" />
+                  <rect x="5" y="5" width="10" height="10" rx="1.5" />
+                </svg>
+                <span
+                  data-export-handle
+                  className="pointer-events-none absolute right-full top-1/2 z-[70] mr-2 -translate-y-1/2 whitespace-nowrap rounded-lg border border-cyan-300/45 bg-slate-950/98 px-2.5 py-1.5 text-[11px] font-semibold text-slate-50 opacity-0 shadow-xl shadow-black/60 ring-1 ring-white/10 transition-all duration-150 group-hover:opacity-100"
+                >
+                  Duplicar elemento seleccionado
+                </span>
+              </button>
+            </div>
             <div
               ref={previewRef}
               data-preview="true"
@@ -3628,6 +4896,7 @@ export const ExportPanelPro: React.FC<ExportPanelProProps> = ({
                   if (!(ev.target as HTMLElement).closest('[data-canvas-item-root]')) {
                     setSelectedCanvasId(null);
                     setEditingCanvasId(null);
+                    cancelAllCanvasRelationTools();
                   }
                 }}
               >
@@ -6475,7 +7744,7 @@ export const ExportPanelPro: React.FC<ExportPanelProProps> = ({
                                   maxHeight: architectureSceneOnly
                                     ? item.height
                                     : Math.max(180, item.height - 42),
-                                  aspectRatio: '3 / 4.2',
+                                  aspectRatio: '4 / 3',
                                   borderRadius: architectureSceneOnly ? 0 : 12,
                                   overflow: 'hidden',
                                   position: 'relative',
@@ -6494,6 +7763,7 @@ export const ExportPanelPro: React.FC<ExportPanelProProps> = ({
                                     palette={architecturePalette}
                                     variant={architectureTemplate}
                                     sceneOnly={architectureSceneOnly}
+                                    centerInContainer
                                   />
                                 </div>
                               </div>
