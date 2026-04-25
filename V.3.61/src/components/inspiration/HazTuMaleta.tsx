@@ -309,7 +309,7 @@ function fitPaletteToColorCount(hexes: string[], count: number): string[] {
 }
 
 const OBJECT_ICON_BASE: Record<ObjectItemId, string> = {
-  camera:     '#2A2A2A',
+  camera:     '#DCDADD',
   libro:      '#7C3AED',
   vino:       '#7F1D1D',
   zapatillas: '#F97316',
@@ -447,61 +447,66 @@ function ObjectIcon({
   const icons: Record<ObjectItemId, JSX.Element> = {
 
     camera: <>
-      {/* grip — textured left side */}
-      <rect x="2" y="18" width="10" height="26" rx="5" fill={c}/>
-      <rect x="3" y="20" width="2.5" height="4" rx="1" fill={d}/>
-      <rect x="3" y="26" width="2.5" height="4" rx="1" fill={d}/>
-      <rect x="3" y="32" width="2.5" height="4" rx="1" fill={d}/>
-      <rect x="3" y="38" width="2.5" height="4" rx="1" fill={d}/>
-      {/* body */}
-      <rect x="2" y="18" width="44" height="26" rx="6" fill={c}/>
-      {/* top edge highlight */}
-      <rect x="3" y="18" width="43" height="3" rx="3" fill={w} opacity=".4"/>
-      {/* pentaprism hump */}
-      <rect x="14" y="8" width="20" height="12" rx="4" fill={c}/>
-      <rect x="14" y="8" width="20" height="3" rx="3" fill={w} opacity=".3"/>
+      {/* upper body (paint-sensitive) */}
+      <rect x="3" y="4" width="42" height="26" rx="5" fill={c}/>
+      <rect x="3" y="4" width="42" height="26" rx="5" fill="url(#camBodySheen)" opacity=".7"/>
+      {/* lower black body */}
+      <rect x="2" y="26" width="44" height="20" rx="4" fill="#262628"/>
+      <rect x="2" y="26" width="44" height="20" rx="4" fill="url(#camBaseSheen)" opacity=".55"/>
+      {/* eject slot */}
+      <rect x="7" y="31" width="34" height="4.8" rx="1" fill="#121214"/>
+      <rect x="8" y="31.6" width="32" height="1.1" rx=".5" fill="rgba(255,255,255,0.18)"/>
+      {/* rainbow stripes */}
+      <rect x="9" y="36.8" width="6" height="1.6" fill="#22C4F0"/>
+      <rect x="9" y="38.6" width="6" height="1.6" fill="#22C55E"/>
+      <rect x="9" y="40.4" width="6" height="1.6" fill="#FACC15"/>
+      <rect x="9" y="42.2" width="6" height="1.6" fill="#F97316"/>
+      <rect x="9" y="44" width="6" height="1.4" fill="#EF4444"/>
+      {/* red shutter button */}
+      <circle cx="7.8" cy="22.8" r="3.6" fill="#E91414"/>
+      <circle cx="7.8" cy="22.8" r="3.7" fill="none" stroke="rgba(0,0,0,0.35)" strokeWidth=".6"/>
       {/* flash unit */}
-      <rect x="4" y="9" width="9" height="7" rx="2" fill={c}/>
-      <rect x="4" y="9" width="9" height="3" rx="2" fill="rgba(255,220,80,0.5)"/>
-      <rect x="5" y="10" width="7" height="2" rx="1" fill="rgba(255,245,180,0.7)"/>
-      {/* shutter button */}
-      <ellipse cx="38" cy="13" rx="5" ry="3.5" fill={d} opacity=".5"/>
-      <ellipse cx="38" cy="12" rx="4.5" ry="3" fill="#C8C8C8"/>
-      <ellipse cx="37" cy="11" rx="2" ry="1.2" fill="white" opacity=".5"/>
-      {/* mode dial */}
-      <ellipse cx="28" cy="10" rx="5" ry="4" fill={d}/>
-      <ellipse cx="28" cy="9.5" rx="4.5" ry="3.5" fill="#444"/>
-      <line x1="28" y1="6" x2="28" y2="8" stroke="#aaa" strokeWidth="1" strokeLinecap="round"/>
-      <line x1="31" y1="7" x2="30" y2="8.8" stroke="#aaa" strokeWidth=".8" strokeLinecap="round"/>
-      <line x1="25" y1="7" x2="26" y2="8.8" stroke="#aaa" strokeWidth=".8" strokeLinecap="round"/>
+      <rect x="5.8" y="8" width="7.2" height="12" rx="1.6" fill="#EFECEE"/>
+      <rect x="6.4" y="8.8" width="6" height="9.8" rx="1.2" fill="url(#camFlashGrid)" opacity=".9"/>
+      <circle cx="15.7" cy="9.5" r="1.1" fill="#E6E2E4"/>
+      <circle cx="15.7" cy="13" r="1" fill="#151416"/>
+      <circle cx="15.7" cy="13" r=".45" fill="#2A3238"/>
       {/* viewfinder */}
-      <rect x="36" y="19" width="8" height="6" rx="2" fill="rgba(10,10,30,0.8)"/>
-      <rect x="37" y="20" width="4" height="3" rx="1" fill={a} opacity=".35"/>
-      {/* lens mount ring outer */}
-      <circle cx="19" cy="32" r="13" fill={d}/>
-      <circle cx="19" cy="32" r="12" fill="#222" opacity=".9"/>
-      {/* lens barrel rings */}
-      <circle cx="19" cy="32" r="10" fill="#1a1a1a"/>
-      <circle cx="19" cy="32" r="10" fill="none" stroke="#444" strokeWidth="1"/>
-      <circle cx="19" cy="32" r="7.5" fill="#111"/>
-      <circle cx="19" cy="32" r="7.5" fill="none" stroke="#333" strokeWidth=".8"/>
-      {/* lens glass */}
-      <circle cx="19" cy="32" r="6" fill={a} opacity=".18"/>
-      <circle cx="19" cy="32" r="5" fill={a} opacity=".25"/>
-      {/* lens reflections */}
-      <ellipse cx="15.5" cy="27.5" rx="3" ry="1.8" fill="white" opacity=".2" transform="rotate(-35 15.5 27.5)"/>
-      <circle cx="14.5" cy="27" r="1.2" fill="white" opacity=".4"/>
-      <ellipse cx="22" cy="35.5" rx="2" ry="1.2" fill={a} opacity=".3" transform="rotate(20 22 35.5)"/>
-      {/* ring text dots */}
-      {[0,45,90,135,180,225,270,315].map((deg,i)=>{
-        const r2=11, rad=deg*Math.PI/180;
-        return <circle key={i} cx={19+r2*Math.cos(rad)} cy={32+r2*Math.sin(rad)} r=".6" fill="#555"/>;
-      })}
-      {/* status LED */}
-      <circle cx="44" cy="22" r="1.8" fill="#34D399" opacity=".9"/>
-      <circle cx="44" cy="22" r=".9" fill="white" opacity=".6"/>
-      {/* brand text area */}
-      <rect x="26" y="38" width="16" height="4" rx="1" fill={d} opacity=".3"/>
+      <rect x="35.2" y="7.5" width="7.8" height="7.8" rx="2" fill="#131315"/>
+      <rect x="36.1" y="8.4" width="6" height="6" rx="1.6" fill="#2C2C2F"/>
+      <rect x="37.2" y="9.5" width="3.8" height="3.8" rx="1" fill="#D8D5DA"/>
+      {/* small amber switch */}
+      <rect x="37.2" y="17.5" width="4.5" height="2.2" rx="1.1" fill="#CC7B00"/>
+      <circle cx="39.5" cy="18.6" r="1.1" fill="#F8C708"/>
+      {/* lens group */}
+      <circle cx="25" cy="16.5" r="8.2" fill="#101013"/>
+      <circle cx="25" cy="16.5" r="6.6" fill="#1B1C20"/>
+      <circle cx="25" cy="16.5" r="5.8" fill="none" stroke="#5E5F64" strokeWidth=".9"/>
+      <circle cx="25" cy="16.5" r="5" fill="#0D0E10"/>
+      <circle cx="25" cy="16.5" r="4.1" fill="none" stroke="#46484D" strokeWidth=".7"/>
+      <circle cx="25" cy="16.5" r="3.2" fill="#0A0B0E"/>
+      <circle cx="25" cy="16.5" r="2.2" fill={a} opacity=".26"/>
+      <ellipse cx="22.5" cy="14.1" rx="1.8" ry="1.1" fill="#FFF" opacity=".28" transform="rotate(-32 22.5 14.1)"/>
+      <circle cx="21.9" cy="13.6" r=".55" fill="#FFF" opacity=".55"/>
+      {/* sensor */}
+      <circle cx="32.8" cy="22.5" r="1.3" fill="#09090B"/>
+      {/* defs for gradients/pattern */}
+      <defs>
+        <linearGradient id="camBodySheen" x1="3" y1="4" x2="45" y2="30" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#FFFFFF" stopOpacity=".55"/>
+          <stop offset="65%" stopColor="#FFFFFF" stopOpacity="0"/>
+          <stop offset="100%" stopColor="#A7A2AA" stopOpacity=".25"/>
+        </linearGradient>
+        <linearGradient id="camBaseSheen" x1="2" y1="26" x2="46" y2="46" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#4C4C50"/>
+          <stop offset="45%" stopColor="#2A2A2E"/>
+          <stop offset="100%" stopColor="#111114"/>
+        </linearGradient>
+        <pattern id="camFlashGrid" width="1.2" height="1.2" patternUnits="userSpaceOnUse">
+          <rect width="1.2" height="1.2" fill="#B6B1B0"/>
+          <path d="M0 0 H1.2 M0 0 V1.2" stroke="#ECE8E7" strokeWidth=".12"/>
+        </pattern>
+      </defs>
     </>,
 
     libro: <>
@@ -2183,6 +2188,7 @@ export function HazTuMaleta({
   const [paintWipe, setPaintWipe] = useState<Record<number, { from: string; to: string; t: number }>>({});
   const paintWipeRafRef = useRef<number | null>(null);
   const paintWipeIdRef = useRef<number | null>(null);
+  const overlayRootRef = useRef<HTMLDivElement | null>(null);
   const caseRef = useRef<HTMLDivElement | null>(null);
   const leftColumnViewportRef = useRef<HTMLDivElement | null>(null);
   const leftColumnContentRef = useRef<HTMLDivElement | null>(null);
@@ -2585,9 +2591,13 @@ export function HazTuMaleta({
     onComplete(previewHexes, savedSnapshot);
   };
 
+  const overlayRect = overlayRootRef.current?.getBoundingClientRect();
+  const overlayOffsetX = overlayRect?.left ?? 0;
+  const overlayOffsetY = overlayRect?.top ?? 0;
+
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+    <div ref={overlayRootRef} className="relative flex flex-col flex-1 min-h-0 overflow-hidden">
       <style>{ANIM_CSS}</style>
       <div className="shrink-0 px-4 pt-4">
         <SectionBanner
@@ -3362,11 +3372,12 @@ export function HazTuMaleta({
         {brushMode && brushCursor.visible && (
           <div
             style={{
-              position: 'fixed',
-              left: brushCursor.x,
-              top: brushCursor.y,
-              transform: 'translate(-21px, -84px) rotate(-30deg)',
-              transformOrigin: '21px 84px',
+              position: 'absolute',
+              left: brushCursor.x - overlayOffsetX,
+              top: brushCursor.y - overlayOffsetY,
+              // Anclar el cursor en la punta real del pincel (extremo inferior de la cerda)
+              transform: 'translate(-21px, -89px) rotate(-30deg)',
+              transformOrigin: '21px 89px',
               pointerEvents: 'none',
               zIndex: 120,
               filter: 'drop-shadow(2px 4px 6px rgba(0,0,0,0.4))',
@@ -3404,10 +3415,10 @@ export function HazTuMaleta({
         {tagDrag && (
           <div
             style={{
-              position: 'fixed',
+              position: 'absolute',
               // Desplazamiento mínimo para que el cursor no tape el texto pero quede junto a él
-              left: tagDrag.x + 2,
-              top: tagDrag.y + 2,
+              left: tagDrag.x - overlayOffsetX + 2,
+              top: tagDrag.y - overlayOffsetY + 2,
               width: 116,
               height: 34,
               pointerEvents: 'none',
@@ -3551,7 +3562,9 @@ export function HazTuMaleta({
         const s = obj.defaultSize * 0.55;
         return (
           <div style={{
-            position:'fixed', left: shelfDrag.mx - s/2, top: shelfDrag.my - s/2,
+            position:'absolute',
+            left: shelfDrag.mx - overlayOffsetX - s/2,
+            top: shelfDrag.my - overlayOffsetY - s/2,
             pointerEvents:'none', zIndex:9999,
             filter:`drop-shadow(0 8px 24px rgba(0,0,0,0.7))`,
             opacity:.9,
