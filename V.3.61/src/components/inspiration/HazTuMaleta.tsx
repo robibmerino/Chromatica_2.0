@@ -148,6 +148,9 @@ const QUICK_COLORS = [
 // ── Objects ───────────────────────────────────────────────────────────────────
 const OBJECTS = [
   { id:'camera',     name:'Cámara',              defaultSize:160 },
+  { id:'cajaFuerte', name:'Caja fuerte',         defaultSize:225 },
+  { id:'mandoRetro', name:'Mando retro',         defaultSize:210 },
+  { id:'sandwich',   name:'Sándwich',            defaultSize:205 },
   { id:'libro',      name:'Libro',               defaultSize:150 },
   { id:'vino',       name:'Botella de vino',     defaultSize:210 },
   { id:'zapatillas', name:'Zapatillas',           defaultSize:195 },
@@ -171,6 +174,9 @@ type ObjectItemId = ShelfObjectDef['id'];
  */
 const OBJECT_SVG_BOUNDS: Record<ObjectItemId, { l: number; r: number; t: number; b: number }> = {
   camera: { l: 2, r: 46, t: 6, b: 44 },
+  cajaFuerte: { l: 4, r: 44, t: 4, b: 47 },
+  mandoRetro: { l: 3, r: 45, t: 8, b: 39 },
+  sandwich: { l: 4, r: 44, t: 4, b: 44 },
   libro: { l: 7, r: 38, t: 4, b: 44 },
   vino: { l: 14, r: 34, t: 2, b: 46 },
   zapatillas: { l: 5, r: 46, t: 10, b: 44 },
@@ -267,6 +273,13 @@ function tagAnchorForObject(
   };
 }
 
+function getInSuitcaseObjectScale(objId: ObjectItemId): number {
+  if (objId === 'cajaFuerte') return 1.08;
+  if (objId === 'mandoRetro') return 0.8;
+  if (objId === 'sandwich') return 0.9;
+  return 1;
+}
+
 export interface PlacedItem {
   id: number;
   objId: ObjectItemId;
@@ -310,6 +323,9 @@ function fitPaletteToColorCount(hexes: string[], count: number): string[] {
 
 const OBJECT_ICON_BASE: Record<ObjectItemId, string> = {
   camera:     '#DCDADD',
+  cajaFuerte: '#5C6B73',
+  mandoRetro: '#A23A4C',
+  sandwich:   '#B5492C',
   libro:      '#7C3AED',
   vino:       '#7F1D1D',
   zapatillas: '#F97316',
@@ -344,6 +360,9 @@ function tagLabelsEqual(a: string, b: string): boolean {
 
 const OBJECT_ICON_ACCENT: Record<ObjectItemId, string> = {
   camera:     '#4A6FA5',
+  cajaFuerte: '#D6CBBA',
+  mandoRetro: '#EFE5C2',
+  sandwich:   '#99C64A',
   libro:      '#C4B5FD',
   vino:       '#FECACA',
   zapatillas: '#FED7AA',
@@ -507,6 +526,182 @@ function ObjectIcon({
           <path d="M0 0 H1.2 M0 0 V1.2" stroke="#ECE8E7" strokeWidth=".12"/>
         </pattern>
       </defs>
+    </>,
+
+    cajaFuerte: <>
+      {/* sombra base */}
+      <ellipse cx="24" cy="45.3" rx="16.2" ry="2.3" fill="rgba(0,0,0,0.15)"/>
+
+      {/* patas */}
+      <rect x="9.5" y="41.3" width="3.8" height="5.6" rx="1.5" fill="#3E423C"/>
+      <rect x="34.7" y="41.3" width="3.8" height="5.6" rx="1.5" fill="#3E423C"/>
+
+      {/* cuerpo principal */}
+      <rect x="5" y="5" width="38" height="38" rx="3" fill="#4A4A4A"/>
+      {/* cara frontal sensible al pintado */}
+      <rect x="6.4" y="6.5" width="35.2" height="35.2" rx="2.5" fill={c}/>
+      <rect x="8" y="8.2" width="32" height="31.8" rx="1.8" fill="#4E5A62"/>
+      <rect x="8" y="8.2" width="32" height="3.1" rx="1.2" fill={w} opacity=".35"/>
+      <rect x="8" y="35.8" width="32" height="4.2" rx="1.1" fill="#2E3438" opacity=".55"/>
+
+      {/* bisagras izquierda */}
+      <rect x="5.5" y="12.5" width="1.8" height="4.8" rx=".5" fill="#3E423C"/>
+      <rect x="5.5" y="29.8" width="1.8" height="4.8" rx=".5" fill="#3E423C"/>
+      <circle cx="6.4" cy="14" r=".35" fill="#757575"/>
+      <circle cx="6.4" cy="32.2" r=".35" fill="#757575"/>
+
+      {/* cierres derecha */}
+      <rect x="40.5" y="13.6" width="1.8" height="3.2" rx=".7" fill="#BFC1C2"/>
+      <rect x="40.5" y="29.6" width="1.8" height="3.2" rx=".7" fill="#BFC1C2"/>
+
+      {/* manija */}
+      <rect x="31" y="11.5" width="5.4" height="5.4" rx="1.1" fill="#3E423C"/>
+      <rect x="31.6" y="12.1" width="4.2" height="4.2" rx=".9" fill="#4A4A4A"/>
+      <rect x="36.1" y="13.2" width="2.5" height="2.1" rx="1" fill="#A9A9A8"/>
+
+      {/* dial exterior */}
+      <circle cx="24" cy="24.4" r="9.4" fill="#3E423C"/>
+      <circle cx="24" cy="24.4" r="6.9" fill="#C2C1C1"/>
+      <circle cx="24" cy="24.4" r="6.2" fill="#A9A9A8"/>
+
+      {/* marcas del dial */}
+      {[0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330].map((deg, i) => {
+        const rad = (deg * Math.PI) / 180;
+        const x = 24 + Math.cos(rad) * 5.2;
+        const y = 24.4 + Math.sin(rad) * 5.2;
+        const x2 = 24 + Math.cos(rad) * 5.9;
+        const y2 = 24.4 + Math.sin(rad) * 5.9;
+        return <line key={i} x1={x} y1={y} x2={x2} y2={y2} stroke="#D6CBBA" strokeWidth=".7" strokeLinecap="round"/>;
+      })}
+
+      {/* centro dial */}
+      <circle cx="24" cy="24.4" r="2.3" fill="#FCF9D3"/>
+      <circle cx="24" cy="24.4" r="1.2" fill="#D6CBBA"/>
+      <path d="M24 17.9 L23.3 19.1 H24.7 Z" fill="#3E423C"/>
+
+      {/* cerradura */}
+      <circle cx="32.2" cy="24.5" r="1.7" fill="#FCF3CA"/>
+      <circle cx="32.2" cy="24.5" r="1.1" fill="#374F5F"/>
+
+      {/* tornillos de esquina */}
+      {[10.7, 37.3].map((x, i) => (
+        <g key={i}>
+          <circle cx={x} cy={9.8} r=".65" fill="#C2C1C1"/>
+          <circle cx={x} cy={37} r=".65" fill="#C2C1C1"/>
+        </g>
+      ))}
+
+      {/* placa inferior */}
+      <rect x="18.2" y="35.3" width="11.6" height="2.4" rx=".5" fill="#D6CBBA"/>
+      <rect x="19.4" y="36.1" width="9.2" height=".4" rx=".2" fill="#8B7355" opacity=".45"/>
+
+      {/* brillo diagonal continuo (una sola banda) */}
+      <path d="M14.2 7.2 L22.4 7.2 L16.4 39.2 L8.2 39.2 Z" fill="#FFFFFF" opacity=".09"/>
+    </>,
+
+    mandoRetro: <>
+      {(() => {
+        const cream = '#EFE5C2';
+        const creamDark = '#80665B';
+        const ivory = '#E7E5D8';
+        return (
+          <>
+      {/* carcasa exterior */}
+      <rect x="3" y="8" width="42" height="31" rx="4.2" fill={c}/>
+      {/* panel frontal crema */}
+      <path d="M6 11.3 Q6 10 7.3 10 H24 Q25 10 25 11.1 V14.6 H40.2 Q41.8 14.6 41.8 16.3 V30.8 Q41.8 32.7 39.9 32.7 H7.9 Q6 32.7 6 30.8 Z" fill={cream}/>
+      {/* lineas decorativas */}
+      <rect x="6.1" y="27.6" width="35.5" height=".95" rx=".4" fill={creamDark} opacity=".5"/>
+      <rect x="6.1" y="29.3" width="35.5" height=".75" rx=".4" fill={creamDark} opacity=".35"/>
+
+      {/* bloque II */}
+      <rect x="7.4" y="11.1" width="4.8" height="4.8" rx=".45" fill="#3F3D3C"/>
+      <rect x="8.15" y="11.85" width="3.3" height="3.3" rx=".26" fill="#F4EFE5"/>
+      <rect x="8.9" y="12.4" width=".62" height="2.2" fill="#3F3D3C"/>
+      <rect x="10.05" y="12.4" width=".62" height="2.2" fill="#3F3D3C"/>
+
+      {/* slider superior */}
+      <rect x="13.2" y="11.1" width="8.9" height="2.55" rx=".42" fill="#FFFFFF"/>
+      <rect x="13.8" y="11.55" width="6.8" height="1.65" rx=".28" fill="#3F3D3C"/>
+      <path d="M22.35 14.15 L26.05 14.85 L22.35 15.55 Z" fill="#3F3D3C"/>
+
+      {/* rejilla altavoz */}
+      <rect x="27.2" y="11" width="11.2" height="7.5" rx="1.2" fill={c}/>
+      {[28.5, 30.4, 32.3, 34.2, 36.1].map((x) => (
+        <g key={`mr-grill-${x}`}>
+          <circle cx={x} cy="12.8" r=".45" fill="#181818"/>
+          <circle cx={x} cy="14.6" r=".45" fill="#181818"/>
+          <circle cx={x} cy="16.4" r=".45" fill="#181818"/>
+        </g>
+      ))}
+
+      {/* D-pad mejor definido */}
+      <rect x="8.1" y="19.2" width="8.8" height="8.8" rx="1" fill={c}/>
+      <rect x="11.25" y="19.85" width="2.5" height="7.5" rx=".55" fill="#232120"/>
+      <rect x="8.75" y="22.35" width="7.5" height="2.5" rx=".55" fill="#232120"/>
+      <circle cx="12.5" cy="23.6" r="1.6" fill="#3F3D3C" opacity=".7"/>
+
+      {/* etiquetas A/B */}
+      <ellipse cx="30.7" cy="21.1" rx="2.15" ry="1.25" fill={creamDark} opacity=".55"/>
+      <ellipse cx="36.2" cy="21.1" rx="2.15" ry="1.25" fill={creamDark} opacity=".55"/>
+      <text x="30.7" y="21.5" textAnchor="middle" fontSize="1.75" fontWeight="700" fill={ivory} fontFamily="Arial, sans-serif">B</text>
+      <text x="36.2" y="21.5" textAnchor="middle" fontSize="1.75" fontWeight="700" fill={ivory} fontFamily="Arial, sans-serif">A</text>
+
+      {/* botones acción */}
+      <circle cx="31.1" cy="26.2" r="2.45" fill={c}/>
+      <circle cx="31.1" cy="26.2" r="1.9" fill="#232120"/>
+      <circle cx="36.4" cy="26.2" r="2.45" fill={c}/>
+      <circle cx="36.4" cy="26.2" r="1.9" fill="#232120"/>
+
+      {/* brillo frontal sutil */}
+      <path d="M6.1 11 L18.8 11 L14.4 32.7 L6.1 32.7 Z" fill="#FFFFFF" opacity=".08"/>
+          </>
+        );
+      })()}
+    </>,
+
+    sandwich: <>
+      {/* base shadow */}
+      <ellipse cx="24" cy="44.2" rx="15.8" ry="2.1" fill="rgba(0,0,0,0.14)"/>
+
+      {/* fillings behind bread (mejor repartidos y más visibles) */}
+      <rect x="6.2" y="31.1" width="35.6" height="8.6" rx="2" fill="#F6D766"/>
+      {/* queso asomando como cuadrado girado (rombo) */}
+      <rect x="19.7" y="36.1" width="8.6" height="8.6" rx=".9" fill="#F9CC4E" transform="rotate(45 24 40.4)"/>
+      <rect x="20.6" y="37" width="6.8" height="6.8" rx=".72" fill="#FFD861" transform="rotate(45 24 40.4)"/>
+      {/* picos de queso en los otros extremos */}
+      <rect x="19.7" y="4.5" width="8.6" height="8.6" rx=".9" fill="#F9CC4E" transform="rotate(45 24 8.8)"/>
+      <rect x="20.6" y="5.4" width="6.8" height="6.8" rx=".72" fill="#FFD861" transform="rotate(45 24 8.8)"/>
+      <rect x="3.8" y="20.1" width="8.6" height="8.6" rx=".9" fill="#F9CC4E" transform="rotate(45 8.1 24.4)"/>
+      <rect x="4.7" y="21" width="6.8" height="6.8" rx=".72" fill="#FFD861" transform="rotate(45 8.1 24.4)"/>
+      <rect x="35.6" y="20.1" width="8.6" height="8.6" rx=".9" fill="#F9CC4E" transform="rotate(45 40 24.4)"/>
+      <rect x="36.5" y="21" width="6.8" height="6.8" rx=".72" fill="#FFD861" transform="rotate(45 40 24.4)"/>
+      {/* arriba: tomate/lechuga/cebolla */}
+      <circle cx="12.7" cy="8.2" r="3.55" fill={c}/>
+      <circle cx="20.5" cy="7.7" r="3.25" fill="#7BC043"/>
+      <circle cx="28.1" cy="7.9" r="3.45" fill={c}/>
+      <circle cx="35.5" cy="8.5" r="3.15" fill={c}/>
+      {/* lados: más cantidad y reparto vertical/horizontal */}
+      <circle cx="7.5" cy="21.8" r="3.35" fill={c}/>
+      <circle cx="9.1" cy="27.4" r="2.9" fill="#7BC043"/>
+      <circle cx="7.1" cy="33.6" r="3.15" fill="#7BC043"/>
+      <circle cx="8.9" cy="38.4" r="2.75" fill={c}/>
+      <circle cx="40.6" cy="23.5" r="2.95" fill={c}/>
+      <circle cx="38.8" cy="27.6" r="3.25" fill="#7BC043"/>
+      <circle cx="40.9" cy="34.1" r="2.7" fill="#7BC043"/>
+      <circle cx="39.1" cy="37.1" r="3.0" fill={c}/>
+
+      {/* bread */}
+      <rect x="7.2" y="6.1" width="33.6" height="34.4" rx="4.2" fill="#E5AF6E"/>
+      <rect x="9.4" y="8.2" width="29.2" height="30.1" rx="1.9" fill="#FFF1D4"/>
+
+      {/* crumb dots */}
+      {[[14,15],[19,22],[26,18],[31,24],[16,30],[22,27],[29,32],[21,35],[13,23]].map(([x,y],i)=>(
+        <circle key={`crumb-${i}`} cx={x} cy={y} r=".78" fill="#E5AF6E"/>
+      ))}
+
+      {/* subtle top shine */}
+      <path d="M10 9.1 H37.2" stroke="rgba(255,255,255,0.32)" strokeWidth=".9" strokeLinecap="round"/>
     </>,
 
     libro: <>
@@ -2032,6 +2227,7 @@ function SuitcaseShelf({ placedIds, placedLength, setShelfDrag }: SuitcaseShelfP
           const inCase = placedIds.has(obj.id);
           const full = placedLength >= MAX_ITEMS;
           const disabled = inCase || full;
+          const shelfYOffset = obj.id === 'mandoRetro' ? 14 : 0;
           return (
             <div
               key={obj.id}
@@ -2061,7 +2257,12 @@ function SuitcaseShelf({ placedIds, placedLength, setShelfDrag }: SuitcaseShelfP
                 e.currentTarget.style.transform = 'none';
               }}
             >
-              <div style={{ filter: `drop-shadow(0 10px 16px rgba(0,0,0,0.8))` }}>
+              <div
+                style={{
+                  filter: `drop-shadow(0 10px 16px rgba(0,0,0,0.8))`,
+                  transform: shelfYOffset ? `translateY(${shelfYOffset}px)` : undefined,
+                }}
+              >
                 <ObjectIcon id={obj.id} size={obj.defaultSize * 0.5} />
               </div>
             </div>
@@ -2293,7 +2494,7 @@ export function HazTuMaleta({
           const rawY = (e.clientY - r.top) / scale;
           const { x: cx, y: cy } = clampPlacedItemPosition(
             obj.id,
-            obj.defaultSize,
+            obj.defaultSize * getInSuitcaseObjectScale(obj.id),
             rawX,
             rawY,
             localWidth,
@@ -2341,7 +2542,7 @@ export function HazTuMaleta({
       const rawY = (e.clientY - r.top - reposDrag.oy) / scale;
       const { x, y } = clampPlacedItemPosition(
         item.objId,
-        item.size,
+        item.size * getInSuitcaseObjectScale(item.objId),
         rawX,
         rawY,
         localWidth,
@@ -2454,7 +2655,7 @@ export function HazTuMaleta({
         const cur = p[id] ?? { x: SUITCASE_W / 2, y: SUITCASE_H / 2 };
         const { x, y } = clampPlacedItemPosition(
           item.objId,
-          item.size,
+          item.size * getInSuitcaseObjectScale(item.objId),
           cur.x,
           cur.y,
           box.width / sc,
@@ -2958,15 +3159,16 @@ export function HazTuMaleta({
                   const displayPaint = wipe?.to ?? p.color;
                   const itemColor = displayPaint || '#94A3B8';
                   const wipeClip = wipe ? wavyTopToBottomWipeClipPath(wipe.t) : undefined;
-                  const tagA = tagAnchorForObject(p.objId, p.size);
+                  const renderSize = p.size * getInSuitcaseObjectScale(p.objId);
+                  const tagA = tagAnchorForObject(p.objId, renderSize);
                   const rot = p.rotation ?? 0;
                   return (
                     <div key={p.id}
                       style={{
                         position:'absolute', left: position.x, top: position.y,
                         transform:'translate(-50%, -50%)',
-                        width: p.size,
-                        height: p.size,
+                        width: renderSize,
+                        height: renderSize,
                         zIndex: isDrag ? 20 : isH ? 10 : 1,
                         cursor: brushMode ? 'none' : isDrag ? 'grabbing' : 'grab',
                         transition: isDrag ? 'none' : 'filter .15s',
@@ -3007,7 +3209,7 @@ export function HazTuMaleta({
                               id={p.objId}
                               color={wipe.to}
                               accent={`${wipe.to}55`}
-                              size={p.size}
+                              size={renderSize}
                             />
                             <div
                               style={{
@@ -3027,7 +3229,7 @@ export function HazTuMaleta({
                                 id={p.objId}
                                 color={wipe.from}
                                 accent={`${wipe.from}55`}
-                                size={p.size}
+                                size={renderSize}
                               />
                             </div>
                           </div>
@@ -3036,7 +3238,7 @@ export function HazTuMaleta({
                             id={p.objId}
                             color={p.color || null}
                             accent={p.color ? `${p.color}55` : undefined}
-                            size={p.size}
+                            size={renderSize}
                           />
                         )}
 
